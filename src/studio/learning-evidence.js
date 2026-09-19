@@ -42,7 +42,7 @@ function normaliseEvent(input, now = Date.now()) {
         answer: shortText(input.answer, 180),
         expected: shortText(input.expected, 180),
         method: shortText(input.method, 80),
-        mode: input.mode === 'exam' ? 'exam' : input.mode === 'practice' ? 'practice' : 'standalone',
+        mode: input.mode === 'exam' ? 'exam' : input.mode === 'practice' ? 'practice' : input.mode === 'plan' ? 'plan' : 'standalone',
         timestamp
     };
 }
