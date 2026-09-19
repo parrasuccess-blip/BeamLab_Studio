@@ -563,3 +563,38 @@ test('learning evidence preserves guided plan mode', () => {
   const row = learningEvidence.normaliseEvent({event:'attempt',topic:'Shear → moment',mode:'plan',correct:true,firstTry:true}, 123);
   assert.equal(row.mode, 'plan');
 });
+
+
+test('guided study block can shrink the unfinished phase count after new evidence', () => {
+  const initial = studyBlock.buildQueue({
+    steps:[
+      {kind:'lesson',id:'a',title:'A',topic:'A',phase:'repair'},
+      {kind:'lesson',id:'b',title:'B',topic:'B',phase:'build'},
+      {kind:'challenge',id:'c',title:'C',topic:'C',phase:'build'}
+    ]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2'},
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'}
+  ], {focusTarget:3,mixedTarget:4});
+  const replanned = studyBlock.replanFocusTail(initial.queue, 0, {
+    steps:[{kind:'session',id:'practice',title:'Mixed',topic:'Mixed revision',phase:'mixed-check'}]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2'},
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'}
+  ], {focusTarget:3,mixedTarget:4});
+  assert.equal(replanned[0].studyPhase, 1);
+  assert.equal(replanned.at(-1).studyPhase, 2);
+  assert.ok(replanned.every(row => row.studyPhaseTotal === 2));
+});
+
+test('topic drill-down preserves guided plan event labels', () => {
+  const topic = 'Shear → moment';
+  const d = topicDrilldown.detail('year1', topic, [
+    {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:true,firstTry:true,mode:'plan',timestamp:1}
+  ], {}, {}, {});
+  assert.equal(d.events[0].mode, 'plan');
+});
