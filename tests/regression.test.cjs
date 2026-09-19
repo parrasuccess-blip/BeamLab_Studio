@@ -19,6 +19,7 @@ const design = load('studio/design');
 const designWorkflow = load('studio/design-workflow');
 const learningEvidence = load('studio/learning-evidence');
 const learningPath = load('studio/learning-path');
+const adaptivePractice = load('studio/adaptive-practice');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -176,4 +177,62 @@ test('Learn UI exposes one deterministic recommended-next card and reset clears 
   assert.match(html, /learningRecommendation/);
   assert.match(html, /learning-evidence/);
   assert.match(html, /recent learning evidence reset/i);
+});
+
+
+test('adaptive practice starts with unresolved recent difficulty', () => {
+  const evidence = {
+    recentEvents: [{event:'attempt',kind:'lesson',taskId:'l1-shear-moment',topic:'Shear → moment',correct:false,timestamp:20}],
+    priorityTopics: [{topic:'Shear → moment',priority:9}]
+  };
+  const plan = adaptivePractice.planPractice('year1', evidence, {}, {}, {}, {count:4});
+  assert.equal(plan.length, 4);
+  assert.equal(plan[0].topic, 'Shear → moment');
+  assert.equal(plan[0].basis, 'repair');
+  assert.match(plan[0].reason, /Repair:/);
+});
+
+test('adaptive practice moves on after the newest correction', () => {
+  const evidence = {
+    recentEvents: [
+      {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',topic:'Shear → moment',correct:false,timestamp:10},
+      {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',topic:'Shear → moment',correct:true,timestamp:20}
+    ],
+    priorityTopics: [{topic:'Shear → moment',priority:9}]
+  };
+  const plan = adaptivePractice.planPractice('year1', evidence, {'l1-shear-moment':true}, {}, {
+    'Shear → moment': {attempts:2,correct:1,firstAttempts:1,firstCorrect:0,reveals:0}
+  }, {count:4});
+  assert.equal(plan.length, 4);
+  assert.notEqual(plan[0].topic, 'Shear → moment');
+});
+
+test('adaptive practice never repeats answered tasks when replanning', () => {
+  const evidence = {
+    recentEvents: [{event:'skip',kind:'lesson',taskId:'l1-point-shear',topic:'Point loads & shear',timestamp:30}],
+    priorityTopics: [{topic:'Point loads & shear',priority:6}]
+  };
+  const plan = adaptivePractice.planPractice('year1', evidence, {}, {}, {}, {
+    count:3,
+    excludeIds:['l1-point-shear','y1-reaction']
+  });
+  assert.equal(plan.length, 3);
+  assert.equal(new Set(plan.map(row => row.id)).size, plan.length);
+  assert.ok(!plan.some(row => ['l1-point-shear','y1-reaction'].includes(row.id)));
+});
+
+test('Exam Mode keeps the fixed mastery-based session planner', () => {
+  const challenges = load('studio/challenges');
+  const exam = challenges.sessionPlan('year1', {}, 'exam');
+  assert.equal(exam.length, 6);
+  assert.ok(exam.every(row => !('reason' in row)));
+  assert.match(html, /sessionMode === 'practice'[\s\S]*planPractice/);
+  assert.match(html, /sessionPlan\)\(v\.level, masteryStats, 'exam'\)/);
+});
+
+test('Learn UI explains that practice can replan only unanswered questions', () => {
+  assert.match(html, /ADAPTIVE PRACTICE/);
+  assert.match(html, /WHY THIS QUESTION/);
+  assert.match(html, /only unanswered questions can change/i);
+  assert.match(html, /planRevision/);
 });
