@@ -297,9 +297,9 @@ test('support settlement redistributes reactions in a continuous beam', () => {
   m.items.find(i => Math.abs(i.x - 5) < 1e-9).settlementMm = -10;
   validateStudy(m);
   const r = solveStudy(m);
-  near(r.reactions[0].force, -16.8, 1e-8);
-  near(r.reactions[1].force, 33.6, 1e-8);
-  near(r.reactions[2].force, -16.8, 1e-8);
+  near(r.reactions[0].force, 16.8, 1e-8);
+  near(r.reactions[1].force, -33.6, 1e-8);
+  near(r.reactions[2].force, 16.8, 1e-8);
   near(r.sample(5).v * 1000, -10, 1e-9);
   near(r.forceResidual, 0, 1e-8);
   near(r.momentResidual, 0, 1e-8);
