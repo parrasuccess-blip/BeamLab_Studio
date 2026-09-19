@@ -243,6 +243,12 @@ function inspectorPanel(m, a, v) {
     html += `<div class="selection-title"><span class="object-badge" style="color:${i.colour}">${(0, common_1.esc)(i.label)}</span><h3>${examples_1.titles[i.kind]}</h3>${v.level === 'year1' ? '' : (0, common_1.button)(locked ? 'unlock' : 'lock', (0, common_1.icon)(locked ? 'lock' : 'unlock', 14), 'icon-button', false, locked ? 'Unlock object' : 'Lock object')}</div>`;
     html += `<p class="hint">${locked ? 'Locked. Unlock before editing.' : 'Values apply as you type. Enter or tab to finish.'}</p><fieldset ${locked ? 'disabled' : ''}>`;
     html += (0, common_1.field)('item:' + id + ':x', (0, validation_1.isDistributed)(i.kind) ? 'Start position' : 'Position', i.x, 'm', i.kind === 'hinge' ? .001 : 0, (0, validation_1.isDistributed)(i.kind) ? i.end - .001 : i.kind === 'hinge' ? m.length - .001 : m.length);
+    if ((0, validation_1.isSupport)(i.kind)) {
+        if ((0, levels_1.canUseFeature)(v.level, 'settlement'))
+            html += (0, common_1.field)('item:' + id + ':settlementMm', 'Support settlement', i.settlementMm || 0, 'mm', -10000, 10000) + '<p class="hint">Positive = upward prescribed movement. Negative = downward. This is a boundary condition, not an applied load.</p>';
+        else if (Math.abs(i.settlementMm || 0) > 1e-12)
+            html += `<div class="mode-readonly"><b>Support settlement active</b><span>${(0,common_1.signed)(i.settlementMm,3)} mm (up positive). Switch to 3rd+ Year or All Tools to edit it.</span></div>`;
+    }
     if ((0, validation_1.isDistributed)(i.kind))
         html += (0, common_1.field)('item:' + id + ':end', 'End position', i.end, 'm', i.x + .001, m.length);
     if ((0, validation_1.isLoad)(i.kind))
