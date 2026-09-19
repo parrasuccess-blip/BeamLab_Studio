@@ -675,6 +675,8 @@ function replanGuidedStudyBlock(s) {
             mixedTarget:s.mixedTarget || 4
         });
     }
+    s.focusTarget = s.queue.filter(task => task.blockRole === 'focus').length;
+    s.phaseTotal = s.queue.at(-1)?.studyPhaseTotal || s.phaseTotal || 1;
     s.planRevision = (s.planRevision || 0) + 1;
 }
 function sessionAdvance() {
