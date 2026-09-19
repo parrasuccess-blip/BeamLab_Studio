@@ -20,6 +20,7 @@ const learning_trajectory_1 = require("./learning-trajectory");
 const topic_drilldown_1 = require("./topic-drilldown");
 const study_plan_1 = require("./study-plan");
 const study_block_1 = require("./study-block");
+const study_block_resume_1 = require("./study-block-resume");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -140,6 +141,31 @@ function learningEvidenceSnapshot() {
 if (typeof window !== 'undefined') window.BeamLabLearningEvidence = { snapshot: learningEvidenceSnapshot };
 let sessionLoading = false;
 let sessionClockHandle = null;
+const studyBlockResumeKey = storageKey + ':study-block-resume';
+let studyBlockResume = null;
+try {
+    studyBlockResume = (0, study_block_resume_1.normalise)(localStorage.getItem(studyBlockResumeKey));
+    if (!studyBlockResume) localStorage.removeItem(studyBlockResumeKey);
+} catch { studyBlockResume = null; }
+function syncStudyBlockResumeView() {
+    v.studyBlockResume = (0, study_block_resume_1.summary)(studyBlockResume);
+}
+syncStudyBlockResumeView();
+function persistGuidedStudyBlock() {
+    if (!v.session?.active || v.session.mode !== 'plan') return;
+    const snapshot = (0, study_block_resume_1.create)(v.session, v.level);
+    if (!snapshot) return;
+    try {
+        localStorage.setItem(studyBlockResumeKey, JSON.stringify(snapshot));
+        studyBlockResume = snapshot;
+        syncStudyBlockResumeView();
+    } catch { /* The active study block continues even if browser storage is unavailable. */ }
+}
+function clearGuidedStudyBlockResume() {
+    studyBlockResume = null;
+    syncStudyBlockResumeView();
+    try { localStorage.removeItem(studyBlockResumeKey); } catch { /* Session-only cleanup is sufficient. */ }
+}
 // A new, untouched study follows the chosen learning level. The first real model edit freezes it.
 let levelStarterActive = !existingStudioState;
 try { if (localStorage.getItem(storageKey + ':starter-follow') === '1') levelStarterActive = true; } catch { /* session-only starter is fine */ }
@@ -514,19 +540,26 @@ function captureSessionOrigin() {
         view
     };
 }
+function applySessionOrigin(origin) {
+    if (!origin?.model) return false;
+    history.model = (0, study_1.clone)(origin.model);
+    history.past = Array.isArray(origin.past) ? origin.past.map(e=>({model:(0,study_1.clone)(e.model),label:e.label})) : [];
+    history.future = Array.isArray(origin.future) ? origin.future.map(e=>({model:(0,study_1.clone)(e.model),label:e.label})) : [];
+    compareModel = origin.compareModel ? (0,study_1.clone)(origin.compareModel) : null;
+    levelStarterActive = !!origin.levelStarterActive;
+    if (origin.view && typeof origin.view === 'object') Object.assign(v, origin.view);
+    v.selected = new Set(origin.view?.selected || []);
+    layout = undefined;
+    solve();
+    return true;
+}
 function restoreSessionOrigin(session = v.session) {
     const origin = session?.origin;
     if (!origin) { v.session = null; render(); return; }
-    history.model = (0, study_1.clone)(origin.model);
-    history.past = origin.past.map(e=>({model:(0,study_1.clone)(e.model),label:e.label}));
-    history.future = origin.future.map(e=>({model:(0,study_1.clone)(e.model),label:e.label}));
-    compareModel = origin.compareModel ? (0,study_1.clone)(origin.compareModel) : null;
-    levelStarterActive = !!origin.levelStarterActive;
-    Object.assign(v, origin.view);
-    v.selected = new Set(origin.view.selected || []);
+    applySessionOrigin(origin);
     v.session = null; v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
     v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
-    layout = undefined; solve(); render(); save();
+    render(); save();
 }
 function formatElapsed(ms) {
     const sec = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(sec / 60), s = sec % 60;
@@ -551,6 +584,69 @@ function guidedMixedPool(snapshot, excludeIds = [], count = 7) {
         v.level, snapshot, lessonProgress, challengeProgress, masteryStats,
         { count, excludeIds }
     );
+}
+function resumeGuidedStudyBlock() {
+    const saved = (0, study_block_resume_1.normalise)(studyBlockResume);
+    if (!saved || v.session?.active || v.session?.review) {
+        if (!saved) clearGuidedStudyBlockResume();
+        return;
+    }
+    if (!applySessionOrigin(saved.session.origin)) {
+        clearGuidedStudyBlockResume();
+        toast('The saved study block could not restore its original study.');
+        render();
+        return;
+    }
+    if (levels_1.modes[saved.level]) v.level = saved.level;
+    const completed = (0, study_block_resume_1.completedCount)(saved);
+    const stored = saved.session;
+    const s = {
+        active:true, review:false, mode:'plan',
+        queue:stored.queue.map(task => ({...task})),
+        index:0,
+        results:stored.results.slice(0, completed),
+        startedAt:Date.now() - saved.elapsedMs,
+        finishedAt:null,
+        currentLocked:false,
+        origin:stored.origin,
+        adaptive:true,
+        targetCount:stored.targetCount || stored.queue.length,
+        planRevision:stored.planRevision || 0,
+        focusTarget:stored.focusTarget || 0,
+        mixedTarget:stored.mixedTarget || 4,
+        phaseTotal:stored.phaseTotal || 1,
+        initialTrajectory:stored.initialTrajectory,
+        studyPlanRationale:stored.studyPlanRationale || '',
+        studyBlockReview:null
+    };
+    v.session = s;
+    v.tab = 'learn';
+    v.learnSection = 'session';
+    const current = currentGuidedStudyPlan();
+    if (completed === 0) {
+        const focusIds = current.plan.steps.filter(step => step.kind === 'lesson' || step.kind === 'challenge').slice(0,3).map(step => step.id);
+        const mixedPool = guidedMixedPool(current.snapshot, focusIds, 7);
+        const rebuilt = (0, study_block_1.buildQueue)(current.plan, mixedPool, { focusTarget:stored.focusTarget || 3, mixedTarget:stored.mixedTarget || 4 });
+        s.queue = rebuilt.queue;
+        s.focusTarget = rebuilt.focusTarget;
+        s.mixedTarget = rebuilt.mixedTarget;
+        s.phaseTotal = rebuilt.phaseTotal;
+        s.targetCount = rebuilt.queue.length;
+        s.planRevision += 1;
+    } else {
+        s.index = completed - 1;
+        replanGuidedStudyBlock(s);
+    }
+    if (completed >= s.queue.length) {
+        s.index = Math.max(0, s.queue.length - 1);
+        finishLearningSession();
+        return;
+    }
+    s.index = completed;
+    s.currentLocked = false;
+    loadSessionTask();
+    persistGuidedStudyBlock();
+    toast('Guided study block resumed. Time away from the tab was not counted.');
 }
 function startLearningSession(mode) {
     if (v.session?.active || v.session?.review) return;
@@ -582,6 +678,7 @@ function startLearningSession(mode) {
     };
     v.learnSection = 'session';
     loadSessionTask();
+    if (sessionMode === 'plan') persistGuidedStudyBlock();
 }
 function loadSessionTask() {
     const s = v.session;
@@ -597,6 +694,7 @@ function loadSessionTask() {
     v.learnSection = 'session';
     if (s.mode === 'exam') { v.teaching = false; v.practice = true; }
     render();
+    if (s.mode === 'plan') persistGuidedStudyBlock();
 }
 function sessionExpectedLabel(spec, key) {
     return spec?.predict?.choices?.find(([id]) => id === key)?.[1] || key || 'Reference response';
@@ -632,6 +730,7 @@ function sessionRecordAttempt(kind, spec, correct, answer, expected, extra = {})
         mode:s.mode
     });
     if (s.mode === 'exam' || correct) { row.locked = true; s.currentLocked = true; }
+    if (s.mode === 'plan') persistGuidedStudyBlock();
 }
 function sessionRecordReveal(kind, spec, expected) {
     const s = v.session;
@@ -640,6 +739,7 @@ function sessionRecordReveal(kind, spec, expected) {
     if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:false,correct:false,skipped:false,revealed:true,answer:'Revealed without a correct answer',expected,...sessionTaskMeta(s)};
     row.revealed = true; row.expected = expected || row.expected; row.locked = true; Object.assign(row, sessionTaskMeta(s)); s.results[s.index] = row; s.currentLocked = true;
     recordLearningEvidence({ event:'reveal', kind, taskId:spec.id, taskTitle:spec.title, topic:row.topic, expected:row.expected || '', mode:s.mode });
+    if (s.mode === 'plan') persistGuidedStudyBlock();
 }
 function sessionSkipCurrent() {
     const s = v.session;
@@ -653,6 +753,7 @@ function sessionSkipCurrent() {
     s.results[s.index] = {kind:task.kind,id:task.id,title:task.title,topic:task.topic,tries:0,firstCorrect:false,correct:false,skipped:true,revealed:false,answer:'Left blank',expected,locked:true,...sessionTaskMeta(s)};
     recordLearningEvidence({ event:'skip', kind:task.kind, taskId:task.id, taskTitle:task.title, topic:task.topic, answer:'Left blank', expected, mode:s.mode });
     s.currentLocked = true;
+    if (s.mode === 'plan') persistGuidedStudyBlock();
     sessionAdvance();
 }
 function replanGuidedStudyBlock(s) {
@@ -699,7 +800,9 @@ function sessionAdvance() {
         replanGuidedStudyBlock(s);
     }
     if (s.index >= s.queue.length - 1) { finishLearningSession(); return; }
-    s.index += 1; loadSessionTask();
+    s.index += 1;
+    if (s.mode === 'plan') persistGuidedStudyBlock();
+    loadSessionTask();
 }
 function finishLearningSession() {
     const s = v.session;
@@ -712,6 +815,7 @@ function finishLearningSession() {
     }
     s.active = false; s.review = true; s.finishedAt = Date.now();
     if (s.mode === 'plan') {
+        clearGuidedStudyBlockResume();
         const finalTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 10);
         s.studyBlockReview = (0, study_block_1.review)(s.initialTrajectory, finalTrajectory, s.results, {
             startedAt:s.startedAt, finishedAt:s.finishedAt, planRevision:s.planRevision
@@ -1232,10 +1336,12 @@ async function action(key, el) {
         v.learnSection = id; render(); return;
     }
     if (name === 'session-start') { startLearningSession(id); return; }
+    if (name === 'study-block-resume') { resumeGuidedStudyBlock(); return; }
+    if (name === 'study-block-resume-discard') { clearGuidedStudyBlockResume(); render(); toast('Saved guided study block discarded.'); return; }
     if (name === 'session-next') { sessionAdvance(); return; }
     if (name === 'session-skip') { sessionSkipCurrent(); return; }
-    if (name === 'session-exit') { if (v.session?.active) openDialog('Exit this learning session?', `<p>Your original structural study is preserved. This unfinished session will be discarded, but mastery from answers already checked remains in this browser.</p>${(0,common_1.button)('session-exit-confirm','Exit session','danger')}`); return; }
-    if (name === 'session-exit-confirm') { const old=v.session; closeDialog(); restoreSessionOrigin(old); return; }
+    if (name === 'session-exit') { if (v.session?.active) openDialog('Exit this learning session?', `<p>Your original structural study is preserved. This unfinished session will be discarded, but mastery from answers already checked remains in this browser.${v.session.mode === 'plan' ? ' The saved resume point for this guided block will also be removed.' : ''}</p>${(0,common_1.button)('session-exit-confirm','Exit session','danger')}`); return; }
+    if (name === 'session-exit-confirm') { const old=v.session; if (old?.mode === 'plan') clearGuidedStudyBlockResume(); closeDialog(); restoreSessionOrigin(old); return; }
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
     if (name === 'session-review-next') { sessionReviewNext(); return; }
     if (name === 'session-review-plan-again') { sessionReviewPlanAgain(); return; }
@@ -1332,7 +1438,7 @@ async function action(key, el) {
     }
     if (name === 'lesson-next') { if(v.session?.active){sessionAdvance();return;} const list=(0,challenges_1.listLessons)(v.level); const next=list.find(c=>!lessonProgress[c.id])||list[0]; if(next) startLesson(next.id); return; }
     if (name === 'lesson-reset') { if(v.session?.active||v.session?.review)return; openDialog('Reset learning progress', `<p>This clears completed mini-lessons, numerical challenges and local mastery history on this browser. It does not change your structural model.</p>${(0, common_1.button)('lesson-reset-confirm','Reset progress','danger')}`); return; }
-    if (name === 'lesson-reset-confirm') { lessonProgress={}; challengeProgress={}; masteryStats={}; learningEvidenceEvents=[]; v.lessonProgress=lessonProgress; v.challengeProgress=challengeProgress; v.masteryStats=masteryStats; try { localStorage.removeItem(storageKey+':lessons'); localStorage.removeItem(storageKey+':challenges'); localStorage.removeItem(storageKey+':mastery'); localStorage.removeItem(storageKey+':learning-evidence'); } catch {} closeDialog(); render(); toast('Learning progress, mastery and recent learning evidence reset. Your beam model was not changed.'); return; }
+    if (name === 'lesson-reset-confirm') { lessonProgress={}; challengeProgress={}; masteryStats={}; learningEvidenceEvents=[]; clearGuidedStudyBlockResume(); v.lessonProgress=lessonProgress; v.challengeProgress=challengeProgress; v.masteryStats=masteryStats; try { localStorage.removeItem(storageKey+':lessons'); localStorage.removeItem(storageKey+':challenges'); localStorage.removeItem(storageKey+':mastery'); localStorage.removeItem(storageKey+':learning-evidence'); } catch {} closeDialog(); render(); toast('Learning progress, mastery and recent learning evidence reset. Any saved study block was also cleared. Your beam model was not changed.'); return; }
     if (name === 'explain-here') {
         if (v.session?.active && v.session.mode === 'exam') { toast('Show Why is hidden until the exam session is submitted.'); return; }
         if (!analysis) { toast('Complete a stable model first.'); return; }
@@ -2190,8 +2296,8 @@ function bootstrap() {
         v.trace = null;
         updateTrace();
     } });
-    document.addEventListener('visibilitychange', () => { if(document.hidden) pauseSweep(); });
-    window.addEventListener('pagehide', pauseSweep);
+    document.addEventListener('visibilitychange', () => { if(document.hidden) { pauseSweep(); persistGuidedStudyBlock(); } });
+    window.addEventListener('pagehide', () => { persistGuidedStudyBlock(); pauseSweep(); });
     document.addEventListener('input', e => {
         if(e.target.id==='sweep-slider'){pauseSweep();sweepProgress=Number(e.target.value);applySweep();}
     });
