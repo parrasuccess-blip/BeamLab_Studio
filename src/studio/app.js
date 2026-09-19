@@ -5,6 +5,7 @@ const validation_1 = require("../model/validation");
 const study_1 = require("../model/study");
 const catalogue_1 = require("../model/catalogue");
 const sections_1 = require("../model/sections");
+const stiffness_1 = require("../model/stiffness");
 const history_1 = require("./history");
 const common_1 = require("./common");
 const diagrams_1 = require("./diagrams");
@@ -194,7 +195,10 @@ if (levelStarterActive) {
     v.currentCase = initialStarter.cases[0].id;
 }
 const publicOrigin = /^https?:$/.test(location.protocol) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-function shown(key) { return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key]; }
+function shown(key) {
+    if ((key === 'stress' || key === 'shear') && (history.model.stiffnessRegions?.length || 0)) return false;
+    return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key];
+}
 function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: v.practiceStep || 0, trace: v.trace, compare: comparison, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
 function solve() {
     // Lesson choices/recaps describe a fixed reference study, not arbitrary edits.
@@ -1134,6 +1138,15 @@ function remove() { const unlocked = selectedItems().filter(i => !i.locked && (0
 } const ids = new Set(unlocked.map(i => i.id)); commit({ ...history.model, items: history.model.items.filter(i => !ids.has(i.id)) }, 'Remove selection', false); }
 function openDialog(title, content) { pauseSweep(); dialogReturnFocus = document.activeElement; finishField(); $('#dialog-title').textContent = title; $('#dialog-content').innerHTML = content; $('#dialog').classList.add('open'); $('#dialog').setAttribute('aria-hidden', 'false'); $('#dialog-close').focus(); }
 function closeDialog() { $('#dialog').classList.remove('open'); $('#dialog').setAttribute('aria-hidden', 'true'); if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus(); }
+function openStiffnessDialog(id = '') {
+    if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) { toast('Piecewise EI editing appears from 3rd+ Year mode.'); return; }
+    const regions = history.model.stiffnessRegions || [];
+    const existing = regions.find(r => r.id === id) || null;
+    if (!existing && regions.length >= stiffness_1.MAX_REGIONS) { toast(stiffness_1.MAX_REGIONS + ' EI zones is the limit.'); return; }
+    const m = history.model, fallbackStart = m.length * .5, fallbackEnd = m.length;
+    const region = existing || { label:'EI zone ' + (regions.length + 1), x:fallbackStart, end:fallbackEnd, factor:.5 };
+    openDialog(existing ? 'Edit EI stiffness zone' : 'Add EI stiffness zone', `<div class="stiffness-dialog-intro"><p>Define one non-overlapping interval where the solver uses <b>EI = base EI × multiplier</b>. The multiplier changes elastic stiffness only; it does not create local section geometry or capacity.</p></div><label class="field"><span>Zone label</span><div><input id="stiffness-label" maxlength="40" value="${(0,common_1.esc)(region.label)}" aria-label="EI zone label"></div><em class="field-error"></em></label><label class="field"><span>Start x</span><div><input id="stiffness-start" type="number" min="0" max="${m.length}" step="any" value="${region.x}" aria-label="EI zone start"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>End x</span><div><input id="stiffness-end" type="number" min="0" max="${m.length}" step="any" value="${region.end}" aria-label="EI zone end"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>EI multiplier</span><div><input id="stiffness-factor" type="number" min="0.05" max="20" step="any" value="${region.factor}" aria-label="EI multiplier"><small>× base EI</small></div><em class="field-error"></em></label><p id="stiffness-dialog-error" class="stiffness-dialog-error" role="alert"></p><div class="dialog-actions">${(0,common_1.button)('stiffness-save:'+(existing ? existing.id : 'new'), existing ? 'Save EI zone' : 'Add EI zone', 'primary')}${(0,common_1.button)('dialog-close','Cancel','secondary')}</div>`);
+}
 function trajectoryTopicDialog(topic) {
     if (v.session?.active || v.session?.review) return;
     const d = (0, topic_drilldown_1.detail)(v.level, topic, learningEvidenceEvents, masteryStats, lessonProgress, challengeProgress);
@@ -1257,6 +1270,7 @@ function applyNumber(input) {
         m.length = n;
         m.items.forEach(i => { i.x *= ratio; if (i.end !== undefined)
             i.end *= ratio; });
+        (m.stiffnessRegions || []).forEach(r => { r.x *= ratio; r.end *= ratio; });
         v.pan = 0;
     }
     else if (parts[0] === 'section') {
@@ -1685,6 +1699,43 @@ async function action(key, el) {
         catch {
             toast('Browser storage is unavailable or this snapshot is invalid. Export JSON instead.');
         }
+        return;
+    }
+    if (name === 'stiffness-add') { openStiffnessDialog(); return; }
+    if (name === 'stiffness-edit') { openStiffnessDialog(id); return; }
+    if (name === 'stiffness-remove') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        const m = (0, study_1.clone)(history.model);
+        const before = m.stiffnessRegions?.length || 0;
+        m.stiffnessRegions = (m.stiffnessRegions || []).filter(r => r.id !== id);
+        if (m.stiffnessRegions.length === before) return;
+        commit(m, 'Remove EI zone');
+        return;
+    }
+    if (name === 'stiffness-save') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        const label = $('#stiffness-label')?.value.trim() || '';
+        const x = Number($('#stiffness-start')?.value);
+        const end = Number($('#stiffness-end')?.value);
+        const factor = Number($('#stiffness-factor')?.value);
+        const m = (0, study_1.clone)(history.model);
+        m.stiffnessRegions || (m.stiffnessRegions = []);
+        const regionId = id === 'new' ? 'ei-' + Date.now().toString(36) : id;
+        const region = { id:regionId, label, x, end, factor };
+        const existingIndex = m.stiffnessRegions.findIndex(r => r.id === regionId);
+        if (existingIndex >= 0) m.stiffnessRegions[existingIndex] = region;
+        else m.stiffnessRegions.push(region);
+        m.stiffnessRegions = (0, stiffness_1.normaliseRegions)(m.stiffnessRegions);
+        try { (0, study_1.validateStudy)(m); }
+        catch (e) {
+            const errorEl = $('#stiffness-dialog-error');
+            if (errorEl) errorEl.textContent = e instanceof Error ? e.message : 'Invalid EI zone.';
+            return;
+        }
+        const wasUniform = !(history.model.stiffnessRegions?.length || 0);
+        if (wasUniform && m.stiffnessRegions.length) { v.stress = false; v.shear = false; }
+        closeDialog();
+        commit(m, existingIndex >= 0 ? 'Edit EI zone' : 'Add EI zone');
         return;
     }
     if (name === 'selfweight') {
