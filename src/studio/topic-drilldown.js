@@ -102,7 +102,7 @@ function detail(level, topicInput, eventsInput, mastery = {}, lessonProgressInpu
             answer: cleanText(row.answer, 180),
             expected: cleanText(row.expected, 180),
             method: cleanText(row.method, 80),
-            mode: row.mode === 'exam' ? 'exam' : row.mode === 'practice' ? 'practice' : 'standalone',
+            mode: row.mode === 'exam' ? 'exam' : row.mode === 'practice' ? 'practice' : row.mode === 'plan' ? 'plan' : 'standalone',
             timestamp: Number.isFinite(Number(row.timestamp)) ? Number(row.timestamp) : 0
         };
     });
