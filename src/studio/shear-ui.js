@@ -1,0 +1,14 @@
+'use strict';
+const {shearProfile}=require('../engine/shear');
+const {fmt,signed,esc}=require('./common');
+function renderShear(m,a,x){
+    if(!a)return '<div class="shear-content"><h3>Transverse shear stress</h3><p>Complete a stable beam to see a section profile.</p></div>';
+    const s=a.sample(x),profile=shearProfile(m.section,s.V);
+    if(!profile.supported)return `<div class="shear-content"><span class="eyebrow">TRANSVERSE SHEAR / OPTIONAL</span><h3>More geometry is needed.</h3><p>${esc(profile.reason)}</p><p class="hint">Choose Solid rectangle or Symmetric I-section in Section. The bending model and existing results are unchanged.</p></div>`;
+    const h=m.section.h,c=h/2,max=Math.max(1e-9,Math.abs(profile.peak.tau)),xp=tau=>210+tau/max*138,yp=y=>140-y/c*102;
+    const path=profile.data.map((p,i)=>`${i?'L':'M'}${xp(p.tau).toFixed(2)},${yp(p.y).toFixed(2)}`).join(' ');
+    const points=profile.data.map(p=>`${xp(p.tau).toFixed(2)},${yp(p.y).toFixed(2)}`).join(' ');
+    const svg=`<svg viewBox="0 0 400 280" role="img" aria-label="Transverse shear through the section"><rect width="400" height="280" rx="12" fill="#0b151b"/><line x1="210" x2="210" y1="27" y2="247" stroke="#638090"/><line x1="38" x2="370" y1="140" y2="140" stroke="#49606f" stroke-dasharray="3 5"/><polygon points="210,242 ${points} 210,38" fill="#78c9ee" opacity=".13"/><path d="${path}" fill="none" stroke="#78c9ee" stroke-width="2"/><text x="18" y="42" fill="#a1b8c5" font-size="10">+${fmt(c,0)} mm</text><text x="18" y="144" fill="#a1b8c5" font-size="10">neutral axis</text><text x="18" y="246" fill="#a1b8c5" font-size="10">-${fmt(c,0)} mm</text><text x="210" y="19" text-anchor="middle" fill="#b6d9ea" font-size="11">tau / MPa, sign follows V</text><text x="210" y="269" text-anchor="middle" fill="#9eb9c9" font-size="11">Peak |tau| = ${fmt(Math.abs(profile.peak.tau),4)} MPa</text></svg>`;
+    return `<div class="shear-content"><div><span class="eyebrow">TRANSVERSE SHEAR / WIDTH-AVERAGED</span><h3>Shear is not uniform through the depth.</h3><p>At x = <b>${fmt(x,3)} m</b>, V = <b>${signed(s.V,3)} kN</b> (right side; left side at the end).</p><div class="formula">tau(y) = V Q(y) / [I b(y)]</div><p>Resultant recovered by integrating the section profile: <b>${signed(profile.recoveredForce,5)} kN</b>.</p><p class="hint">${esc(profile.scope)}</p><a href="https://eng.libretexts.org/Bookshelves/Mechanical_Engineering/Mechanics_of_Materials_(Roylance)/04%3A_Bending/4.02%3A_Stresses_in_Beams" target="_blank" rel="noopener noreferrer">Derivation: Roylance / MIT OpenCourseWare</a></div>${svg}</div>`;
+}
+module.exports={renderShear};
