@@ -19,6 +19,7 @@ const adaptive_practice_1 = require("./adaptive-practice");
 const learning_trajectory_1 = require("./learning-trajectory");
 const topic_drilldown_1 = require("./topic-drilldown");
 const study_plan_1 = require("./study-plan");
+const study_block_1 = require("./study-block");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -539,17 +540,45 @@ function syncSessionClock() {
     if (sessionClockHandle) { clearInterval(sessionClockHandle); sessionClockHandle = null; }
     if (v.session?.active) { updateSessionClock(); sessionClockHandle = setInterval(updateSessionClock, 1000); }
 }
+function currentGuidedStudyPlan() {
+    const snapshot = learningEvidenceSnapshot();
+    const trajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 10);
+    const plan = (0, study_plan_1.build)(v.level, { ...snapshot, recentEvents:learningEvidenceEvents }, trajectory, lessonProgress, challengeProgress, masteryStats);
+    return { snapshot, trajectory, plan };
+}
+function guidedMixedPool(snapshot, excludeIds = [], count = 7) {
+    return (0, adaptive_practice_1.planPractice)(
+        v.level, snapshot, lessonProgress, challengeProgress, masteryStats,
+        { count, excludeIds }
+    );
+}
 function startLearningSession(mode) {
     if (v.session?.active || v.session?.review) return;
-    const sessionMode = mode === 'exam' ? 'exam' : 'practice';
-    const queue = sessionMode === 'practice'
-        ? (0, adaptive_practice_1.planPractice)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress, masteryStats, { count:4 })
-        : (0, challenges_1.sessionPlan)(v.level, masteryStats, 'exam');
+    const sessionMode = mode === 'exam' ? 'exam' : mode === 'plan' ? 'plan' : 'practice';
+    let queue = [], focusTarget = 0, mixedTarget = 0, phaseTotal = 0, initialTrajectory = null, studyPlanRationale = '';
+    if (sessionMode === 'plan') {
+        const current = currentGuidedStudyPlan();
+        const focusIds = current.plan.steps.filter(step => step.kind === 'lesson' || step.kind === 'challenge').slice(0,3).map(step => step.id);
+        const mixedPool = guidedMixedPool(current.snapshot, focusIds, 7);
+        const built = (0, study_block_1.buildQueue)(current.plan, mixedPool, { focusTarget:3, mixedTarget:4 });
+        queue = built.queue;
+        focusTarget = built.focusTarget;
+        mixedTarget = built.mixedTarget;
+        phaseTotal = built.phaseTotal;
+        initialTrajectory = current.trajectory;
+        studyPlanRationale = current.plan.rationale || '';
+    } else if (sessionMode === 'practice') {
+        queue = (0, adaptive_practice_1.planPractice)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress, masteryStats, { count:4 });
+    } else {
+        queue = (0, challenges_1.sessionPlan)(v.level, masteryStats, 'exam');
+    }
     if (!queue.length) { toast('No practice tasks are available at this learning level.'); return; }
     v.session = {
         active:true, review:false, mode:sessionMode, queue, index:0, results:[],
         startedAt:Date.now(), finishedAt:null, currentLocked:false, origin:captureSessionOrigin(),
-        adaptive:sessionMode === 'practice', targetCount:queue.length, planRevision:0
+        adaptive:sessionMode === 'practice' || sessionMode === 'plan',
+        targetCount:queue.length, planRevision:0,
+        focusTarget, mixedTarget, phaseTotal, initialTrajectory, studyPlanRationale, studyBlockReview:null
     };
     v.learnSection = 'session';
     loadSessionTask();
@@ -572,17 +601,28 @@ function loadSessionTask() {
 function sessionExpectedLabel(spec, key) {
     return spec?.predict?.choices?.find(([id]) => id === key)?.[1] || key || 'Reference response';
 }
+function sessionTaskMeta(s) {
+    const task = s?.queue?.[s.index] || {};
+    return {
+        blockRole: task.blockRole || '',
+        studyPhase: Number(task.studyPhase) || null,
+        studyPhaseTotal: Number(task.studyPhaseTotal) || null,
+        phaseTitle: task.phaseTitle || '',
+        mixedIndex: Number(task.mixedIndex) || null,
+        mixedTotal: Number(task.mixedTotal) || null
+    };
+}
 function sessionRecordAttempt(kind, spec, correct, answer, expected, extra = {}) {
     const s = v.session;
     if (!s?.active) return;
     let row = s.results[s.index];
-    if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:!!correct,correct:false,skipped:false,revealed:false,answer:'',expected:''};
+    if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:!!correct,correct:false,skipped:false,revealed:false,answer:'',expected:'',...sessionTaskMeta(s)};
     row.tries += 1;
     if (row.tries === 1) row.firstCorrect = !!correct;
     row.correct = row.correct || !!correct;
     row.answer = answer || row.answer;
     row.expected = expected || row.expected;
-    Object.assign(row, extra);
+    Object.assign(row, sessionTaskMeta(s), extra);
     s.results[s.index] = row;
     recordLearningEvidence({
         event:'attempt', kind, taskId:spec.id, taskTitle:spec.title, topic:row.topic,
@@ -597,8 +637,8 @@ function sessionRecordReveal(kind, spec, expected) {
     const s = v.session;
     if (!s?.active || s.mode === 'exam') return;
     let row = s.results[s.index];
-    if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:false,correct:false,skipped:false,revealed:true,answer:'Revealed without a correct answer',expected};
-    row.revealed = true; row.expected = expected || row.expected; row.locked = true; s.results[s.index] = row; s.currentLocked = true;
+    if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:false,correct:false,skipped:false,revealed:true,answer:'Revealed without a correct answer',expected,...sessionTaskMeta(s)};
+    row.revealed = true; row.expected = expected || row.expected; row.locked = true; Object.assign(row, sessionTaskMeta(s)); s.results[s.index] = row; s.currentLocked = true;
     recordLearningEvidence({ event:'reveal', kind, taskId:spec.id, taskTitle:spec.title, topic:row.topic, expected:row.expected || '', mode:s.mode });
 }
 function sessionSkipCurrent() {
@@ -610,10 +650,32 @@ function sessionSkipCurrent() {
         if (task.kind === 'lesson' && spec && analysis) expected = sessionExpectedLabel(spec, (0,challenges_1.predictionFor)(spec,analysis,history.model));
         else if (spec && analysis) expected = (0,common_1.fmt)((0,challenges_1.answerFor)(spec,analysis),4) + ' ' + spec.unit;
     } catch {}
-    s.results[s.index] = {kind:task.kind,id:task.id,title:task.title,topic:task.topic,tries:0,firstCorrect:false,correct:false,skipped:true,revealed:false,answer:'Left blank',expected,locked:true};
+    s.results[s.index] = {kind:task.kind,id:task.id,title:task.title,topic:task.topic,tries:0,firstCorrect:false,correct:false,skipped:true,revealed:false,answer:'Left blank',expected,locked:true,...sessionTaskMeta(s)};
     recordLearningEvidence({ event:'skip', kind:task.kind, taskId:task.id, taskTitle:task.title, topic:task.topic, answer:'Left blank', expected, mode:s.mode });
     s.currentLocked = true;
     sessionAdvance();
+}
+function replanGuidedStudyBlock(s) {
+    const currentTask = s.queue[s.index];
+    const current = currentGuidedStudyPlan();
+    const seen = s.queue.slice(0, s.index + 1);
+    const seenIds = seen.map(task => task.id);
+    if (currentTask?.blockRole === 'mixed') {
+        const mixedSeen = seen.filter(task => task.blockRole === 'mixed').length;
+        const remaining = Math.max(0, (s.mixedTarget || 4) - mixedSeen);
+        const mixed = remaining ? guidedMixedPool(current.snapshot, seenIds, Math.max(remaining, 4)) : [];
+        s.queue = (0, study_block_1.replanMixedTail)(s.queue, s.index, mixed, {
+            mixedTarget:s.mixedTarget || 4,
+            phaseTotal:s.phaseTotal || currentTask.studyPhaseTotal || 1
+        });
+    } else {
+        const pool = guidedMixedPool(current.snapshot, seenIds, Math.max((s.mixedTarget || 4) + (s.focusTarget || 0), 4));
+        s.queue = (0, study_block_1.replanFocusTail)(s.queue, s.index, current.plan, pool, {
+            focusTarget:s.focusTarget || 0,
+            mixedTarget:s.mixedTarget || 4
+        });
+    }
+    s.planRevision = (s.planRevision || 0) + 1;
 }
 function sessionAdvance() {
     const s = v.session;
@@ -631,6 +693,8 @@ function sessionAdvance() {
             s.queue = [...seen, ...tail];
             s.planRevision = (s.planRevision || 0) + 1;
         }
+    } else if (s.mode === 'plan') {
+        replanGuidedStudyBlock(s);
     }
     if (s.index >= s.queue.length - 1) { finishLearningSession(); return; }
     s.index += 1; loadSessionTask();
@@ -645,6 +709,12 @@ function finishLearningSession() {
         saveLessonProgress(); saveChallengeProgress();
     }
     s.active = false; s.review = true; s.finishedAt = Date.now();
+    if (s.mode === 'plan') {
+        const finalTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 10);
+        s.studyBlockReview = (0, study_block_1.review)(s.initialTrajectory, finalTrajectory, s.results, {
+            startedAt:s.startedAt, finishedAt:s.finishedAt, planRevision:s.planRevision
+        });
+    }
     v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null; v.practice = false; v.learnSection = 'session';
     render();
 }
@@ -664,6 +734,13 @@ function sessionReviewNext() {
         v.learnSection = 'session';
         startLearningSession('practice');
     }
+}
+function sessionReviewPlanAgain() {
+    const old = v.session;
+    restoreSessionOrigin(old);
+    v.tab = 'learn';
+    v.learnSection = 'session';
+    startLearningSession('plan');
 }
 function comparisonMetrics(a) {
     if (!a) return null;
