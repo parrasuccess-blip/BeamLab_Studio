@@ -21,6 +21,7 @@ const levels = load('studio/levels');
 const verification = load('studio/verification');
 const { benchmarks } = verification;
 const design = load('studio/design');
+const studioExport = load('studio/export');
 const designWorkflow = load('studio/design-workflow');
 const learningEvidence = load('studio/learning-evidence');
 const learningPath = load('studio/learning-path');
@@ -178,7 +179,7 @@ test('true stepped sections restore exact local elastic stress and Design mechan
   const limits = reviewLimits(r, m);
   near(limits.stress, expectedRootStress, 1e-8);
   assert.equal(limits.stressUnavailable, false);
-  assert.equal(limits.stressSection, 'Custom section');
+  assert.equal(limits.stressSection, 'Stiffer root half · Custom section');
   const review = design.evaluate(m, r, {fyMPa:300,momentCapacity:600,shearCapacity:100,deflectionMode:'direct',deflectionLimitMm:200});
   near(review.demand.elasticStressMPa, expectedRootStress, 1e-8);
   assert.equal(review.elasticReference.unavailable, false);
@@ -235,6 +236,25 @@ test('EI-only overrides remain conservative even when true local sections exist'
   const review = design.evaluate(m,r,{fyMPa:300});
   assert.equal(review.demand.elasticStressMPa, null);
   assert.equal(review.elasticReference.unavailable, true);
+});
+
+test('results CSV carries local true-section properties and blanks stress only for EI-only ambiguity', () => {
+  const m = normalise(example('cantilever'));
+  const stiff = JSON.parse(JSON.stringify(m.section));
+  stiff.I *= 2;
+  m.sectionRegions = [{id:'section-root',label:'Stiffer root half',x:0,end:5,section:stiff}];
+  let r = solveStudy(m);
+  let csv = studioExport.resultsCsv(r);
+  assert.match(csv.split('\n')[0], /local_section,local_EI_kNm2,top_fibre_stress_MPa/);
+  assert.match(csv, /Stiffer root half \/ Custom section/);
+  const firstData = csv.split('\n')[1].split(',');
+  assert.notEqual(firstData[firstData.length-1], '');
+  m.stiffnessRegions = [{id:'ei-tip',label:'Unknown tip',x:5,end:10,factor:.8}];
+  r = solveStudy(m);
+  csv = studioExport.resultsCsv(r);
+  const ambiguous = csv.split('\n').find(row => row.startsWith('5.416666666666667,') || row.startsWith('5.416666666666666,'));
+  assert.ok(ambiguous, 'sample exists inside EI-only zone');
+  assert.equal(ambiguous.split(',').at(-1), '');
 });
 
 test('true stepped-section energy audit uses local section EI and remains consistent', () => {
