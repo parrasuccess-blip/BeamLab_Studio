@@ -1236,6 +1236,7 @@ async function action(key, el) {
     if (name === 'session-exit-confirm') { const old=v.session; closeDialog(); restoreSessionOrigin(old); return; }
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
     if (name === 'session-review-next') { sessionReviewNext(); return; }
+    if (name === 'session-review-plan-again') { sessionReviewPlanAgain(); return; }
     if (name === 'mastery-review') { const [kind,taskId]=id.split('|'); v.learnSection=kind==='lesson'?'lessons':'challenges'; if(kind==='lesson') startLesson(taskId); else startChallenge(taskId); return; }
     if (name === 'trajectory-topic') {
         if (v.session?.active || v.session?.review) return;
