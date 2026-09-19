@@ -24,6 +24,7 @@ const sessionReview = load('studio/session-review');
 const learningTrajectory = load('studio/learning-trajectory');
 const topicDrilldown = load('studio/topic-drilldown');
 const studyPlan = load('studio/study-plan');
+const studyBlock = load('studio/study-block');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -452,4 +453,148 @@ test('study planner uses a wider retained trajectory than the six-topic display'
   assert.match(html, /learning_trajectory_1\.build\)\(learningEvidenceEvents, masteryStats, 6\)/);
   assert.match(html, /planningTrajectory = \(0, learning_trajectory_1\.build\)\(learningEvidenceEvents, masteryStats, 10\)/);
   assert.match(html, /study_plan_1\.build\)[\s\S]*planningTrajectory/);
+});
+
+
+test('guided study block builds focused phases followed by a mixed check', () => {
+  const plan = {
+    steps: [
+      {kind:'lesson',id:'l1-shear-moment',title:'Shear to moment',topic:'Shear → moment',phase:'repair',reason:'repair'},
+      {kind:'challenge',id:'y1-shear-moment',title:'Moment from shear',topic:'Shear → moment',phase:'transfer',reason:'transfer'},
+      {kind:'lesson',id:'l1-point-shear',title:'Point load shear',topic:'Point loads & shear',phase:'build',reason:'build'},
+      {kind:'session',id:'practice',title:'Adaptive mixed check',topic:'Mixed revision',phase:'mixed-check',reason:'mixed'}
+    ]
+  };
+  const mixed = [
+    {kind:'challenge',id:'y1-reaction',title:'Reaction',topic:'Reactions & equilibrium',reason:'mixed 1'},
+    {kind:'challenge',id:'y1-udl',title:'UDL',topic:'Distributed loads',reason:'mixed 2'},
+    {kind:'lesson',id:'l1-deflection',title:'Deflection',topic:'Deflection & stiffness',reason:'mixed 3'},
+    {kind:'challenge',id:'y1-hinge',title:'Hinge',topic:'Internal hinges',reason:'mixed 4'}
+  ];
+  const built = studyBlock.buildQueue(plan, mixed, {focusTarget:3,mixedTarget:4});
+  assert.equal(built.phaseTotal, 4);
+  assert.equal(built.queue.filter(row => row.blockRole === 'focus').length, 3);
+  assert.equal(built.queue.filter(row => row.blockRole === 'mixed').length, 4);
+  assert.deepEqual(Array.from(built.queue.slice(0,3), row => row.studyPhase), [1,2,3]);
+  assert.ok(built.queue.slice(3).every(row => row.studyPhase === 4));
+  assert.deepEqual(Array.from(built.queue.slice(3), row => row.mixedIndex), [1,2,3,4]);
+});
+
+test('guided study block replans only the unfinished focus tail', () => {
+  const initial = studyBlock.buildQueue({
+    steps:[
+      {kind:'lesson',id:'a',title:'A',topic:'A',phase:'repair'},
+      {kind:'lesson',id:'b',title:'B',topic:'B',phase:'build'},
+      {kind:'challenge',id:'c',title:'C',topic:'C',phase:'build'}
+    ]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2'},
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'}
+  ], {focusTarget:3,mixedTarget:4});
+  const replanned = studyBlock.replanFocusTail(initial.queue, 0, {
+    steps:[
+      {kind:'lesson',id:'a',title:'A',topic:'A',phase:'repair'},
+      {kind:'challenge',id:'d',title:'D',topic:'D',phase:'confirm'},
+      {kind:'lesson',id:'e',title:'E',topic:'E',phase:'build'}
+    ]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m5',title:'M5',topic:'M5'},
+    {kind:'challenge',id:'m6',title:'M6',topic:'M6'},
+    {kind:'challenge',id:'m7',title:'M7',topic:'M7'},
+    {kind:'challenge',id:'m8',title:'M8',topic:'M8'}
+  ], {focusTarget:3,mixedTarget:4});
+  assert.equal(replanned[0].id, 'a');
+  assert.deepEqual(Array.from(replanned.slice(1,3), row => row.id), ['d','e']);
+  assert.ok(!replanned.slice(1).some(row => row.id === 'a'));
+});
+
+test('guided study block mixed replanning never moves answered questions', () => {
+  const queue = [
+    {kind:'lesson',id:'a',title:'A',topic:'A',blockRole:'focus',studyPhase:1,studyPhaseTotal:2},
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1',blockRole:'mixed',studyPhase:2,studyPhaseTotal:2,mixedIndex:1,mixedTotal:4},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2',blockRole:'mixed',studyPhase:2,studyPhaseTotal:2,mixedIndex:2,mixedTotal:4}
+  ];
+  const replanned = studyBlock.replanMixedTail(queue, 1, [
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'},
+    {kind:'challenge',id:'m5',title:'M5',topic:'M5'}
+  ], {mixedTarget:4,phaseTotal:2});
+  assert.equal(replanned[0].id, 'a');
+  assert.equal(replanned[1].id, 'm1');
+  assert.deepEqual(Array.from(replanned.slice(2), row => row.mixedIndex), [2,3,4]);
+});
+
+test('guided study block review reports trajectory changes without grading', () => {
+  const initial = {rows:[
+    {topic:'Shear → moment',status:'unresolved',label:'Unresolved'},
+    {topic:'Reactions & equilibrium',status:'stable',label:'First-try stable'}
+  ]};
+  const final = {rows:[
+    {topic:'Shear → moment',status:'recovered',label:'Recovered'},
+    {topic:'Reactions & equilibrium',status:'stable',label:'First-try stable'}
+  ]};
+  const review = studyBlock.review(initial, final, [
+    {blockRole:'focus',correct:true,firstCorrect:false,tries:2},
+    {blockRole:'mixed',correct:true,firstCorrect:true,tries:1}
+  ], {startedAt:1000,finishedAt:61000,planRevision:3});
+  assert.equal(review.trajectoryChanges.length, 1);
+  assert.equal(review.trajectoryChanges[0].from, 'Unresolved');
+  assert.equal(review.trajectoryChanges[0].to, 'Recovered');
+  assert.equal(review.recovered, 1);
+  assert.equal(review.firstTry, 1);
+  assert.equal(review.planRevision, 3);
+  assert.match(review.boundary, /does not assign a grade/i);
+});
+
+test('guided study block is wired into Learn with phase progress and final change review', () => {
+  assert.match(html, /GUIDED STUDY BLOCK/);
+  assert.match(html, /session-start:plan/);
+  assert.match(html, /studyPhaseTotal/);
+  assert.match(html, /completed work stays fixed; only unfinished work can change/i);
+  assert.match(html, /STUDY BLOCK REVIEW \/ WHAT CHANGED/);
+  assert.match(html, /session-review-plan-again/);
+  assert.match(html, /study_block_1\.review/);
+});
+
+test('learning evidence preserves guided plan mode', () => {
+  const row = learningEvidence.normaliseEvent({event:'attempt',topic:'Shear → moment',mode:'plan',correct:true,firstTry:true}, 123);
+  assert.equal(row.mode, 'plan');
+});
+
+
+test('guided study block can shrink the unfinished phase count after new evidence', () => {
+  const initial = studyBlock.buildQueue({
+    steps:[
+      {kind:'lesson',id:'a',title:'A',topic:'A',phase:'repair'},
+      {kind:'lesson',id:'b',title:'B',topic:'B',phase:'build'},
+      {kind:'challenge',id:'c',title:'C',topic:'C',phase:'build'}
+    ]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2'},
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'}
+  ], {focusTarget:3,mixedTarget:4});
+  const replanned = studyBlock.replanFocusTail(initial.queue, 0, {
+    steps:[{kind:'session',id:'practice',title:'Mixed',topic:'Mixed revision',phase:'mixed-check'}]
+  }, [
+    {kind:'challenge',id:'m1',title:'M1',topic:'M1'},
+    {kind:'challenge',id:'m2',title:'M2',topic:'M2'},
+    {kind:'challenge',id:'m3',title:'M3',topic:'M3'},
+    {kind:'challenge',id:'m4',title:'M4',topic:'M4'}
+  ], {focusTarget:3,mixedTarget:4});
+  assert.equal(replanned[0].studyPhase, 1);
+  assert.equal(replanned.at(-1).studyPhase, 2);
+  assert.ok(replanned.every(row => row.studyPhaseTotal === 2));
+});
+
+test('topic drill-down preserves guided plan event labels', () => {
+  const topic = 'Shear → moment';
+  const d = topicDrilldown.detail('year1', topic, [
+    {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:true,firstTry:true,mode:'plan',timestamp:1}
+  ], {}, {}, {});
+  assert.equal(d.events[0].mode, 'plan');
 });
