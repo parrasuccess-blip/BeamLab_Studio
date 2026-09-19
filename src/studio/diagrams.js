@@ -46,7 +46,7 @@ function criticalSamples(a, kind) {
     for (const e of a.elements) {
         const l = e.b - e.a;
         items.push(a.sample(e.a, 'right'), a.sample(e.b, 'left'));
-        const roots = kind === 'V' ? (0, linear_1.roots01)([e.w0, e.slope * l]) : kind === 'v' ? (0, linear_1.roots01)([e.d[1], -e.r[1] * l / a.properties.EI, e.r[0] * l * l / 2 / a.properties.EI, -e.w0 * l ** 3 / 6 / a.properties.EI, -e.slope * l ** 4 / 24 / a.properties.EI]) : (0, linear_1.roots01)([e.r[0], -e.w0 * l, -e.slope * l * l / 2]);
+        const roots = kind === 'V' ? (0, linear_1.roots01)([e.w0, e.slope * l]) : kind === 'v' ? (0, linear_1.roots01)([e.d[1], -e.r[1] * l / e.EI, e.r[0] * l * l / 2 / e.EI, -e.w0 * l ** 3 / 6 / e.EI, -e.slope * l ** 4 / 24 / e.EI]) : (0, linear_1.roots01)([e.r[0], -e.w0 * l, -e.slope * l * l / 2]);
         roots.forEach(z => items.push(a.sample(e.a + z * l)));
     }
     return items;
