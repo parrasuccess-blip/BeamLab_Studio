@@ -174,12 +174,16 @@ async function pdfReport(m, a, v) {
     add(`Peak shear |V| = ${(0,common_1.fmt)(Math.abs(a.peakV.V),4)} kN at ${(0,common_1.fmt)(a.peakV.x,4)} m.`);
     add(`Peak moment |M| = ${(0,common_1.fmt)(Math.abs(a.peakM.M),4)} kN m at ${(0,common_1.fmt)(a.peakM.x,4)} m.`);
     add(`Peak displacement = ${(0,common_1.fmt)(a.peakD.v*1000,5)} mm at ${(0,common_1.fmt)(a.peakD.x,4)} m (up positive).`);
-    const stress = Math.abs(a.peakM.M)*a.properties.c/a.properties.I/1000;
-    add(`Peak elastic extreme-fibre stress magnitude = ${(0,common_1.fmt)(stress,4)} MPa. No capacity check.`);
+    const stress = a.hasVaryingEI ? null : Math.abs(a.peakM.M)*a.properties.c/a.properties.I/1000;
+    add(a.hasVaryingEI ? 'Peak elastic extreme-fibre stress is not inferred for EI-only stiffness zones because local E/I split and section geometry are not defined.' : `Peak elastic extreme-fibre stress magnitude = ${(0,common_1.fmt)(stress,4)} MPa. No capacity check.`);
     heading('02  MEMBER & SECTION');
-    add(`${(0,common_1.fmt)(m.length)} m / ${a.system}. Uniform section: ${m.section.catalogue || m.section.shape}.`);
+    add(`${(0,common_1.fmt)(m.length)} m / ${a.system}. Base section: ${m.section.catalogue || m.section.shape}.`);
     add(`${m.section.material}. E ${(0,common_1.fmt)(m.section.E)} GPa; density ${(0,common_1.fmt)(m.section.density)} kg/m3; depth ${(0,common_1.fmt)(m.section.h)} mm.`);
-    add(`A ${(0,common_1.fmt)(a.properties.A*1e6)} mm2; Ix ${(a.properties.I*1e12).toExponential(5)} mm4; EI ${(0,common_1.fmt)(a.properties.EI/1000,5)} MN m2.`);
+    add(`A ${(0,common_1.fmt)(a.properties.A*1e6)} mm2; Ix ${(a.properties.I*1e12).toExponential(5)} mm4; base EI ${(0,common_1.fmt)(a.properties.EI/1000,5)} MN m2.`);
+    if (a.hasVaryingEI) {
+        add('Piecewise EI zones (stiffness only): ' + (a.stiffnessRegions || []).map(r => r.label + ' ' + (0,common_1.fmt)(r.x,3) + '-' + (0,common_1.fmt)(r.end,3) + ' m, EI x' + (0,common_1.fmt)(r.factor,3)).join(' / ') + '.');
+        add('These EI multipliers do not define local section geometry, stress, self-weight or resistance.');
+    }
     const wc=m.cases.find(c=>c.id===m.selfWeightCase);
     add(`Self-weight: ${m.selfWeight ? (0,common_1.fmt)(a.properties.weight,5)+' kN/m nominal, case '+(wc?.name || m.selfWeightCase) : 'excluded'}.`);
     heading('03  ACTIVE FACTORS & SUPPORT REACTIONS');
@@ -195,7 +199,7 @@ async function pdfReport(m, a, v) {
     heading('05  CONSISTENCY & SCOPE');
     add(`Force residual ${a.forceResidual.toExponential(2)} kN; moment residual ${a.momentResidual.toExponential(2)} kN m; hinge residual ${a.hingeResidual.toExponential(2)} kN m.`,9);
     add(`Support residual ${a.boundaryResidual.toExponential(2)} m; element compatibility ${a.endCompatibilityResidual.toExponential(2)} m.`,9);
-    add('Euler-Bernoulli small-deflection bending, constant EI. No axial, shear-deformation, settlement, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
+    add('Euler-Bernoulli small-deflection bending with optional piecewise-constant EI. EI-only zones do not infer local stress or section capacity. No axial, shear-deformation, settlement, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
     for (const w of a.warnings) add(w,9);
     if (m.section.catalogue) add('Catalogue: Liberty / InfraBuild HRSSP, 9th edition, Oct 2019, Tables 9/11/15. Historical starter subset. PFC torsion excluded.',9);
     finish();
