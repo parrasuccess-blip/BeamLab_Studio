@@ -896,11 +896,11 @@ test('guided study resume replans only unfinished work from current evidence', (
 
 test('piecewise EI boundaries propagate through worked solution, Design and exports', () => {
   assert.match(html, /using compatibility and the EI assigned to each event-aligned beam element/i);
-  assert.match(html, /EI ×/);
-  assert.match(html, /Peak elastic extreme-fibre stress is not inferred for EI-only stiffness zones/i);
-  assert.match(html, /Euler-Bernoulli small-deflection bending with optional piecewise-constant EI/i);
+  assert.match(html, /EI-only ×/);
+  assert.match(html, /Peak elastic extreme-fibre stress is not inferred while EI-only stiffness overrides are active/i);
+  assert.match(html, /optional true piecewise section properties and optional EI-only multipliers/i);
   assert.match(html, /Not inferred for EI-only zones/i);
-  assert.match(html, /Verify local section geometry and that every entered capacity applies to the relevant zone/i);
+  assert.match(html, /EI-only multipliers change analysis stiffness without defining local geometry/i);
   assert.match(html, /Piecewise EI stiffness profile changed/i);
   assert.match(html, /localStressInferenceAvailable/);
 });
