@@ -30,7 +30,7 @@ function summarise(rowsInput) {
         explanation = 'No question remained unresolved. The recovered topics are still useful evidence, but the next step can now broaden or advance the work.';
     } else if (unresolvedRows.length > 0 && recoveredRows.length > 0) {
         headline = 'Some ideas recovered; others still need another pass.';
-        explanation = 'Recovered items and unresolved items are separated so BeamLab does not treat every initial error as an ongoing weakness.';
+        explanation = 'Recovered items and unresolved items are separated so BeamLab does not treat every initial error as an ongoing weakness. An unresolved result is evidence for another check, not proof of a misconception.';
     } else if (unresolvedRows.length > 0) {
         headline = 'A few ideas are still unresolved.';
         explanation = 'The unresolved list comes only from this session outcome. It is evidence for what to revisit next, not proof of a misconception.';
