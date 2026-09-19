@@ -14,6 +14,7 @@ const challenges_1 = require("./challenges");
 const design_1 = require("./design");
 const design_workflow_1 = require("./design-workflow");
 const learning_evidence_1 = require("./learning-evidence");
+const learning_path_1 = require("./learning-path");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -389,6 +390,7 @@ function render() {
     $('#controls').hidden = !v.controls;
     $('#inspector').hidden = !v.inspector;
     v.masteryView = buildMasteryView(v.level);
+    v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress);
     $('#controls').innerHTML = (0, panels_1.toolsPanel)(m, v);
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
@@ -1097,6 +1099,14 @@ async function action(key, el) {
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
     if (name === 'session-review-weak') { sessionReviewWeakest(); return; }
     if (name === 'mastery-review') { const [kind,taskId]=id.split('|'); v.learnSection=kind==='lesson'?'lessons':'challenges'; if(kind==='lesson') startLesson(taskId); else startChallenge(taskId); return; }
+    if (name === 'recommended-next') {
+        if (v.session?.active || v.session?.review) return;
+        const [kind,taskId] = id.split('|');
+        if (kind === 'lesson') { v.learnSection='lessons'; startLesson(taskId); }
+        else if (kind === 'challenge') { v.learnSection='challenges'; startChallenge(taskId); }
+        else if (kind === 'session' && taskId === 'practice') startLearningSession('practice');
+        return;
+    }
     if (name === 'lesson-start') { if (v.session?.active) return; startLesson(id); return; }
     if (name === 'lesson-method') { if (v.session?.active && v.session.mode === 'exam') { toast('Exam mode uses your own sketch for diagram questions.'); return; } if (['choice','sketch'].includes(id)) { v.lessonMethod = id; v.lessonFeedback = null; v.lessonSketchResult = null; render(); } return; }
     if (name === 'lesson-choice') { if (v.session?.active && v.session.currentLocked) return; v.lessonChoice = id; v.lessonFeedback = null; v.lessonSketchResult = null; render(); return; }
@@ -1159,7 +1169,7 @@ async function action(key, el) {
     }
     if (name === 'lesson-next') { if(v.session?.active){sessionAdvance();return;} const list=(0,challenges_1.listLessons)(v.level); const next=list.find(c=>!lessonProgress[c.id])||list[0]; if(next) startLesson(next.id); return; }
     if (name === 'lesson-reset') { if(v.session?.active||v.session?.review)return; openDialog('Reset learning progress', `<p>This clears completed mini-lessons, numerical challenges and local mastery history on this browser. It does not change your structural model.</p>${(0, common_1.button)('lesson-reset-confirm','Reset progress','danger')}`); return; }
-    if (name === 'lesson-reset-confirm') { lessonProgress={}; challengeProgress={}; masteryStats={}; v.lessonProgress=lessonProgress; v.challengeProgress=challengeProgress; v.masteryStats=masteryStats; try { localStorage.removeItem(storageKey+':lessons'); localStorage.removeItem(storageKey+':challenges'); localStorage.removeItem(storageKey+':mastery'); } catch {} closeDialog(); render(); toast('Learning progress and mastery reset. Your beam model was not changed.'); return; }
+    if (name === 'lesson-reset-confirm') { lessonProgress={}; challengeProgress={}; masteryStats={}; learningEvidenceEvents=[]; v.lessonProgress=lessonProgress; v.challengeProgress=challengeProgress; v.masteryStats=masteryStats; try { localStorage.removeItem(storageKey+':lessons'); localStorage.removeItem(storageKey+':challenges'); localStorage.removeItem(storageKey+':mastery'); localStorage.removeItem(storageKey+':learning-evidence'); } catch {} closeDialog(); render(); toast('Learning progress, mastery and recent learning evidence reset. Your beam model was not changed.'); return; }
     if (name === 'explain-here') {
         if (v.session?.active && v.session.mode === 'exam') { toast('Show Why is hidden until the exam session is submitted.'); return; }
         if (!analysis) { toast('Complete a stable model first.'); return; }
