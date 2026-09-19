@@ -137,6 +137,8 @@ function renderDiagrams(m, a, v) {
         else
             model += `<path d="M${x} ${beamY + 5}l-11 20h22Z" fill="${col}"/>${i.kind === 'roller' ? `<circle cx="${x - 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/><circle cx="${x + 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/>` : `<line x1="${x - 15}" x2="${x + 15}" y1="${beamY + 29}" y2="${beamY + 29}" stroke="${col}"/>`}`;
         model += svgText(labelX, beamY + 49, `${i.label}${i.locked ? ' [L]' : ''} / ${(0, common_1.fmt)(i.x, 2)} m`, col, 'middle', 9);
+        if (Math.abs(i.settlementMm || 0) > 1e-12)
+            model += svgText(labelX, beamY + 59, `Δ ${(0,common_1.signed)(i.settlementMm,2)} mm`, '#efcb72', 'middle', 8);
         if (r && (!v.practice || v.practiceStep >= 1)) {
             model += arrow(x, r.force >= 0 ? beamY + 100 : beamY + 63, r.force >= 0 ? beamY + 63 : beamY + 100, '#82d8c1', 1.7);
             model += svgText((0, common_1.clamp)(x + 12, 58, W - 72), beamY + 80, `${(0, common_1.signed)(r.force)} kN`, '#82d8c1', x > W - 90 ? 'end' : 'start', 9);
@@ -161,7 +163,7 @@ function renderDiagrams(m, a, v) {
         }
     }
     model += tracer(layout.height) + `</g></svg>`;
-    let html = `<section class="diagram-block" id="structure-block">${diagramHeader('01', 'Structure', 'm / kN', `${(0, common_1.fmt)(m.length)} m member`)}${model}<div class="diagram-caption"><span>Load labels are nominal. Active case factors are applied to the results.${m.selfWeight ? ' Additional self-weight acts over the full beam.' : ''}</span><span>Double-click a label to edit</span></div></section>`;
+    let html = `<section class="diagram-block" id="structure-block">${diagramHeader('01', 'Structure', 'm / kN', `${(0, common_1.fmt)(m.length)} m member`)}${model}<div class="diagram-caption"><span>Load labels are nominal. Active case factors are applied to the results.${m.selfWeight ? ' Additional self-weight acts over the full beam.' : ''}${m.items.some(i => (0,validation_1.isSupport)(i.kind) && Math.abs(i.settlementMm || 0)>1e-12) ? ' Support settlement is prescribed displacement (up +).' : ''}</span><span>Double-click a label to edit</span></div></section>`;
     const val = (s, k, a) => k === 'stress' ? -s.M * (s.c ?? a.properties.c) / (s.I ?? a.properties.I) / 1000 : k === 'v' ? s.v * 1000 : s[k];
     const chart = (kind, num, title, units, colour) => {
         const H = 230, base = 108, amp = 66;
