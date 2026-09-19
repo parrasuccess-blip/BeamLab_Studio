@@ -20,6 +20,7 @@ const designWorkflow = load('studio/design-workflow');
 const learningEvidence = load('studio/learning-evidence');
 const learningPath = load('studio/learning-path');
 const adaptivePractice = load('studio/adaptive-practice');
+const sessionReview = load('studio/session-review');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -235,4 +236,49 @@ test('Learn UI explains that practice can replan only unanswered questions', () 
   assert.match(html, /WHY THIS QUESTION/);
   assert.match(html, /only unanswered questions can change/i);
   assert.match(html, /planRevision/);
+});
+
+
+test('post-session review separates first-try, recovered and unresolved outcomes', () => {
+  const summary = sessionReview.summarise([
+    {topic:'Reactions & equilibrium',firstCorrect:true,correct:true,tries:1},
+    {topic:'Shear → moment',firstCorrect:false,correct:true,tries:2},
+    {topic:'Deflection & stiffness',firstCorrect:false,correct:false,tries:1},
+    {topic:'Internal hinges',firstCorrect:false,correct:false,skipped:true,tries:0}
+  ]);
+  assert.equal(summary.firstTry, 1);
+  assert.equal(summary.recovered, 1);
+  assert.equal(summary.unresolved, 2);
+  assert.deepEqual(Array.from(summary.strengths), ['Reactions & equilibrium']);
+  assert.deepEqual(Array.from(summary.recoveredTopics), ['Shear → moment']);
+  assert.deepEqual(Array.from(summary.unresolvedTopics), ['Deflection & stiffness','Internal hinges']);
+  assert.match(summary.explanation, /not proof of a misconception/i);
+});
+
+test('post-session review does not keep a recovered topic unresolved', () => {
+  const summary = sessionReview.summarise([
+    {topic:'Shear → moment',firstCorrect:false,correct:false,tries:1},
+    {topic:'Shear → moment',firstCorrect:false,correct:true,tries:2}
+  ]);
+  assert.equal(summary.recovered, 1);
+  assert.equal(summary.unresolved, 1);
+  assert.deepEqual(Array.from(summary.unresolvedTopics), ['Shear → moment']);
+  assert.deepEqual(Array.from(summary.recoveredTopics), []);
+});
+
+test('session review UI feeds directly into Recommended Next', () => {
+  assert.match(html, /SESSION REVIEW/);
+  assert.match(html, /FIRST-TRY STRENGTHS/);
+  assert.match(html, /RECOVERED DURING SESSION/);
+  assert.match(html, /STILL UNRESOLVED/);
+  assert.match(html, /RECOMMENDED NEXT \/ DETERMINISTIC/);
+  assert.match(html, /session-review-next/);
+  assert.doesNotMatch(html, /session-review-weak/);
+});
+
+test('CI uses Node 24 with current GitHub action runtimes', () => {
+  const ci = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(ci, /actions\/checkout@v5/);
+  assert.match(ci, /actions\/setup-node@v5/);
+  assert.match(ci, /node-version:\s*"24"/);
 });
