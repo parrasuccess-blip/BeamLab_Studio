@@ -25,6 +25,7 @@ const learningTrajectory = load('studio/learning-trajectory');
 const topicDrilldown = load('studio/topic-drilldown');
 const studyPlan = load('studio/study-plan');
 const studyBlock = load('studio/study-block');
+const studyBlockResume = load('studio/study-block-resume');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -597,4 +598,86 @@ test('topic drill-down preserves guided plan event labels', () => {
     {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:true,firstTry:true,mode:'plan',timestamp:1}
   ], {}, {}, {});
   assert.equal(d.events[0].mode, 'plan');
+});
+
+
+test('guided study resume preserves active elapsed time without counting time away', () => {
+  const session = {
+    active:true, mode:'plan', startedAt:1000,
+    queue:[
+      {kind:'lesson',id:'a',title:'A',topic:'Topic A',blockRole:'focus'},
+      {kind:'challenge',id:'b',title:'B',topic:'Topic B',blockRole:'focus'}
+    ],
+    results:[],
+    focusTarget:2,mixedTarget:4,phaseTotal:3,planRevision:1,targetCount:6,
+    initialTrajectory:{rows:[]},studyPlanRationale:'Focus first',
+    origin:{model:{name:'Original'},past:[],future:[],compareModel:null,levelStarterActive:false,view:{level:'year1',selected:[]}}
+  };
+  const saved = studyBlockResume.create(session, 'year1', 61000);
+  assert.equal(saved.elapsedMs, 60000);
+  const restored = studyBlockResume.normalise(saved, 361000);
+  assert.equal(restored.elapsedMs, 60000);
+});
+
+test('guided study resume freezes only contiguous completed activities', () => {
+  const base = {
+    version:studyBlockResume.VERSION,savedAt:1000,level:'year1',elapsedMs:5000,
+    session:{
+      queue:[
+        {kind:'lesson',id:'a',title:'A',topic:'A'},
+        {kind:'challenge',id:'b',title:'B',topic:'B'},
+        {kind:'challenge',id:'c',title:'C',topic:'C'}
+      ],
+      results:[{locked:true},{locked:false},{locked:true}],
+      focusTarget:2,mixedTarget:4,phaseTotal:3,planRevision:0,targetCount:7,
+      initialTrajectory:null,studyPlanRationale:'',
+      origin:{model:{name:'Original'},past:[],future:[],view:{selected:[]}}
+    }
+  };
+  const restored = studyBlockResume.normalise(base, 2000);
+  assert.equal(studyBlockResume.completedCount(restored), 1);
+  const summary = studyBlockResume.summary(restored);
+  assert.equal(summary.completedCount, 1);
+  assert.equal(summary.nextTitle, 'B');
+});
+
+test('guided study resume rejects expired or completed snapshots', () => {
+  const base = {
+    version:studyBlockResume.VERSION,savedAt:1000,level:'year1',elapsedMs:5000,
+    session:{
+      queue:[{kind:'lesson',id:'a',title:'A',topic:'A'}],
+      results:[],
+      focusTarget:1,mixedTarget:4,phaseTotal:2,planRevision:0,targetCount:5,
+      initialTrajectory:null,studyPlanRationale:'',
+      origin:{model:{name:'Original'},past:[],future:[],view:{selected:[]}}
+    }
+  };
+  assert.equal(studyBlockResume.normalise(base, 1000 + studyBlockResume.MAX_AGE_MS + 1), null);
+  base.savedAt = 5000;
+  base.session.results = [{locked:true}];
+  assert.equal(studyBlockResume.normalise(base, 6000), null);
+});
+
+test('guided study resume UI requires explicit resume or discard before a new plan', () => {
+  assert.match(html, /SAVED GUIDED STUDY BLOCK \/ THIS BROWSER/);
+  assert.match(html, /study-block-resume/);
+  assert.match(html, /study-block-resume-discard/);
+  assert.match(html, /Resume or discard the saved block above/i);
+  assert.match(html, /Time while BeamLab was closed is not added/i);
+});
+
+test('guided study block persists on lifecycle events and clears on explicit exit or completion', () => {
+  assert.match(html, /study-block-resume/);
+  assert.match(html, /persistGuidedStudyBlock/);
+  assert.match(html, /pagehide[\s\S]*persistGuidedStudyBlock/);
+  assert.match(html, /session-exit-confirm[\s\S]*clearGuidedStudyBlockResume/);
+  assert.match(html, /s\.active = false; s\.review = true;[\s\S]*clearGuidedStudyBlockResume/);
+});
+
+test('guided study resume replans only unfinished work from current evidence', () => {
+  assert.match(html, /resumeGuidedStudyBlock/);
+  assert.match(html, /completedCount/);
+  assert.match(html, /replanGuidedStudyBlock\(s\)/);
+  assert.match(html, /Date\.now\(\) - saved\.elapsedMs/);
+  assert.match(html, /Time away from the tab was not counted/);
 });
