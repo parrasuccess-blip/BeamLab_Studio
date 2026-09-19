@@ -11,10 +11,12 @@ exports.setCombination = setCombination;
 exports.resultant = resultant;
 exports.stressAt = stressAt;
 exports.reviewLimits = reviewLimits;
+exports.sectionAt = sectionAt;
 const solver_1 = require("../engine/solver");
 const validation_1 = require("./validation");
 const sections_1 = require("./sections");
 const catalogue_1 = require("./catalogue");
+const section_regions_1 = require("./section-regions");
 const stiffness_1 = require("./stiffness");
 const clone = (v) => JSON.parse(JSON.stringify(v));
 exports.clone = clone;
@@ -26,6 +28,7 @@ function normalise(model) {
         i.caseId = m.cases[0].id; });
     m.selfWeightCase || (m.selfWeightCase = m.cases[0].id);
     m.combinations || (m.combinations = []);
+    m.sectionRegions = (0, section_regions_1.normaliseSectionRegions)(m.sectionRegions);
     m.stiffnessRegions = (0, stiffness_1.normaliseRegions)(m.stiffnessRegions);
     return m;
 }
@@ -36,6 +39,7 @@ function validateStudy(m) {
         if (!entry || m.section.shape!=='custom' || m.section.family!==entry.family || ['A','I','h','b','t','tf'].some(k=>Math.abs(m.section[k]-entry[k])>1e-8*Math.max(1,entry[k])))
             throw new Error('Catalogue section properties do not match their source. Detach the section before editing geometry.');
     }
+    (0, section_regions_1.validateSectionRegions)(m.sectionRegions, m.length);
     if (!m.cases) {
         for(const i of m.items) if(!/^[a-zA-Z0-9_-]{1,100}$/.test(i.id) || i.id==='__weight__') throw new Error('Invalid or reserved object identifier.');
         return;
@@ -107,15 +111,26 @@ function effectiveModel(m) {
                 items.push({ ...i, value: i.value * f, ...(i.endValue !== undefined ? { endValue: i.endValue * f } : {}) });
         }
     }
+    const internalDistributedLoads = [];
     if (m.selfWeight) {
         const f = caseFactor(m, m.selfWeightCase);
-        if (f)
-            items.push({ id: '__weight__', kind: 'udl', label: 'SW', x: 0, end: m.length, value: (0, sections_1.sectionProperties)(m.section).weight * f, colour: '#91a6ab' });
+        if (f) {
+            for (const seg of (0, section_regions_1.sectionSegments)(m)) {
+                internalDistributedLoads.push({
+                    id: '__selfweight__' + internalDistributedLoads.length,
+                    kind: 'udl',
+                    label: 'SW · ' + seg.regionLabel,
+                    x: seg.a,
+                    end: seg.b,
+                    value: seg.properties.weight * f,
+                    colour: '#91a6ab',
+                    internal: true,
+                    source: 'self-weight'
+                });
+            }
+        }
     }
-    // Reserve a slot for the internally generated self-weight action.
-    if (items.length > 48)
-        throw new Error('Keep one of the 48 object slots free when self-weight is enabled.');
-    return { ...m, items, selfWeight: false };
+    return { ...m, items, selfWeight: false, internalDistributedLoads };
 }
 function solveStudy(m) { return (0, solver_1.solveBeam)(effectiveModel(m)); }
 function setCombination(m, factors) {
@@ -131,14 +146,28 @@ function resultant(i) {
     const firstMoment = i.x * force + l * l * (w0 + 2 * w1) / 6;
     return { force, firstMoment, position: Math.abs(force) > 1e-9 ? firstMoment / force : null };
 }
-function stressAt(a, x) {
-    const M = a.sample(x).M;
-    if (a.hasVaryingEI) return { top: NaN, bottom: NaN, M, unavailable: true };
-    const top = -M * a.properties.c / a.properties.I / 1000;
-    return { top, bottom: -top, M, unavailable: false };
+function sectionAt(a, x, side='right') {
+    if (a?.localSectionAt) return a.localSectionAt(x, side);
+    return { section:null, properties:a?.properties || null, stiffnessFactor:1, regionId:null, regionLabel:'Base section', label:'Base section' };
+}
+function stressAt(a, x, side='right') {
+    const sample = a.sample(x, side), local = sectionAt(a, x, side);
+    if (!local.properties || Math.abs((local.stiffnessFactor ?? 1) - 1) > 1e-12)
+        return { top: NaN, bottom: NaN, M: sample.M, unavailable: true, local };
+    const top = -sample.M * local.properties.c / local.properties.I / 1000;
+    return { top, bottom: -top, M: sample.M, unavailable: false, local };
 }
 function reviewLimits(a, m) {
-    const stress = a.hasVaryingEI ? null : Math.abs(a.peakM.M) * a.properties.c / a.properties.I / 1000;
+    const envelope = !a.hasEIOnlyRegions ? a.elasticStressEnvelope : null;
+    const stress = envelope && Number.isFinite(envelope.stress) ? Math.abs(envelope.stress) : null;
     const displacement = Math.abs(a.peakD.v) * 1000;
-    return { stress, displacement, stressRatio: stress !== null && m.review?.stressMPa ? stress / m.review.stressMPa : null, displacementRatio: m.review?.displacementMm ? displacement / m.review.displacementMm : null, stressUnavailable: !!a.hasVaryingEI };
+    return {
+        stress,
+        stressX: envelope?.x ?? null,
+        stressSection: envelope?.sectionLabel || null,
+        displacement,
+        stressRatio: stress !== null && m.review?.stressMPa ? stress / m.review.stressMPa : null,
+        displacementRatio: m.review?.displacementMm ? displacement / m.review.displacementMm : null,
+        stressUnavailable: !!a.hasEIOnlyRegions
+    };
 }
