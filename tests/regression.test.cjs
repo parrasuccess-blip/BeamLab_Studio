@@ -75,7 +75,7 @@ test('piecewise EI cantilever matches an independent exact tip-deflection integr
 test('piecewise EI changes compatibility reactions without breaking equilibrium', () => {
   const uniform = normalise(example('continuous'));
   const stepped = normalise(example('continuous'));
-  stepped.stiffnessRegions = [{id:'ei-left',label:'Stiff left span',x:0,end:5,factor:2}];
+  stepped.stiffnessRegions = [{id:'ei-left',label:'Stiff left quarter',x:0,end:2.5,factor:2}];
   const a = solveStudy(uniform), b = solveStudy(stepped);
   assert.ok(Math.abs(b.reactions[1].force - a.reactions[1].force) > 1e-5);
   near(b.reactions.reduce((sum,row)=>sum+row.force,0), b.total, 1e-8);
