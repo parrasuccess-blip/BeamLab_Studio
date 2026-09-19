@@ -18,6 +18,7 @@ const learning_path_1 = require("./learning-path");
 const adaptive_practice_1 = require("./adaptive-practice");
 const learning_trajectory_1 = require("./learning-trajectory");
 const topic_drilldown_1 = require("./topic-drilldown");
+const study_plan_1 = require("./study-plan");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -393,8 +394,17 @@ function render() {
     $('#controls').hidden = !v.controls;
     $('#inspector').hidden = !v.inspector;
     v.masteryView = buildMasteryView(v.level);
-    v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress);
+    const learningSnapshot = learningEvidenceSnapshot();
+    v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningSnapshot, lessonProgress, challengeProgress);
     v.learningTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 6);
+    v.learningStudyPlan = (0, study_plan_1.build)(
+        v.level,
+        { ...learningSnapshot, recentEvents:learningEvidenceEvents },
+        v.learningTrajectory,
+        lessonProgress,
+        challengeProgress,
+        masteryStats
+    );
     $('#controls').innerHTML = (0, panels_1.toolsPanel)(m, v);
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
@@ -1168,6 +1178,15 @@ async function action(key, el) {
         if (kind === 'lesson') { v.learnSection='lessons'; startLesson(taskId); }
         else if (kind === 'challenge') { v.learnSection='challenges'; startChallenge(taskId); }
         else if (kind === 'session' && taskId === 'practice') startLearningSession('practice');
+        return;
+    }
+    if (name === 'study-plan-step') {
+        if (v.session?.active || v.session?.review) return;
+        const [kind,taskId] = id.split('|');
+        v.tab = 'learn';
+        if (kind === 'lesson') { v.learnSection='lessons'; startLesson(taskId); }
+        else if (kind === 'challenge') { v.learnSection='challenges'; startChallenge(taskId); }
+        else if (kind === 'session' && taskId === 'practice') { v.learnSection='session'; startLearningSession('practice'); }
         return;
     }
     if (name === 'lesson-start') { if (v.session?.active) return; startLesson(id); return; }

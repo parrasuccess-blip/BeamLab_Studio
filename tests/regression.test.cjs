@@ -23,6 +23,7 @@ const adaptivePractice = load('studio/adaptive-practice');
 const sessionReview = load('studio/session-review');
 const learningTrajectory = load('studio/learning-trajectory');
 const topicDrilldown = load('studio/topic-drilldown');
+const studyPlan = load('studio/study-plan');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -392,4 +393,56 @@ test('trajectory UI opens inspectable evidence and can launch the topic exercise
   assert.match(html, /EVENTS BEHIND THIS STATE/);
   assert.match(html, /BEST NEXT EXERCISE \/ DETERMINISTIC/);
   assert.match(html, /AVAILABLE TASKS AT THIS LEVEL/);
+});
+
+
+test('personalised study plan starts with unresolved evidence and ends with a mixed check', () => {
+  const topic = 'Shear → moment';
+  const evidence = {
+    recentEvents: [{event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:false,firstTry:true,timestamp:20}]
+  };
+  const trajectory = learningTrajectory.build(evidence.recentEvents, {}, 6);
+  const plan = studyPlan.build('year1', evidence, trajectory, {}, {}, {});
+  assert.ok(plan.steps.length >= 2);
+  assert.equal(plan.steps[0].phase, 'repair');
+  assert.equal(plan.steps[0].topic, topic);
+  assert.equal(plan.steps.at(-1).kind, 'session');
+  assert.equal(plan.steps.at(-1).id, 'practice');
+  assert.match(plan.boundary, /not a grade/i);
+});
+
+test('personalised study plan never uses a stable topic as filler', () => {
+  const stable = 'Reactions & equilibrium';
+  const events = [
+    {event:'attempt',kind:'challenge',taskId:'y1-reaction',taskTitle:'Reaction',topic:stable,correct:true,firstTry:true,timestamp:1},
+    {event:'attempt',kind:'challenge',taskId:'y1-reaction',taskTitle:'Reaction',topic:stable,correct:true,firstTry:true,timestamp:2}
+  ];
+  const trajectory = learningTrajectory.build(events, {}, 6);
+  const plan = studyPlan.build('year1', {recentEvents:events}, trajectory, {}, {}, {});
+  assert.ok(plan.steps.filter(step => step.kind !== 'session').every(step => step.topic !== stable));
+  assert.match(plan.rationale, /de-prioritised/i);
+});
+
+test('personalised study plan has no duplicate launch tasks', () => {
+  const topic = 'Point loads & shear';
+  const events = [{event:'skip',kind:'lesson',taskId:'l1-point-shear',taskTitle:'Point load shear',topic,timestamp:10}];
+  const trajectory = learningTrajectory.build(events, {}, 6);
+  const plan = studyPlan.build('year1', {recentEvents:events}, trajectory, {}, {}, {});
+  const ids = plan.steps.map(step => step.kind + ':' + step.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(plan.estimatedMinutes, plan.steps.reduce((sum,step)=>sum+step.minutes,0));
+});
+
+test('personalised study plan falls back to incomplete work when evidence is sparse', () => {
+  const plan = studyPlan.build('year1', {recentEvents:[]}, {rows:[]}, {}, {}, {});
+  assert.ok(plan.steps.some(step => step.phase === 'build'));
+  assert.equal(plan.steps.at(-1).phase, 'mixed-check');
+  assert.match(plan.rationale, /little recent evidence/i);
+});
+
+test('Learn mastery UI exposes launchable deterministic study plan steps', () => {
+  assert.match(html, /PERSONALISED STUDY PLAN \/ DETERMINISTIC/);
+  assert.match(html, /study-plan-step:/);
+  assert.match(html, /learningStudyPlan/);
+  assert.match(html, /study-sequencing aid/i);
 });
