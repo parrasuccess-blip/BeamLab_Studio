@@ -4,6 +4,7 @@ exports.isLoad = exports.isDistributed = exports.isSupport = void 0;
 exports.validateModel = validateModel;
 exports.parseModel = parseModel;
 const sections_1 = require("./sections");
+const stiffness_1 = require("./stiffness");
 const isSupport = (k) => ['pin', 'roller', 'fixed'].includes(k);
 exports.isSupport = isSupport;
 const isDistributed = (k) => k === 'udl' || k === 'variable';
@@ -18,6 +19,7 @@ function validateModel(m) {
     if (!Array.isArray(m.items) || m.items.length > 48)
         throw new Error('A maximum of 48 objects is supported.');
     (0, sections_1.sectionProperties)(m.section);
+    (0, stiffness_1.validateRegions)(m.stiffnessRegions, m.length);
     const ids = new Set();
     const kinds = ['pin', 'roller', 'fixed', 'hinge', 'point', 'udl', 'variable', 'moment'];
     for (const o of m.items) {

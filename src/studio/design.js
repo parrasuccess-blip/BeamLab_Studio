@@ -69,6 +69,7 @@ function evaluate(model, analysis, rawSettings) {
     const props = analysis.properties || (0, sections_1.sectionProperties)(model.section);
     const moments = extrema(analysis.points, 'M');
     const shears = extrema(analysis.points, 'V');
+    const piecewiseEI = !!analysis.hasVaryingEI;
     const demand = {
         moment: Math.abs(analysis.peakM.M),
         momentPositive: moments.max,
@@ -81,7 +82,7 @@ function evaluate(model, analysis, rawSettings) {
         deflectionMm: Math.abs(analysis.peakD.v) * 1000,
         deflectionSignedMm: analysis.peakD.v * 1000,
         deflectionX: analysis.peakD.x,
-        elasticStressMPa: Math.abs(analysis.peakM.M) * props.c / props.I / 1000
+        elasticStressMPa: piecewiseEI ? null : Math.abs(analysis.peakM.M) * props.c / props.I / 1000
     };
     const serviceSpanM = settings.serviceSpanM || model.length;
     const deflectionLimitMm = settings.deflectionMode === 'ratio'
@@ -96,7 +97,7 @@ function evaluate(model, analysis, rawSettings) {
     ];
     const assessed = checks.filter(c => c.ratio !== null);
     const governing = assessed.length ? assessed.reduce((a,b) => b.ratio > a.ratio ? b : a) : null;
-    const elasticYieldMoment = settings.fyMPa ? settings.fyMPa * 1e6 * props.I / props.c / 1000 : null;
+    const elasticYieldMoment = !piecewiseEI && settings.fyMPa ? settings.fyMPa * 1e6 * props.I / props.c / 1000 : null;
     const elasticYieldRatio = elasticYieldMoment ? demand.moment / elasticYieldMoment : null;
     const factors = (model.cases || []).map(c => ({
         id: c.id,
@@ -109,6 +110,7 @@ function evaluate(model, analysis, rawSettings) {
     }));
     const readiness = [
         { id:'analysis', state:'ready', label:'Stable analysis result', detail:'Demand comes directly from the current deterministic BeamLab solution.' },
+        ...(piecewiseEI ? [{ id:'piecewise-section', state:'missing', label:'Local stepped-section properties', detail:'EI multipliers redistribute stiffness but do not define local E, I, section modulus, shear geometry, self-weight or resistance. Verify that every entered capacity applies to every relevant region.' }] : []),
         { id:'factors', state:'input', label:'Action-factor provenance', detail:'Current factors are visible below. BeamLab 4.0 does not claim they are automatic AS/NZS combinations.' },
         { id:'moment-capacity', state:settings.momentCapacity ? 'ready':'input', label:'Bending capacity', detail:settings.momentCapacity ? 'A final design capacity has been entered by the user.' : 'Enter a verified final design capacity to assess bending demand.' },
         { id:'shear-capacity', state:settings.shearCapacity ? 'ready':'input', label:'Shear capacity', detail:settings.shearCapacity ? 'A final design capacity has been entered by the user.' : 'Enter a verified final design capacity to assess shear demand.' },
@@ -124,7 +126,7 @@ function evaluate(model, analysis, rawSettings) {
         demand,
         checks,
         governing,
-        elasticReference: { fyMPa: settings.fyMPa, momentKNm: elasticYieldMoment, ratio: elasticYieldRatio },
+        elasticReference: { fyMPa: settings.fyMPa, momentKNm: elasticYieldMoment, ratio: elasticYieldRatio, unavailable:piecewiseEI, reason:piecewiseEI ? 'EI-only zones do not define local section modulus or the E/I split required for a first-yield reference.' : null },
         serviceability: { mode: settings.deflectionMode, serviceSpanM, limitMm: deflectionLimitMm },
         factors,
         section: {
@@ -135,7 +137,9 @@ function evaluate(model, analysis, rawSettings) {
             A_mm2: props.A * 1e6,
             c_mm: props.c * 1000,
             EI_kNm2: props.EI,
-            selfWeight_kNm: props.weight
+            selfWeight_kNm: props.weight,
+            piecewiseEI,
+            stiffnessZones: (analysis.stiffnessRegions || []).map(r => ({ label:r.label, x_m:r.x, end_m:r.end, factor:r.factor, EI_kNm2:props.EI * r.factor }))
         },
         readiness
     };
@@ -158,7 +162,7 @@ function reviewSnapshot(model, analysis, rawSettings, reference) {
         section: review.section,
         caseFactors: review.factors,
         readiness: review.readiness,
-        limitations: [...exports.limitations],
+        limitations: [...exports.limitations, ...(analysis.hasVaryingEI ? ['Piecewise EI multipliers do not define local section geometry, elastic stress, self-weight or member resistance; applicability of entered capacities across all regions must be verified independently.'] : [])],
         publicReferenceBasis: exports.referenceBasis.map(r => ({ id:r.id, label:r.label, title:r.title, source:r.source, url:r.url })),
         disclaimer: 'This is a transparent review of BeamLab demand against user-entered capacities/criteria. It is not automatic AS 4100 or AS/NZS 1170 compliance and is not structural design approval.'
     };

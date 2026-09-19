@@ -13,8 +13,11 @@ const ctx = vm.createContext({ TextEncoder, TextDecoder, setTimeout, clearTimeou
 new vm.Script(html.slice(start, stop) + ';globalThis.productionLoad=load;').runInContext(ctx);
 const load = ctx.productionLoad;
 const { example, makeItem } = load('model/examples');
-const { normalise, solveStudy } = load('model/study');
-const { benchmarks } = load('studio/verification');
+const { normalise, solveStudy, validateStudy, reviewLimits } = load('model/study');
+const stiffness = load('model/stiffness');
+const levels = load('studio/levels');
+const verification = load('studio/verification');
+const { benchmarks } = verification;
 const design = load('studio/design');
 const designWorkflow = load('studio/design-workflow');
 const learningEvidence = load('studio/learning-evidence');
@@ -55,6 +58,90 @@ test('all built-in analytical benchmarks remain passing', () => {
   const rows = benchmarks();
   assert.equal(rows.length, 21);
   for (const row of rows) assert.equal(row.pass, true, row.name);
+});
+
+test('piecewise EI cantilever matches an independent exact tip-deflection integral', () => {
+  const m = normalise(example('cantilever'));
+  m.stiffnessRegions = [{id:'ei-left',label:'Stiff left half',x:0,end:5,factor:2}];
+  validateStudy(m);
+  const r = solveStudy(m);
+  near(r.reactions[0].force, 50);
+  near(r.reactions[0].moment, 500);
+  near(r.sample(10).v * 1000, -133.92857142857144, 1e-7);
+  assert.deepEqual(Array.from(r.elements, e => e.stiffnessFactor), [2,1]);
+  assert.equal(r.hasVaryingEI, true);
+});
+
+test('piecewise EI changes compatibility reactions without breaking equilibrium', () => {
+  const uniform = normalise(example('continuous'));
+  const stepped = normalise(example('continuous'));
+  stepped.stiffnessRegions = [{id:'ei-left',label:'Stiff left quarter',x:0,end:2.5,factor:2}];
+  const a = solveStudy(uniform), b = solveStudy(stepped);
+  assert.ok(Math.abs(b.reactions[1].force - a.reactions[1].force) > 1e-5);
+  near(b.reactions.reduce((sum,row)=>sum+row.force,0), b.total, 1e-8);
+  near(b.forceResidual, 0, 1e-8);
+  near(b.momentResidual, 0, 1e-8);
+});
+
+test('piecewise EI validation rejects overlaps and invalid multipliers', () => {
+  const overlap = normalise(example('simple'));
+  overlap.stiffnessRegions = [
+    {id:'a',label:'A',x:0,end:6,factor:1.5},
+    {id:'b',label:'B',x:5,end:10,factor:.8}
+  ];
+  assert.throws(() => validateStudy(overlap), /cannot overlap/i);
+  const invalid = normalise(example('simple'));
+  invalid.stiffnessRegions = [{id:'bad',label:'Bad',x:0,end:5,factor:.01}];
+  assert.throws(() => validateStudy(invalid), /between 0\.05 and 20/i);
+});
+
+test('legacy uniform studies remain uniform and preserve all analytical benchmarks', () => {
+  const m = normalise(example('simple'));
+  assert.deepEqual(Array.from(m.stiffnessRegions), []);
+  assert.equal(stiffness.hasVaryingEI(m), false);
+  const rows = benchmarks();
+  assert.equal(rows.length, 21);
+  assert.ok(rows.every(row => row.pass));
+});
+
+test('varying EI energy audit uses local element stiffness', () => {
+  const m = normalise(example('cantilever'));
+  m.stiffnessRegions = [{id:'ei-left',label:'Stiff left half',x:0,end:5,factor:2}];
+  const a = solveStudy(m);
+  const audit = verification.audit(m, a);
+  const energy = audit.checks.find(row => row.name === 'Strain energy / external work');
+  assert.ok(energy);
+  assert.equal(energy.pass, true);
+  assert.ok(Math.abs(energy.residual) <= energy.tolerance);
+});
+
+test('EI-only zones disable local stress inference instead of inventing section properties', () => {
+  const m = normalise(example('cantilever'));
+  m.stiffnessRegions = [{id:'ei-left',label:'Stiff left half',x:0,end:5,factor:2}];
+  const a = solveStudy(m);
+  const limits = reviewLimits(a, m);
+  assert.equal(limits.stress, null);
+  assert.equal(limits.stressUnavailable, true);
+  const review = design.evaluate(m, a, {fyMPa:300,momentCapacity:600,shearCapacity:100,deflectionMode:'direct',deflectionLimitMm:200});
+  assert.equal(review.demand.elasticStressMPa, null);
+  assert.equal(review.elasticReference.momentKNm, null);
+  assert.equal(review.elasticReference.unavailable, true);
+  assert.ok(review.readiness.some(row => row.id === 'piecewise-section' && row.state === 'missing'));
+  assert.equal(review.section.stiffnessZones.length, 1);
+});
+
+test('piecewise EI editing is progressive and source-native', () => {
+  assert.equal(levels.canUseFeature('year1','varyingEI'), false);
+  assert.equal(levels.canUseFeature('year2','varyingEI'), false);
+  assert.equal(levels.canUseFeature('year3','varyingEI'), true);
+  assert.equal(levels.canUseFeature('all','varyingEI'), true);
+  assert.match(html, /PIECEWISE EI \/ STEPPED STIFFNESS/);
+  assert.match(html, /stiffness-add/);
+  assert.match(html, /stiffness-save:/);
+  assert.match(html, /stiffness-band/);
+  assert.match(html, /Local stress layers paused/);
+  assert.match(html, /Not inferred for EI-only zones/);
+  assert.match(html, /stiffnessRegions \|\| \[\]\)\.forEach\(r => \{ r\.x \*= ratio; r\.end \*= ratio; \}\)/);
 });
 
 test('migration preserves Design Studio and tutor hooks', () => {
@@ -680,4 +767,16 @@ test('guided study resume replans only unfinished work from current evidence', (
   assert.match(html, /replanGuidedStudyBlock\(s\)/);
   assert.match(html, /Date\.now\(\) - saved\.elapsedMs/);
   assert.match(html, /Time away from the tab was not counted/);
+});
+
+
+test('piecewise EI boundaries propagate through worked solution, Design and exports', () => {
+  assert.match(html, /using compatibility and the EI assigned to each event-aligned beam element/i);
+  assert.match(html, /EI ×/);
+  assert.match(html, /Peak elastic extreme-fibre stress is not inferred for EI-only stiffness zones/i);
+  assert.match(html, /Euler-Bernoulli small-deflection bending with optional piecewise-constant EI/i);
+  assert.match(html, /Not inferred for EI-only zones/i);
+  assert.match(html, /Verify local section geometry and that every entered capacity applies to the relevant zone/i);
+  assert.match(html, /Piecewise EI stiffness profile changed/i);
+  assert.match(html, /localStressInferenceAvailable/);
 });

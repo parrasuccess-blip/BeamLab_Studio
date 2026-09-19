@@ -4,7 +4,8 @@ exports.solveBeam = solveBeam;
 const linear_1 = require("./linear");
 const sections_1 = require("../model/sections");
 const validation_1 = require("../model/validation");
-/** Constant-EI Euler-Bernoulli bending, kN/m/radians.
+const stiffness_1 = require("../model/stiffness");
+/** Piecewise-constant-EI Euler-Bernoulli bending, kN/m/radians.
  * Displacements up, rotations CCW, applied forces down, couples CCW.
  * Event-aligned Hermite stiffness and exact linear-load vectors. Recover the
  * quartic/quintic interior fields by equilibrium integration, not cubic-only
@@ -13,6 +14,7 @@ const validation_1 = require("../model/validation");
 function solveBeam(model) {
     (0, validation_1.validateModel)(model);
     const p = (0, sections_1.sectionProperties)(model.section), length = model.length;
+    const stiffnessRegions = (0, stiffness_1.normaliseRegions)(model.stiffnessRegions);
     const supports = model.items.filter(i => (0, validation_1.isSupport)(i.kind)).sort((a, b) => a.x - b.x);
     if (!supports.some(s => s.kind === 'pin' || s.kind === 'fixed'))
         throw new Error('Add a pin or fixed support for horizontal restraint.');
@@ -20,7 +22,7 @@ function solveBeam(model) {
     const loads = model.items.filter(i => (0, validation_1.isDistributed)(i.kind));
     if (model.selfWeight)
         loads.push({ id: 'self', label: 'Self-weight', kind: 'udl', x: 0, end: length, value: p.weight, colour: '#9eaab1' });
-    const events = [0, length, ...model.items.flatMap(i => (0, validation_1.isDistributed)(i.kind) ? [i.x, i.end] : [i.x])].sort((a, b) => a - b);
+    const events = [0, length, ...model.items.flatMap(i => (0, validation_1.isDistributed)(i.kind) ? [i.x, i.end] : [i.x]), ...stiffnessRegions.flatMap(r => [r.x, r.end])].sort((a, b) => a - b);
     const xs = events.filter((x, i) => !i || x - events[i - 1] > length * 1e-10);
     if (xs.some((x, i) => i && x - xs[i - 1] < length * 1e-6))
         throw new Error('Two structural events are too close together. Separate them or use exactly the same position.');
@@ -38,6 +40,8 @@ function solveBeam(model) {
     for (let i = 0; i < xs.length - 1; i++) {
         const a = xs[i], b = xs[i + 1], l = b - a, centre = (a + b) / 2;
         const active = loads.filter(o => centre > o.x && centre < o.end);
+        const stiffnessFactor = (0, stiffness_1.factorAt)(stiffnessRegions, centre);
+        const EI = p.EI * stiffnessFactor;
         const w0 = active.reduce((s, o) => s + intensity(o, a), 0);
         const w1 = active.reduce((s, o) => s + intensity(o, b), 0);
         const dofs = [nodes[i].v, nodes[i].right, nodes[i + 1].v, nodes[i + 1].left];
@@ -46,13 +50,13 @@ function solveBeam(model) {
             [6 * l, 4 * l * l, -6 * l, 2 * l * l],
             [-12, -6 * l, 12, -6 * l],
             [6 * l, 2 * l * l, -6 * l, 4 * l * l]
-        ].map(row => row.map(v => v * p.EI / l ** 3));
+        ].map(row => row.map(v => v * EI / l ** 3));
         const f = [-l * (7 * w0 + 3 * w1) / 20, -l * l * (3 * w0 + 2 * w1) / 60, -l * (3 * w0 + 7 * w1) / 20, l * l * (2 * w0 + 3 * w1) / 60];
         dofs.forEach((di, r) => {
             F[di] += f[r];
             dofs.forEach((dj, c) => { K[di][dj] += k[r][c]; });
         });
-        elements.push({ a, b, dofs, k, f, w0, slope: (w1 - w0) / l, d: [], r: [] });
+        elements.push({ a, b, dofs, k, f, w0, slope: (w1 - w0) / l, EI, stiffnessFactor, d: [], r: [] });
     }
     model.items.forEach(o => {
         const n = nodes[index(o.x)];
@@ -79,8 +83,8 @@ function solveBeam(model) {
         const V0 = e.r[0], M0 = -e.r[1], w = e.w0, k = e.slope;
         const V = V0 - w * t - k * t * t / 2;
         const M = M0 + V0 * t - w * t ** 2 / 2 - k * t ** 3 / 6;
-        const theta = e.d[1] + (M0 * t + V0 * t ** 2 / 2 - w * t ** 3 / 6 - k * t ** 4 / 24) / p.EI;
-        const v = e.d[0] + e.d[1] * t + (M0 * t * t / 2 + V0 * t ** 3 / 6 - w * t ** 4 / 24 - k * t ** 5 / 120) / p.EI;
+        const theta = e.d[1] + (M0 * t + V0 * t ** 2 / 2 - w * t ** 3 / 6 - k * t ** 4 / 24) / e.EI;
+        const v = e.d[0] + e.d[1] * t + (M0 * t * t / 2 + V0 * t ** 3 / 6 - w * t ** 4 / 24 - k * t ** 5 / 120) / e.EI;
         return { x: e.a + t, V, M, v, theta };
     }
     const sample = (x, side = 'right') => {
@@ -99,7 +103,7 @@ function solveBeam(model) {
         candidatesD.push(...ends);
         (0, linear_1.roots01)([e.w0, e.slope * l]).forEach(z => candidatesV.push(at(e, e.a + z * l)));
         (0, linear_1.roots01)([e.r[0], -e.w0 * l, -e.slope * l * l / 2]).forEach(z => candidatesM.push(at(e, e.a + z * l)));
-        (0, linear_1.roots01)([e.d[1], -e.r[1] * l / p.EI, e.r[0] * l ** 2 / (2 * p.EI), -e.w0 * l ** 3 / (6 * p.EI), -e.slope * l ** 4 / (24 * p.EI)]).forEach(z => candidatesD.push(at(e, e.a + z * l)));
+        (0, linear_1.roots01)([e.d[1], -e.r[1] * l / e.EI, e.r[0] * l ** 2 / (2 * e.EI), -e.w0 * l ** 3 / (6 * e.EI), -e.slope * l ** 4 / (24 * e.EI)]).forEach(z => candidatesD.push(at(e, e.a + z * l)));
         const n = Math.max(8, Math.ceil(160 * l / length));
         for (let i = 0; i <= n; i++)
             points.push(at(e, e.a + l * i / n));
@@ -144,6 +148,8 @@ function solveBeam(model) {
         warnings.push('Large relative deflection: the small-deflection model may no longer be appropriate.');
     if (model.section.material.includes('Concrete'))
         warnings.push('Concrete uses gross, uncracked elastic stiffness. Cracking, creep and reinforcement are not modelled.');
+    if (stiffnessRegions.length)
+        warnings.push('Piecewise EI zones modify elastic stiffness only. Local section geometry, bending stress, self-weight and member resistance are not inferred from an EI multiplier.');
     const system = hinges.length ? `${hinges.length}-hinge beam` : supports.length === 1 ? 'Cantilever' : supports.length > 2 ? 'Continuous beam' : supports.some(s => s.kind === 'fixed') ? 'Restrained beam' : supports[0].x > 0 || supports[supports.length - 1].x < length ? 'Overhang beam' : 'Simply supported beam';
-    return { properties: p, elements, reactions, points, peakV, peakM, peakD, total, loadMoment, appliedCouple, forceResidual, momentResidual, hingeResidual, boundaryResidual, endCompatibilityResidual: compatibility, warnings, system, dofs: count, sample };
+    return { properties: p, stiffnessRegions, hasVaryingEI: stiffnessRegions.length > 0, elements, reactions, points, peakV, peakM, peakD, total, loadMoment, appliedCouple, forceResidual, momentResidual, hingeResidual, boundaryResidual, endCompatibilityResidual: compatibility, warnings, system, dofs: count, sample };
 }

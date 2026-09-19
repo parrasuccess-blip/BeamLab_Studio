@@ -32,7 +32,7 @@ function audit(model, analysis) {
         const half = (e.b - e.a) / 2, mid = (e.a + e.b) / 2;
         for (const [xi, weight] of gauss) {
             const x = mid + half * xi, s = a.sample(x), w = e.w0 + e.slope * (x - e.a);
-            internal += weight * half * s.M * s.M / a.properties.EI;
+            internal += weight * half * s.M * s.M / e.EI;
             external += weight * half * -w * s.v;
         }
     }
@@ -60,7 +60,7 @@ function audit(model, analysis) {
         extrema: { shear: a.peakV, moment: a.peakM, displacement: a.peakD },
         energy: { strainEnergy_kNm: internal / 2, halfFinalLoadWork_kNm: external / 2 },
         checks, pass: checks.every(c => c.pass), warnings: a.warnings,
-        scope: 'Uniform-EI Euler-Bernoulli, linear elastic, zero prescribed support movement; no dynamics, shear deformation or code checks.'
+        scope: 'Euler-Bernoulli with optional piecewise-constant EI multipliers, linear elastic, zero prescribed support movement; no dynamics, shear deformation, local stepped-section stress inference or code checks.'
     };
 }
 function criticalLocations(a, model) {

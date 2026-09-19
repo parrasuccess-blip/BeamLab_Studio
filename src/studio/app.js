@@ -5,6 +5,7 @@ const validation_1 = require("../model/validation");
 const study_1 = require("../model/study");
 const catalogue_1 = require("../model/catalogue");
 const sections_1 = require("../model/sections");
+const stiffness_1 = require("../model/stiffness");
 const history_1 = require("./history");
 const common_1 = require("./common");
 const diagrams_1 = require("./diagrams");
@@ -194,7 +195,10 @@ if (levelStarterActive) {
     v.currentCase = initialStarter.cases[0].id;
 }
 const publicOrigin = /^https?:$/.test(location.protocol) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-function shown(key) { return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key]; }
+function shown(key) {
+    if ((key === 'stress' || key === 'shear') && (history.model.stiffnessRegions?.length || 0)) return false;
+    return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key];
+}
 function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: v.practiceStep || 0, trace: v.trace, compare: comparison, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
 function solve() {
     // Lesson choices/recaps describe a fixed reference study, not arbitrary edits.
@@ -367,11 +371,11 @@ function renderDesignStudio() {
     root.innerHTML = `<section class="design-hero"><span class="eyebrow">BEAMLAB 4.0 / DESIGN STUDIO</span><h2>Carry verified analysis demand into a transparent design review.</h2><p>BeamLab solves the member first, then compares that deterministic demand with capacities and serviceability criteria that <b>you</b> enter from a verified source. It does not yet derive AS 4100 member capacity, classify sections or generate AS/NZS load combinations.</p><div class="design-hero-actions">${(0,common_1.button)('workspace-mode:analysis','← Back to Analysis','secondary')}</div><span class="design-beta"><i></i>SCREENING REVIEW · NOT CODE APPROVAL OR STRUCTURAL DESIGN APPROVAL</span></section>
     <section class="design-workflow">${workflow}
     <div class="design-grid" data-design-step="${designStep}"><aside class="design-inputs"><section class="design-card violet design-step-card design-step-2"><span class="eyebrow">ENTERED CAPACITY BASIS</span><h3>Bring your verified capacities.</h3><p>Enter final design capacities from your own checked calculation, standard workflow or trusted design software. BeamLab only forms demand/capacity ratios.</p>${designNumberField('momentCapacity','Bending design capacity |φMb|',s.momentCapacity,'kN·m',.001,1e9,'e.g. 180')}${designNumberField('shearCapacity','Shear design capacity |φVv|',s.shearCapacity,'kN',.001,1e9,'e.g. 250')}<label class="design-field"><span>Serviceability criterion</span><select data-design-select="deflectionMode" aria-label="Serviceability criterion"><option value="unset" ${s.deflectionMode==='unset'?'selected':''}>Not set</option><option value="ratio" ${s.deflectionMode==='ratio'?'selected':''}>Span ratio L / n</option><option value="direct" ${s.deflectionMode==='direct'?'selected':''}>Direct displacement</option></select><em>criterion</em></label>${s.deflectionMode==='ratio'?designNumberField('serviceSpanM','Reference span',s.serviceSpanM ?? m.length,'m',.001,1e5,'member length')+designNumberField('deflectionRatio','Limit denominator n',s.deflectionRatio,'L/n',1,1e6,'250'):s.deflectionMode==='direct'?designNumberField('deflectionLimitMm','Displacement limit',s.deflectionLimitMm,'mm',.001,1e6,'e.g. 20'):''}<div class="design-input-note">Deflection demand uses the <b>current active load factors</b>. Apply an independently verified serviceability factor set before treating this as a serviceability review.</div></section>
-    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M*/My = ${(0,common_1.fmt)(fy.ratio,3)}. This ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
+    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M*/My = ${(0,common_1.fmt)(fy.ratio,3)}. This ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
     <section class="design-card design-step-card design-step-2"><span class="eyebrow">TRACEABILITY</span><h3>Record where the numbers came from.</h3><textarea class="design-textarea" data-design-text="capacitySource" maxlength="240" placeholder="Capacity source, calculation reference, clause, software run...">${(0,common_1.esc)(s.capacitySource)}</textarea><textarea class="design-textarea" data-design-text="notes" maxlength="1000" placeholder="Design assumptions, restraint notes, combination basis, outstanding checks...">${(0,common_1.esc)(s.notes)}</textarea><div class="design-source-note">These notes are stored locally and included in the Design Review JSON. They do not modify the structural model.</div>${(0,common_1.button)('design-reset','Reset design inputs','text-button')}</section></aside>
-    <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand"><span>Elastic fibre stress</span><b>${(0,common_1.fmt)(d.elasticStressMPa,3)} MPa</b><small>from current M and I/c</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
+    <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand ${d.elasticStressMPa===null?'unavailable':''}"><span>Elastic fibre stress</span><b>${d.elasticStressMPa===null?'NOT INFERRED':(0,common_1.fmt)(d.elasticStressMPa,3)+' MPa'}</b><small>${d.elasticStressMPa===null?'EI-only zones do not define local section geometry':'from current M and I/c'}</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
     <section class="design-card design-step-card design-step-3"><span class="eyebrow">ENTERED CHECKS</span><h3>Demand divided by the criteria you supplied.</h3><div class="design-ratio-list">${r.checks.map(designRatioCard).join('')}</div><div class="design-governing"><span>Governing entered-check ratio</span><b>${governing}</b></div>${sourceLine}<div class="design-warning">A ratio below 1.0 only means BeamLab demand is below the <b>entered</b> capacity/limit. It does not prove AS 4100 compliance, structural adequacy or project approval.</div></section>
-    <section class="design-card design-step-card design-step-1"><span class="eyebrow">SECTION & MEMBER CONTEXT</span><h3>${(0,common_1.esc)(r.section.label)}</h3><div class="design-section-grid"><article><span>E</span><b>${(0,common_1.fmt)(r.section.E_GPa,3)} GPa</b></article><article><span>Ix</span><b>${Number(r.section.I_mm4).toExponential(3)} mm⁴</b></article><article><span>Area</span><b>${(0,common_1.fmt)(r.section.A_mm2,1)} mm²</b></article><article><span>c</span><b>${(0,common_1.fmt)(r.section.c_mm,2)} mm</b></article></div><p class="design-source-note">${m.section.catalogue?'Catalogue geometry/area/Ix comes from the existing BeamLab InfraBuild reference library. The library is not a design-capacity database.':'Current section properties come from the BeamLab section model.'}</p></section>
+    <section class="design-card design-step-card design-step-1"><span class="eyebrow">SECTION & MEMBER CONTEXT</span><h3>${(0,common_1.esc)(r.section.label)}${r.section.piecewiseEI?' + piecewise EI':''}</h3><div class="design-section-grid"><article><span>${r.section.piecewiseEI?'E / base':'E'}</span><b>${(0,common_1.fmt)(r.section.E_GPa,3)} GPa</b></article><article><span>${r.section.piecewiseEI?'Ix / base':'Ix'}</span><b>${Number(r.section.I_mm4).toExponential(3)} mm⁴</b></article><article><span>${r.section.piecewiseEI?'Area / base':'Area'}</span><b>${(0,common_1.fmt)(r.section.A_mm2,1)} mm²</b></article><article><span>${r.section.piecewiseEI?'EI zones':'c'}</span><b>${r.section.piecewiseEI?(r.section.stiffnessZones?.length || 0):(0,common_1.fmt)(r.section.c_mm,2)+' mm'}</b></article></div>${r.section.piecewiseEI?`<div class="design-warning">EI multipliers change analysis stiffness only. Verify local section geometry and that every entered capacity applies to the relevant zone; BeamLab does not infer this from EI.</div>`:''}<p class="design-source-note">${m.section.catalogue?'Catalogue geometry/area/Ix comes from the existing BeamLab InfraBuild reference library. The library is not a design-capacity database.':'Current section properties come from the BeamLab section model.'}</p></section>
     <section class="design-card design-step-card design-step-4"><span class="eyebrow">ACTION FACTOR LEDGER</span><h3>Exactly what produced this response.</h3><p>Current BeamLab factors are shown without implying a standard combination. Change or apply factors deliberately in Analysis / Cases.</p><div class="factor-ledger">${factorRows}</div>${combos}${(0,levels_1.canUseFeature)(v.level,'cases')?(0,common_1.button)('design-edit-cases','Edit cases & factors in Analysis','wide-button'):''}</section>
     <section class="design-card design-step-card design-step-4"><span class="eyebrow">DESIGN READINESS</span><h3>What is known, entered, and still missing.</h3><div class="design-readiness">${readiness}</div></section>
     <section class="design-card violet design-step-card design-step-5"><span class="eyebrow">PUBLIC REFERENCE BASIS INSPECTED FOR 4.0</span><h3>Australian design context, without pretending the clauses are implemented.</h3><div class="design-standards">${standards}</div><div class="design-warning">The linked NCC schedule identifies the editions above. BeamLab 4.0 does not reproduce proprietary standard clauses or derive their member capacities/load combinations. Verify the applicable NCC edition, jurisdiction, amendments, project basis and purchased standards before real design work.</div></section>${finishCard}</div></div>${navigation}</section>`;
@@ -850,7 +854,7 @@ function sessionReviewPlanAgain() {
 }
 function comparisonMetrics(a) {
     if (!a) return null;
-    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000 };
+    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000, piecewiseEI:!!a.hasVaryingEI, stiffnessZoneCount:a.stiffnessRegions?.length || 0 };
 }
 function deltaText(a, b, unit) {
     const d = b - a, pct = Math.abs(a) > 1e-12 ? d / Math.abs(a) * 100 : null;
@@ -863,6 +867,9 @@ function compareModelChanges(A, B) {
         const aP = (0, sections_1.sectionProperties)(A.section), bP = (0, sections_1.sectionProperties)(B.section);
         if (Math.abs(aP.EI - bP.EI) > Math.max(1e-9, Math.abs(aP.EI) * 1e-9)) push('Flexural stiffness EI changed from ' + (0, common_1.fmt)(aP.EI / 1000, 3) + ' to ' + (0, common_1.fmt)(bP.EI / 1000, 3) + ' MN m².');
     } catch { /* Invalid section is already reported by the main solver. */ }
+    const aZones = JSON.stringify((A.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
+    const bZones = JSON.stringify((B.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
+    if (aZones !== bZones) push('Piecewise EI stiffness profile changed (' + (A.stiffnessRegions?.length || 0) + ' → ' + (B.stiffnessRegions?.length || 0) + ' zones).');
     if (!!A.selfWeight !== !!B.selfWeight) push('Self-weight was ' + (B.selfWeight ? 'enabled.' : 'disabled.'));
     const aCases = new Map((A.cases || []).map(c => [c.id, c])), bCases = new Map((B.cases || []).map(c => [c.id, c]));
     for (const [id, b] of bCases) { const a = aCases.get(id); if (a && (Math.abs(a.factor - b.factor) > 1e-10 || a.enabled !== b.enabled)) push('Load case ' + b.name + ' changed from ' + (a.enabled ? (0, common_1.fmt)(a.factor, 2) + '×' : 'off') + ' to ' + (b.enabled ? (0, common_1.fmt)(b.factor, 2) + '×.' : 'off.')); }
@@ -904,8 +911,8 @@ function tutorContext(mode='question') {
         learningLevel: { id: v.level, short: level.short, title: level.title, subtitle: level.subtitle },
         signConventions: { appliedVertical: 'positive downward', reactions: 'positive upward', couples: 'positive counter-clockwise', internalMoment: 'positive sagging', displacement: 'positive upward' },
         assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis'],
-        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items },
-        section: { name: m.section?.name || m.section?.catalogue || m.section?.shape || 'custom', E_GPa: m.section?.E, I_mm4: m.section?.I, A_mm2: m.section?.A, EI_kNm2: props.EI },
+        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor,EI_kNm2:props.EI*r.factor})) },
+        section: { name: m.section?.name || m.section?.catalogue || m.section?.shape || 'custom', E_GPa: m.section?.E, I_mm4: m.section?.I, A_mm2: m.section?.A, baseEI_kNm2: props.EI, localStressInferenceAvailable:!analysis.hasVaryingEI },
         inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned },
         critical: { peakShear: { x: analysis.peakV.x, V_kN: analysis.peakV.V }, peakMoment: { x: analysis.peakM.x, M_kNm: analysis.peakM.M }, peakDeflection: { x: analysis.peakD.x, displacement_m: analysis.peakD.v } },
         reactions, compare,
@@ -970,7 +977,7 @@ function compareDialog() {
     const observed = [
         ['Peak |V|', A.shear, B.shear, 'kN'], ['Peak |M|', A.moment, B.moment, 'kN m'], ['Peak |v|', A.deflection, B.deflection, 'mm']
     ].filter(([,a,b]) => Math.abs(b-a) > Math.max(1e-9,Math.abs(a)*1e-5)).map(([label,a,b,unit]) => `<li><b>${label}</b> ${deltaText(a,b,unit)}</li>`).join('');
-    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row('EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
+    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row(A.piecewiseEI||B.piecewiseEI?'Base EI':'EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
 }
 function shortcutsDialog() {
     openDialog('Quick help & shortcuts', `<div class="shortcut-grid"><div><kbd>?</kbd><span>Open this help</span></div><div><kbd>Ctrl/Cmd Z</kbd><span>Undo</span></div><div><kbd>Ctrl/Cmd Shift Z</kbd><span>Redo</span></div><div><kbd>Ctrl/Cmd D</kbd><span>Duplicate selection</span></div><div><kbd>← / →</kbd><span>Nudge selected objects</span></div><div><kbd>Shift + ← / →</kbd><span>Larger nudge</span></div><div><kbd>Delete</kbd><span>Remove unlocked selection</span></div><div><kbd>Esc</kbd><span>Clear selection / close transient edit</span></div></div><h3>Safe progressive complexity</h3><p>Learning levels and Practice mode change presentation only. They do not switch solvers, remove advanced objects, or alter structural results.</p><p class="hint">Double-click a model label for direct numeric editing. Hover a response diagram to inspect one x-position across all visible views; click to pin it.</p>`);
@@ -1134,6 +1141,15 @@ function remove() { const unlocked = selectedItems().filter(i => !i.locked && (0
 } const ids = new Set(unlocked.map(i => i.id)); commit({ ...history.model, items: history.model.items.filter(i => !ids.has(i.id)) }, 'Remove selection', false); }
 function openDialog(title, content) { pauseSweep(); dialogReturnFocus = document.activeElement; finishField(); $('#dialog-title').textContent = title; $('#dialog-content').innerHTML = content; $('#dialog').classList.add('open'); $('#dialog').setAttribute('aria-hidden', 'false'); $('#dialog-close').focus(); }
 function closeDialog() { $('#dialog').classList.remove('open'); $('#dialog').setAttribute('aria-hidden', 'true'); if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus(); }
+function openStiffnessDialog(id = '') {
+    if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) { toast('Piecewise EI editing appears from 3rd+ Year mode.'); return; }
+    const regions = history.model.stiffnessRegions || [];
+    const existing = regions.find(r => r.id === id) || null;
+    if (!existing && regions.length >= stiffness_1.MAX_REGIONS) { toast(stiffness_1.MAX_REGIONS + ' EI zones is the limit.'); return; }
+    const m = history.model, fallbackStart = m.length * .5, fallbackEnd = m.length;
+    const region = existing || { label:'EI zone ' + (regions.length + 1), x:fallbackStart, end:fallbackEnd, factor:.5 };
+    openDialog(existing ? 'Edit EI stiffness zone' : 'Add EI stiffness zone', `<div class="stiffness-dialog-intro"><p>Define one non-overlapping interval where the solver uses <b>EI = base EI × multiplier</b>. The multiplier changes elastic stiffness only; it does not create local section geometry or capacity.</p></div><label class="field"><span>Zone label</span><div><input id="stiffness-label" maxlength="40" value="${(0,common_1.esc)(region.label)}" aria-label="EI zone label"></div><em class="field-error"></em></label><label class="field"><span>Start x</span><div><input id="stiffness-start" type="number" min="0" max="${m.length}" step="any" value="${region.x}" aria-label="EI zone start"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>End x</span><div><input id="stiffness-end" type="number" min="0" max="${m.length}" step="any" value="${region.end}" aria-label="EI zone end"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>EI multiplier</span><div><input id="stiffness-factor" type="number" min="0.05" max="20" step="any" value="${region.factor}" aria-label="EI multiplier"><small>× base EI</small></div><em class="field-error"></em></label><p id="stiffness-dialog-error" class="stiffness-dialog-error" role="alert"></p><div class="dialog-actions">${(0,common_1.button)('stiffness-save:'+(existing ? existing.id : 'new'), existing ? 'Save EI zone' : 'Add EI zone', 'primary')}${(0,common_1.button)('dialog-close','Cancel','secondary')}</div>`);
+}
 function trajectoryTopicDialog(topic) {
     if (v.session?.active || v.session?.review) return;
     const d = (0, topic_drilldown_1.detail)(v.level, topic, learningEvidenceEvents, masteryStats, lessonProgress, challengeProgress);
@@ -1257,6 +1273,7 @@ function applyNumber(input) {
         m.length = n;
         m.items.forEach(i => { i.x *= ratio; if (i.end !== undefined)
             i.end *= ratio; });
+        (m.stiffnessRegions || []).forEach(r => { r.x *= ratio; r.end *= ratio; });
         v.pan = 0;
     }
     else if (parts[0] === 'section') {
@@ -1685,6 +1702,43 @@ async function action(key, el) {
         catch {
             toast('Browser storage is unavailable or this snapshot is invalid. Export JSON instead.');
         }
+        return;
+    }
+    if (name === 'stiffness-add') { openStiffnessDialog(); return; }
+    if (name === 'stiffness-edit') { openStiffnessDialog(id); return; }
+    if (name === 'stiffness-remove') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        const m = (0, study_1.clone)(history.model);
+        const before = m.stiffnessRegions?.length || 0;
+        m.stiffnessRegions = (m.stiffnessRegions || []).filter(r => r.id !== id);
+        if (m.stiffnessRegions.length === before) return;
+        commit(m, 'Remove EI zone');
+        return;
+    }
+    if (name === 'stiffness-save') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        const label = $('#stiffness-label')?.value.trim() || '';
+        const x = Number($('#stiffness-start')?.value);
+        const end = Number($('#stiffness-end')?.value);
+        const factor = Number($('#stiffness-factor')?.value);
+        const m = (0, study_1.clone)(history.model);
+        m.stiffnessRegions || (m.stiffnessRegions = []);
+        const regionId = id === 'new' ? 'ei-' + Date.now().toString(36) : id;
+        const region = { id:regionId, label, x, end, factor };
+        const existingIndex = m.stiffnessRegions.findIndex(r => r.id === regionId);
+        if (existingIndex >= 0) m.stiffnessRegions[existingIndex] = region;
+        else m.stiffnessRegions.push(region);
+        m.stiffnessRegions = (0, stiffness_1.normaliseRegions)(m.stiffnessRegions);
+        try { (0, study_1.validateStudy)(m); }
+        catch (e) {
+            const errorEl = $('#stiffness-dialog-error');
+            if (errorEl) errorEl.textContent = e instanceof Error ? e.message : 'Invalid EI zone.';
+            return;
+        }
+        const wasUniform = !(history.model.stiffnessRegions?.length || 0);
+        if (wasUniform && m.stiffnessRegions.length) { v.stress = false; v.shear = false; }
+        closeDialog();
+        commit(m, existingIndex >= 0 ? 'Edit EI zone' : 'Add EI zone');
         return;
     }
     if (name === 'selfweight') {

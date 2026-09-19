@@ -46,7 +46,7 @@ function criticalSamples(a, kind) {
     for (const e of a.elements) {
         const l = e.b - e.a;
         items.push(a.sample(e.a, 'right'), a.sample(e.b, 'left'));
-        const roots = kind === 'V' ? (0, linear_1.roots01)([e.w0, e.slope * l]) : kind === 'v' ? (0, linear_1.roots01)([e.d[1], -e.r[1] * l / a.properties.EI, e.r[0] * l * l / 2 / a.properties.EI, -e.w0 * l ** 3 / 6 / a.properties.EI, -e.slope * l ** 4 / 24 / a.properties.EI]) : (0, linear_1.roots01)([e.r[0], -e.w0 * l, -e.slope * l * l / 2]);
+        const roots = kind === 'V' ? (0, linear_1.roots01)([e.w0, e.slope * l]) : kind === 'v' ? (0, linear_1.roots01)([e.d[1], -e.r[1] * l / e.EI, e.r[0] * l * l / 2 / e.EI, -e.w0 * l ** 3 / 6 / e.EI, -e.slope * l ** 4 / 24 / e.EI]) : (0, linear_1.roots01)([e.r[0], -e.w0 * l, -e.slope * l * l / 2]);
         roots.forEach(z => items.push(a.sample(e.a + z * l)));
     }
     return items;
@@ -66,7 +66,13 @@ function renderDiagrams(m, a, v) {
     }).join('');
     const tracer = (H) => `<g class="trace-group" style="display:${v.trace === null ? 'none' : ''};pointer-events:none"><line class="trace-line" x1="${xp(v.trace || 0)}" x2="${xp(v.trace || 0)}" y1="15" y2="${H - 28}" stroke="#cae9e2" opacity=".6" stroke-dasharray="3 4"/></g>`;
     const layout = v.layout || layoutModel(m, W), beamY = layout.height - 160;
-    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${layout.height}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${layout.height}"/></clipPath></defs>${grid(layout.height)}<g clip-path="url(#model-clip)"><line x1="${xp(0)}" x2="${xp(m.length)}" y1="${beamY}" y2="${beamY}" stroke="url(#beam-metal)" stroke-width="7" stroke-linecap="round"/>`;
+    const stiffnessBands = (m.stiffnessRegions || []).map(r => {
+        const x1 = xp(r.x), x2 = xp(r.end), mid = (x1 + x2) / 2;
+        const col = r.factor >= 1 ? '#83dcc5' : '#efcb72';
+        const label = annotationOn && visible((r.x+r.end)/2) ? svgText((0,common_1.clamp)(mid,55,W-55), beamY - 13, `${r.label} / EI ×${(0,common_1.fmt)(r.factor,2)}`, col, 'middle', 8) : '';
+        return `<g class="stiffness-band" aria-label="${(0,common_1.esc)(r.label)} EI multiplier ${(0,common_1.fmt)(r.factor,2)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="17" opacity=".16"/><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="2" opacity=".9"/><line x1="${x1}" x2="${x1}" y1="${beamY-8}" y2="${beamY+8}" stroke="${col}" opacity=".75"/><line x1="${x2}" x2="${x2}" y1="${beamY-8}" y2="${beamY+8}" stroke="${col}" opacity=".75"/>${label}</g>`;
+    }).join('');
+    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${layout.height}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${layout.height}"/></clipPath></defs>${grid(layout.height)}<g clip-path="url(#model-clip)">${stiffnessBands}<line x1="${xp(0)}" x2="${xp(m.length)}" y1="${beamY}" y2="${beamY}" stroke="url(#beam-metal)" stroke-width="7" stroke-linecap="round"/>`;
     for (const i of m.items.filter(i => (0, validation_1.isLoad)(i.kind))) {
         const x = xp(i.x), lane = layout.lanes.get(i.id) || 0;
         const base = beamY - ((0, validation_1.isDistributed)(i.kind) ? 70 : 18) - lane * 108;
