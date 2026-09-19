@@ -20,8 +20,8 @@ function compactHistory(value) {
 }
 
 function modeInstruction(mode) {
-  if (mode === 'quiz') return 'Ask exactly one question about the supplied beam. Use recent conversation to avoid repeating a question already answered and, where possible, target a concept the student has shown uncertainty about. Do not reveal the answer, worked solution, or hint in the same response.';
-  if (mode === 'hint') return 'Give one Socratic hint that helps the student choose the next mechanical relationship to inspect. If recent conversation suggests a misconception, address it tentatively by pointing to the relationship that would test it. End with exactly one short diagnostic question. Do not provide the final numerical answer.';
+  if (mode === 'quiz') return 'Ask exactly one question about the supplied beam. Use recent conversation plus context.learning.priorityTopics to avoid repetition and target the next useful concept. If context.learning.repeatedWrongResponses contains an explicit repeated response pattern, ask a discriminating question that tests the underlying relationship without stating the expected answer. Do not reveal the answer, worked solution, hint, or expected field in the same response.';
+  if (mode === 'hint') return 'Give one Socratic hint that helps the student choose the next mechanical relationship to inspect. Use context.learning recent events to continue from the latest attempt. If an explicit repeated wrong response is present, test that response pattern tentatively rather than declaring a misconception. End with exactly one short diagnostic question. Do not provide the final numerical answer or reveal an expected field.';
   if (mode === 'compare') return 'Separate documented model-input changes from observed response changes. Explain mechanics carefully, but do not claim a change caused an effect unless that relationship follows directly from the supplied structural context.';
   if (mode === 'point') return 'Explain the inspected x-position by connecting local loading, shear, bending moment, boundary conditions, and deformation where the supplied context supports it.';
   if (mode === 'peak') return 'Explain why the reported peak bending moment occurs where it does, using supplied shear behaviour and boundary conditions. Do not recompute the peak.';
@@ -53,8 +53,10 @@ PEDAGOGICAL COACHING:
 - After an incorrect or incomplete attempt, prefer one precise conceptual correction and one diagnostic next question over a full worked solution unless the student explicitly asks for the direct explanation.
 - After a correct attempt, acknowledge the specific correct step and advance the reasoning by one level-appropriate step. Avoid generic praise.
 - Do not repeat the same quiz question or hint if recent conversation shows the student already answered or acted on it.
-- If context.learning is supplied, treat it as deterministic local learning evidence. Use it to choose sequencing and questions, not as structural numerical authority.
-- A weak mastery score or reveal count is not proof of a misconception. Only describe a misconception as likely when the student's own recent reasoning or explicit attempt evidence supports it; otherwise ask a diagnostic question.
+- If context.learning is supplied, treat it as deterministic local learning evidence. recentEvents records bounded task outcomes; priorityTopics is a sequencing heuristic; repeatedWrongResponses is evidence that the same explicit response recurred. None of these are structural numerical authority.
+- A weak mastery score, reveal, skip, incorrect attempt, or high priority score is not proof of a misconception. A repeated wrong response is evidence of a stable response pattern only. Describe an underlying misconception as likely only when the student's own reasoning or repeated explicit response supports that interpretation; otherwise ask a diagnostic question.
+- In quiz or hint mode, expected fields inside learning evidence are diagnostic-only. Never expose them, quote them, or turn them into the answer.
+- Prefer the newest relevant event over older aggregate mastery when deciding the next question. If a student has just corrected an earlier error, move forward rather than continuing to remediate the old one.
 - Do not expose raw mastery bookkeeping unless it helps the student. Translate it into a useful next learning step.
 
 Always make clear, when relevant, that BeamLab solver demand and the user's entered design criteria are authoritative over your prose.`;
@@ -72,7 +74,7 @@ function extractResponseText(payload) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') return res.status(200).json({ message: 'Success', release: 'vercel-migration-1' });
+  if (req.method === 'GET') return res.status(200).json({ message: 'Success', release: 'vercel-migration-2' });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
   const body = isRecord(req.body) ? req.body : {};
@@ -114,10 +116,10 @@ export default async function handler(req, res) {
     if (!response.ok) return res.status(503).json({ error: 'The tutor is temporarily unavailable. Deterministic BeamLab analysis remains available.' });
     const answer = extractResponseText(data);
     if (!answer) return res.status(502).json({ error: 'The tutor returned an empty response.' });
-    return res.status(200).json({ answer, solverAuthoritative: true, release: 'vercel-migration-1' });
+    return res.status(200).json({ answer, solverAuthoritative: true, release: 'vercel-migration-2' });
   } catch {
     return res.status(503).json({ error: 'The tutor is temporarily unavailable. Deterministic BeamLab analysis remains available.' });
   }
 }
 
-export { modeInstruction, extractResponseText };
+export { modeInstruction, extractResponseText, systemPrompt };
