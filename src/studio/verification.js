@@ -40,6 +40,7 @@ function audit(model, analysis) {
         if (i.kind === 'point') external -= i.value * a.sample(i.x).v;
         if (i.kind === 'moment') external += i.value * a.sample(i.x).theta;
     }
+    for (const r of a.reactions || []) external += r.force * ((r.settlementMm || 0) / 1000);
     const forceScale = Math.max(1, Math.abs(a.total), a.reactions.reduce((v, r) => v + Math.abs(r.force), 0));
     const momentScale = Math.max(1, Math.abs(a.loadMoment), Math.abs(a.peakM.M), forceScale * model.length);
     const displacementScale = Math.max(1, Math.abs(a.peakD.v));
@@ -60,7 +61,7 @@ function audit(model, analysis) {
         extrema: { shear: a.peakV, moment: a.peakM, displacement: a.peakD },
         energy: { strainEnergy_kNm: internal / 2, halfFinalLoadWork_kNm: external / 2 },
         checks, pass: checks.every(c => c.pass), warnings: a.warnings,
-        scope: 'Euler-Bernoulli with verified piecewise section properties and optional EI-only multipliers, linear elastic, zero prescribed support movement; true sections support local elastic stress while abrupt transition effects, dynamics, shear deformation and code checks remain outside scope.'
+        scope: 'Euler-Bernoulli with verified piecewise section properties, optional EI-only multipliers and prescribed vertical support settlement, linear elastic; true sections support local elastic stress while abrupt transition effects, dynamics, shear deformation and code checks remain outside scope.'
     };
 }
 function criticalLocations(a, model) {

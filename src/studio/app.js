@@ -887,6 +887,7 @@ function compareModelChanges(A, B) {
         if (!a) { push((b.label || examples_1.titles[b.kind]) + ' was added.'); continue; }
         const label = b.label || examples_1.titles[b.kind];
         if (Math.abs((a.x || 0) - (b.x || 0)) > 1e-8) push(label + ' moved from ' + (0, common_1.fmt)(a.x, 2) + ' to ' + (0, common_1.fmt)(b.x, 2) + ' m.');
+        if ((0,validation_1.isSupport)(b.kind) && Math.abs((a.settlementMm || 0) - (b.settlementMm || 0)) > 1e-9) push(label + ' settlement changed from ' + (0,common_1.signed)(a.settlementMm || 0,2) + ' to ' + (0,common_1.signed)(b.settlementMm || 0,2) + ' mm (up +).');
         if (Number.isFinite(a.value) && Number.isFinite(b.value) && Math.abs(a.value - b.value) > 1e-8) push(label + ' changed from ' + (0, common_1.signed)(a.value, 2) + ' to ' + (0, common_1.signed)(b.value, 2) + (b.kind === 'moment' ? ' kN m.' : (0, validation_1.isDistributed)(b.kind) ? ' kN/m.' : ' kN.'));
         if ((0, validation_1.isDistributed)(b.kind) && Math.abs((a.end || 0) - (b.end || 0)) > 1e-8) push(label + ' end moved from ' + (0, common_1.fmt)(a.end, 2) + ' to ' + (0, common_1.fmt)(b.end, 2) + ' m.');
     }
@@ -907,7 +908,7 @@ function tutorContext(mode='question') {
         endValue: Number.isFinite(i.endValue) ? i.endValue : undefined,
         caseId: i.caseId
     }));
-    const reactions = (analysis.reactions || []).map(r => ({ label: r.label, x: r.x, force: r.force, moment: r.moment || 0, fixed: !!r.fixed }));
+    const reactions = (analysis.reactions || []).map(r => ({ label: r.label, x: r.x, force: r.force, moment: r.moment || 0, fixed: !!r.fixed, settlementMm:r.settlementMm || 0 }));
     const A = comparisonMetrics(comparison), B = comparisonMetrics(analysis);
     const compare = compareModel && comparison ? {
         changes: compareModelChanges(compareModel, m),
@@ -918,7 +919,7 @@ function tutorContext(mode='question') {
         release: '4.0.0', mode,
         learningLevel: { id: v.level, short: level.short, title: level.title, subtitle: level.subtitle },
         signConventions: { appliedVertical: 'positive downward', reactions: 'positive upward', couples: 'positive counter-clockwise', internalMoment: 'positive sagging', displacement: 'positive upward' },
-        assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis'],
+        assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis', ...(analysis.hasSupportSettlement ? ['prescribed vertical support settlement; positive displacement upward'] : [])],
         study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, sectionRegions:(analysis.sectionRegions || []).map(r => { const rp=(0,sections_1.sectionProperties)(r.section); return {label:r.label,x:r.x,end:r.end,section:(0,section_regions_1.sectionLabel)(r.section),E_GPa:r.section.E,I_mm4:rp.I*1e12,A_mm2:rp.A*1e6,depth_mm:r.section.h,EI_kNm2:rp.EI,weight_kNm:rp.weight}; }), stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor})) },
         section: { name:m.section?.catalogue || m.section?.shape || 'custom', E_GPa:m.section?.E, I_mm4:props.I*1e12, A_mm2:props.A*1e6, baseEI_kNm2:props.EI, hasTrueSteppedSections:!!analysis.hasSectionRegions, hasEIOnlyOverrides:!!analysis.hasEIOnlyRegions, localStressInferenceAvailable:!analysis.hasEIOnlyRegions },
         inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned, localSection:analysis.localSectionAt ? (() => { const local=analysis.localSectionAt(x); return {region:local.regionLabel,section:local.label,E_GPa:local.section?.E,I_mm4:local.properties?.I*1e12,A_mm2:local.properties?.A*1e6,EI_kNm2:local.EI,stiffnessFactor:local.stiffnessFactor}; })() : null },

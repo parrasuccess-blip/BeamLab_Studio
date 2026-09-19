@@ -45,11 +45,11 @@ exports.modes = {
         subtitle: 'Load cases, self-weight, influence and advanced response',
         tabs: ['build', 'cases', 'section', 'layers', 'learn'],
         tools: ['pin', 'roller', 'fixed', 'hinge', 'point', 'udl', 'variable', 'moment'],
-        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI', 'steppedSections'],
+        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI', 'steppedSections', 'settlement'],
         examples: ['reference', 'simple', 'overhang', 'cantilever', 'continuous', 'gerber', 'suspended', 'triangle', 'fixed'],
         learns: [
             'Load cases and user-defined combinations',
-            'Catalogue/derived sections, true stepped sections, self-weight and piecewise EI zones',
+            'Catalogue/derived sections, true stepped sections, self-weight, support settlement and piecewise EI zones',
             'Influence lines and sampled moving-load envelopes',
             'Model verification, serviceability context and comparison studies'
         ]
@@ -59,7 +59,7 @@ exports.modes = {
         subtitle: 'Everything BeamLab currently supports',
         tabs: ['build', 'cases', 'section', 'layers', 'learn'],
         tools: ['pin', 'roller', 'fixed', 'hinge', 'point', 'udl', 'variable', 'moment'],
-        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI', 'steppedSections', 'precision'],
+        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI', 'steppedSections', 'settlement', 'precision'],
         examples: ['reference', 'simple', 'overhang', 'cantilever', 'continuous', 'gerber', 'suspended', 'triangle', 'fixed'],
         learns: [
             'All current analysis and editing tools',
@@ -90,6 +90,7 @@ function restrictedStudyFeatures(id, study, view = {}) {
     if (!canUseFeature(id, 'catalogue') && study.section?.catalogue) out.push('catalogue section');
     if (!canUseFeature(id, 'varyingEI') && (study.stiffnessRegions?.length || 0)) out.push('piecewise EI zones');
     if (!canUseFeature(id, 'steppedSections') && (study.sectionRegions?.length || 0)) out.push('stepped section regions');
+    if (!canUseFeature(id, 'settlement') && study.items.some(i => ['pin','roller','fixed'].includes(i.kind) && Math.abs(i.settlementMm || 0) > 1e-12)) out.push('support settlement');
     return [...new Set(out)];
 }
 function recommendedExample(id) {
