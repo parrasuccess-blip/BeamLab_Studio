@@ -22,6 +22,7 @@ const learningPath = load('studio/learning-path');
 const adaptivePractice = load('studio/adaptive-practice');
 const sessionReview = load('studio/session-review');
 const learningTrajectory = load('studio/learning-trajectory');
+const topicDrilldown = load('studio/topic-drilldown');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -345,4 +346,50 @@ test('Learn mastery UI exposes recent trajectory without gamification', () => {
   assert.match(html, /trajectory-mark/);
   assert.match(html, /learningTrajectory/);
   assert.doesNotMatch(html, /learning streak/i);
+});
+
+
+test('topic drill-down exposes the evidence transitions behind a trajectory state', () => {
+  const topic = 'Shear → moment';
+  const d = topicDrilldown.detail('year1', topic, [
+    {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:false,firstTry:true,answer:'Falls',expected:'Rises',timestamp:1},
+    {event:'attempt',kind:'lesson',taskId:'l1-shear-moment',taskTitle:'Shear to moment',topic,correct:true,firstTry:false,answer:'Rises',expected:'Rises',timestamp:2},
+    {event:'attempt',kind:'challenge',taskId:'y1-shear-moment',taskTitle:'Moment from shear',topic,correct:true,firstTry:true,answer:'30',expected:'30',timestamp:3}
+  ], {}, {}, {});
+  assert.equal(d.current.status, 'recovered');
+  assert.deepEqual(Array.from(d.events, row => row.stateKey), ['unresolved','recovered','recovered']);
+  assert.equal(d.events[0].taskTitle, 'Shear to moment');
+  assert.equal(d.events[0].answer, 'Falls');
+  assert.equal(d.events[0].expected, 'Rises');
+});
+
+test('topic drill-down recommends an unfinished same-topic exercise for unresolved evidence', () => {
+  const topic = 'Point loads & shear';
+  const d = topicDrilldown.detail('year1', topic, [
+    {event:'skip',kind:'lesson',taskId:'l1-point-shear',taskTitle:'Point load shear jump',topic,timestamp:10}
+  ], {}, {}, {});
+  assert.equal(d.current.status, 'unresolved');
+  assert.ok(d.nextTask);
+  assert.equal(d.nextTask.topic, topic);
+  assert.match(d.nextReason, /Revisit the concept/i);
+});
+
+test('topic drill-down avoids over-drilling a stable topic', () => {
+  const topic = 'Reactions & equilibrium';
+  const d = topicDrilldown.detail('year1', topic, [
+    {event:'attempt',kind:'challenge',taskId:'y1-reaction',taskTitle:'Support reaction',topic,correct:true,firstTry:true,timestamp:1},
+    {event:'attempt',kind:'challenge',taskId:'y1-reaction',taskTitle:'Support reaction',topic,correct:true,firstTry:true,timestamp:2}
+  ], {}, {}, {});
+  assert.equal(d.current.status, 'stable');
+  assert.equal(d.nextTask, null);
+  assert.match(d.nextReason, /over-drilling/i);
+  assert.match(d.boundary, /does not diagnose/i);
+});
+
+test('trajectory UI opens inspectable evidence and can launch the topic exercise', () => {
+  assert.match(html, /trajectory-topic:/);
+  assert.match(html, /trajectory-next:/);
+  assert.match(html, /EVENTS BEHIND THIS STATE/);
+  assert.match(html, /BEST NEXT EXERCISE \/ DETERMINISTIC/);
+  assert.match(html, /AVAILABLE TASKS AT THIS LEVEL/);
 });
