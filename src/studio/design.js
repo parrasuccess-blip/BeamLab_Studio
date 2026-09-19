@@ -126,7 +126,7 @@ function evaluate(model, analysis, rawSettings) {
         demand,
         checks,
         governing,
-        elasticReference: { fyMPa: settings.fyMPa, momentKNm: elasticYieldMoment, ratio: elasticYieldRatio },
+        elasticReference: { fyMPa: settings.fyMPa, momentKNm: elasticYieldMoment, ratio: elasticYieldRatio, unavailable:piecewiseEI, reason:piecewiseEI ? 'EI-only zones do not define local section modulus or the E/I split required for a first-yield reference.' : null },
         serviceability: { mode: settings.deflectionMode, serviceSpanM, limitMm: deflectionLimitMm },
         factors,
         section: {
