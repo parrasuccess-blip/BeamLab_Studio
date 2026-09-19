@@ -15,6 +15,8 @@ const load = ctx.productionLoad;
 const { example, makeItem } = load('model/examples');
 const { normalise, solveStudy, validateStudy, reviewLimits } = load('model/study');
 const stiffness = load('model/stiffness');
+const sectionRegions = load('model/section-regions');
+const { sectionProperties } = load('model/sections');
 const levels = load('studio/levels');
 const verification = load('studio/verification');
 const { benchmarks } = verification;
@@ -135,13 +137,135 @@ test('piecewise EI editing is progressive and source-native', () => {
   assert.equal(levels.canUseFeature('year2','varyingEI'), false);
   assert.equal(levels.canUseFeature('year3','varyingEI'), true);
   assert.equal(levels.canUseFeature('all','varyingEI'), true);
-  assert.match(html, /PIECEWISE EI \/ STEPPED STIFFNESS/);
+  assert.match(html, /QUICK EI OVERRIDES \/ STIFFNESS ONLY/);
   assert.match(html, /stiffness-add/);
   assert.match(html, /stiffness-save:/);
   assert.match(html, /stiffness-band/);
   assert.match(html, /Local stress layers paused/);
   assert.match(html, /Not inferred for EI-only zones/);
   assert.match(html, /stiffnessRegions \|\| \[\]\)\.forEach\(r => \{ r\.x \*= ratio; r\.end \*= ratio; \}\)/);
+});
+
+test('true stepped section cantilever matches the exact piecewise-EI tip deflection', () => {
+  const m = normalise(example('cantilever'));
+  const stiff = JSON.parse(JSON.stringify(m.section));
+  stiff.I *= 2;
+  m.sectionRegions = [{id:'section-root',label:'Stiffer root half',x:0,end:5,section:stiff}];
+  validateStudy(m);
+  const r = solveStudy(m);
+  near(r.reactions[0].force, 50);
+  near(r.reactions[0].moment, 500);
+  near(r.sample(10).v * 1000, -133.92857142857144, 1e-7);
+  assert.equal(r.hasSectionRegions, true);
+  assert.equal(r.hasEIOnlyRegions, false);
+  assert.deepEqual(Array.from(r.elements, e => e.sectionRegionId), ['section-root', null]);
+  near(r.elements[0].properties.I, 2 * r.elements[1].properties.I);
+});
+
+test('true stepped sections restore exact local elastic stress and Design mechanics references', () => {
+  const m = normalise(example('cantilever'));
+  const stiff = JSON.parse(JSON.stringify(m.section));
+  stiff.I *= 2;
+  m.sectionRegions = [{id:'section-root',label:'Stiffer root half',x:0,end:5,section:stiff}];
+  const r = solveStudy(m);
+  const expectedRootStress = 500 * (stiff.h/2000) / (stiff.I*1e-12) / 1000;
+  near(r.elasticStressEnvelope.stress, expectedRootStress, 1e-8);
+  near(r.elasticStressEnvelope.x, 0);
+  assert.equal(r.elasticStressEnvelope.regionLabel, 'Stiffer root half');
+  const local = r.localSectionAt(2);
+  assert.equal(local.regionId, 'section-root');
+  near(local.properties.I, stiff.I*1e-12);
+  const limits = reviewLimits(r, m);
+  near(limits.stress, expectedRootStress, 1e-8);
+  assert.equal(limits.stressUnavailable, false);
+  assert.equal(limits.stressSection, 'Custom section');
+  const review = design.evaluate(m, r, {fyMPa:300,momentCapacity:600,shearCapacity:100,deflectionMode:'direct',deflectionLimitMm:200});
+  near(review.demand.elasticStressMPa, expectedRootStress, 1e-8);
+  assert.equal(review.elasticReference.unavailable, false);
+  near(review.elasticReference.ratio, 500 / 1050, 1e-8);
+  assert.ok(review.readiness.some(row => row.id === 'stepped-section-profile' && row.state === 'ready'));
+  assert.ok(review.readiness.some(row => row.id === 'stepped-capacity-applicability' && row.state === 'missing'));
+});
+
+test('true stepped-section self-weight uses each local area and satisfies analytical equilibrium', () => {
+  const m = normalise(example('simple'));
+  m.items = m.items.filter(i => i.kind === 'pin' || i.kind === 'roller');
+  m.selfWeight = true;
+  const heavy = JSON.parse(JSON.stringify(m.section));
+  heavy.A *= 2;
+  m.sectionRegions = [{id:'heavy-half',label:'Heavy right half',x:5,end:10,section:heavy}];
+  const baseProps = sectionProperties(m.section), heavyProps = sectionProperties(heavy);
+  const W1 = baseProps.weight * 5, W2 = heavyProps.weight * 5;
+  const expectedRB = (W1*2.5 + W2*7.5) / 10;
+  const expectedRA = W1 + W2 - expectedRB;
+  const r = solveStudy(m);
+  near(r.total, W1+W2, 1e-8);
+  near(r.reactions[0].force, expectedRA, 1e-8);
+  near(r.reactions[1].force, expectedRB, 1e-8);
+  near(r.forceResidual, 0, 1e-8);
+  near(r.momentResidual, 0, 1e-8);
+});
+
+test('true stepped-section validation rejects overlap and stale catalogue metadata', () => {
+  const m = normalise(example('simple'));
+  const s = JSON.parse(JSON.stringify(m.section));
+  m.sectionRegions = [
+    {id:'one',label:'One',x:0,end:6,section:s},
+    {id:'two',label:'Two',x:5,end:10,section:s}
+  ];
+  assert.throws(() => validateStudy(m), /cannot overlap/i);
+  const cat = normalise(example('simple'));
+  const chosen = load('model/catalogue').fromCatalogue('310UB40.4');
+  chosen.I *= 1.1;
+  cat.sectionRegions = [{id:'bad-cat',label:'Tampered catalogue',x:0,end:5,section:chosen}];
+  assert.throws(() => validateStudy(cat), /no longer matches its source/i);
+});
+
+test('EI-only overrides remain conservative even when true local sections exist', () => {
+  const m = normalise(example('cantilever'));
+  const stiff = JSON.parse(JSON.stringify(m.section));
+  stiff.I *= 2;
+  m.sectionRegions = [{id:'section-root',label:'Stiffer root half',x:0,end:5,section:stiff}];
+  m.stiffnessRegions = [{id:'approx-tip',label:'Unknown tip stiffness',x:5,end:10,factor:.8}];
+  const r = solveStudy(m);
+  assert.equal(r.hasSectionRegions, true);
+  assert.equal(r.hasEIOnlyRegions, true);
+  assert.equal(r.elasticStressEnvelope, null);
+  assert.equal(reviewLimits(r,m).stressUnavailable, true);
+  const review = design.evaluate(m,r,{fyMPa:300});
+  assert.equal(review.demand.elasticStressMPa, null);
+  assert.equal(review.elasticReference.unavailable, true);
+});
+
+test('true stepped-section energy audit uses local section EI and remains consistent', () => {
+  const m = normalise(example('cantilever'));
+  const stiff = JSON.parse(JSON.stringify(m.section));
+  stiff.I *= 2;
+  m.sectionRegions = [{id:'section-root',label:'Stiffer root half',x:0,end:5,section:stiff}];
+  const a = solveStudy(m);
+  const audit = verification.audit(m,a);
+  const energy = audit.checks.find(row => row.name === 'Strain energy / external work');
+  assert.ok(energy);
+  assert.equal(energy.pass, true);
+  assert.ok(Math.abs(energy.residual) <= energy.tolerance);
+  assert.match(audit.scope,/verified piecewise section properties/i);
+});
+
+test('true stepped sections are progressive, editable and represented throughout the built app', () => {
+  assert.equal(levels.canUseFeature('year1','steppedSections'), false);
+  assert.equal(levels.canUseFeature('year2','steppedSections'), false);
+  assert.equal(levels.canUseFeature('year3','steppedSections'), true);
+  assert.equal(levels.canUseFeature('all','steppedSections'), true);
+  assert.match(html, /TRUE STEPPED SECTIONS \/ LOCAL PROPERTIES/);
+  assert.match(html, /section-region-add/);
+  assert.match(html, /section-region-save:/);
+  assert.match(html, /section-region-band/);
+  assert.match(html, /THROUGH THE LOCAL SECTION/);
+  assert.match(html, /piecewise from local section area\/density/i);
+  assert.match(html, /stepped-section-profile/);
+  assert.match(html, /True stepped-section regions:/);
+  assert.match(html, /sectionRegions \|\| \[\]\)\.forEach\(r => \{ r\.x \*= ratio; r\.end \*= ratio; \}\)/);
+  assert.match(html, /48 structural objects is the limit/);
 });
 
 test('migration preserves Design Studio and tutor hooks', () => {
