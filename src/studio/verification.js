@@ -60,7 +60,7 @@ function audit(model, analysis) {
         extrema: { shear: a.peakV, moment: a.peakM, displacement: a.peakD },
         energy: { strainEnergy_kNm: internal / 2, halfFinalLoadWork_kNm: external / 2 },
         checks, pass: checks.every(c => c.pass), warnings: a.warnings,
-        scope: 'Euler-Bernoulli with optional piecewise-constant EI multipliers, linear elastic, zero prescribed support movement; no dynamics, shear deformation, local stepped-section stress inference or code checks.'
+        scope: 'Euler-Bernoulli with verified piecewise section properties and optional EI-only multipliers, linear elastic, zero prescribed support movement; true sections support local elastic stress while abrupt transition effects, dynamics, shear deformation and code checks remain outside scope.'
     };
 }
 function criticalLocations(a, model) {
