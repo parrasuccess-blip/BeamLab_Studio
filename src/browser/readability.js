@@ -32,6 +32,13 @@
     } catch { return fallback; }
   };
   const learningSnapshot = () => {
+    try {
+      const source = window.BeamLabLearningEvidence;
+      if (source?.snapshot) {
+        const value = source.snapshot();
+        if (value && typeof value === 'object') return value;
+      }
+    } catch { /* Fall back to aggregate evidence below. */ }
     const mastery = safeJson(storageKey + ':mastery', {});
     const entries = Object.entries(mastery).slice(0, 12).map(([topic, stat]) => ({
       topic,
@@ -45,8 +52,11 @@
     const activeTask = document.querySelector('.lesson-active > b, .challenge-active > b')?.textContent?.trim() || null;
     return {
       activeTask,
-      topics: entries,
-      interpretationBoundary: 'Deterministic local learning evidence. Use for tutoring sequence and tentative diagnostic questions, never as structural numerical authority.'
+      topicSummary: entries,
+      recentEvents: [],
+      priorityTopics: [],
+      repeatedWrongResponses: [],
+      interpretationBoundary: 'Fallback aggregate learning evidence only. Use for sequencing and diagnostic questions, never as structural numerical authority or proof of a misconception.'
     };
   };
   const installTutorAdapter = () => {
@@ -70,8 +80,15 @@
     if (strip && !strip.querySelector('.bl-adaptive-chip')) {
       const chip = document.createElement('span');
       chip.className = 'bl-adaptive-chip';
-      chip.textContent = 'adaptive learning context';
       strip.appendChild(chip);
+    }
+    if (strip) {
+      const chip = strip.querySelector('.bl-adaptive-chip');
+      if (chip) {
+        const evidence = learningSnapshot();
+        const recent = Array.isArray(evidence?.recentEvents) ? evidence.recentEvents.length : 0;
+        chip.textContent = recent ? `adaptive context · ${recent} recent event${recent === 1 ? '' : 's'}` : 'adaptive learning context';
+      }
     }
   };
   const apply = () => {

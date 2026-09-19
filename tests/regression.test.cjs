@@ -17,6 +17,7 @@ const { normalise, solveStudy } = load('model/study');
 const { benchmarks } = load('studio/verification');
 const design = load('studio/design');
 const designWorkflow = load('studio/design-workflow');
+const learningEvidence = load('studio/learning-evidence');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -90,4 +91,45 @@ test('guided Design workflow preserves deterministic entered-check ratios', () =
   near(review.checks.find(row => row.id === 'shear').ratio, 0.5);
   near(review.checks.find(row => row.id === 'deflection').ratio, 0.6428571428571422);
   assert.equal(review.governing.id, 'deflection');
+});
+
+
+test('learning evidence is bounded and prioritises recent difficulty without declaring a misconception', () => {
+  let events = [];
+  const base = { event:'attempt', kind:'lesson', taskId:'l1-shear-moment', taskTitle:'Shear to moment', topic:'Shear → moment', expected:'Moment rises where shear is positive', mode:'practice' };
+  events = learningEvidence.appendEvent(events, { ...base, correct:false, firstTry:true, tries:1, answer:'Moment falls where shear is positive', timestamp:1000 }, 1000);
+  events = learningEvidence.appendEvent(events, { ...base, correct:false, firstTry:false, tries:2, answer:'Moment falls where shear is positive', timestamp:2000 }, 2000);
+  events = learningEvidence.appendEvent(events, { event:'reveal', kind:'lesson', taskId:base.taskId, taskTitle:base.taskTitle, topic:base.topic, expected:base.expected, mode:'practice', timestamp:3000 }, 3000);
+  const snap = learningEvidence.snapshot(events, {
+    'Shear → moment': { attempts:2, correct:0, firstAttempts:1, firstCorrect:0, reveals:1, lastAt:3000 }
+  }, { kind:'lesson', id:base.taskId, title:base.taskTitle, topic:base.topic });
+  assert.equal(snap.priorityTopics[0].topic, 'Shear → moment');
+  assert.equal(snap.repeatedWrongResponses.length, 1);
+  assert.equal(snap.repeatedWrongResponses[0].count, 2);
+  assert.match(snap.interpretationBoundary, /not proof of a misconception/i);
+});
+
+test('weak aggregate mastery alone does not invent a repeated wrong response', () => {
+  const snap = learningEvidence.snapshot([], {
+    'Reactions & equilibrium': { attempts:5, correct:1, firstAttempts:3, firstCorrect:0, reveals:2, lastAt:1000 }
+  }, null);
+  assert.equal(snap.repeatedWrongResponses.length, 0);
+  assert.equal(snap.priorityTopics[0].topic, 'Reactions & equilibrium');
+});
+
+test('learning evidence stays bounded to the newest events', () => {
+  let events = [];
+  for (let i = 0; i < 40; i++) events = learningEvidence.appendEvent(events, {
+    event:'attempt', kind:'challenge', taskId:'q'+i, taskTitle:'Question '+i, topic:'Topic', correct:i % 2 === 0, firstTry:true, tries:1, timestamp:i+1
+  }, i+1);
+  assert.equal(events.length, learningEvidence.MAX_EVENTS);
+  assert.equal(events[0].taskId, 'q16');
+  assert.equal(events.at(-1).taskId, 'q39');
+});
+
+test('production tutor wiring exposes the adaptive evidence provider', () => {
+  assert.match(html, /BeamLabLearningEvidence/);
+  assert.match(html, /learning-evidence/);
+  assert.match(html, /repeatedWrongResponses/);
+  assert.match(html, /adaptive context/);
 });
