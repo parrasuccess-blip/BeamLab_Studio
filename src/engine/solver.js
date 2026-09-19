@@ -121,7 +121,7 @@ function solveBeam(model) {
         const M = M0 + V0 * t - w * t ** 2 / 2 - k * t ** 3 / 6;
         const theta = e.d[1] + (M0 * t + V0 * t ** 2 / 2 - w * t ** 3 / 6 - k * t ** 4 / 24) / e.EI;
         const v = e.d[0] + e.d[1] * t + (M0 * t * t / 2 + V0 * t ** 3 / 6 - w * t ** 4 / 24 - k * t ** 5 / 120) / e.EI;
-        return { x: e.a + t, V, M, v, theta };
+        return { x: e.a + t, V, M, v, theta, I:e.properties.I, c:e.properties.c, localEI:e.EI, stiffnessFactor:e.stiffnessFactor, sectionLabel:e.sectionLabel, sectionRegionLabel:e.sectionRegionLabel };
     }
     const elementAt = (x, side = 'right') => {
         x = Math.max(0, Math.min(length, x));
