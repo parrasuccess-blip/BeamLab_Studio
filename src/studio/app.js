@@ -15,6 +15,7 @@ const design_1 = require("./design");
 const design_workflow_1 = require("./design-workflow");
 const learning_evidence_1 = require("./learning-evidence");
 const learning_path_1 = require("./learning-path");
+const adaptive_practice_1 = require("./adaptive-practice");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -526,9 +527,16 @@ function syncSessionClock() {
 }
 function startLearningSession(mode) {
     if (v.session?.active || v.session?.review) return;
-    const queue = (0, challenges_1.sessionPlan)(v.level, masteryStats, mode);
+    const sessionMode = mode === 'exam' ? 'exam' : 'practice';
+    const queue = sessionMode === 'practice'
+        ? (0, adaptive_practice_1.planPractice)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress, masteryStats, { count:4 })
+        : (0, challenges_1.sessionPlan)(v.level, masteryStats, 'exam');
     if (!queue.length) { toast('No practice tasks are available at this learning level.'); return; }
-    v.session = { active:true, review:false, mode:mode === 'exam' ? 'exam' : 'practice', queue, index:0, results:[], startedAt:Date.now(), finishedAt:null, currentLocked:false, origin:captureSessionOrigin() };
+    v.session = {
+        active:true, review:false, mode:sessionMode, queue, index:0, results:[],
+        startedAt:Date.now(), finishedAt:null, currentLocked:false, origin:captureSessionOrigin(),
+        adaptive:sessionMode === 'practice', targetCount:queue.length, planRevision:0
+    };
     v.learnSection = 'session';
     loadSessionTask();
 }
@@ -598,6 +606,18 @@ function sessionAdvance() {
     if (!s?.active) return;
     const row = s.results[s.index];
     if (!row || !row.locked) { toast(s.mode === 'exam' ? 'Submit an answer or leave the question blank before continuing.' : 'Get it correct, reveal it, or skip this question before continuing.'); return; }
+    if (s.mode === 'practice' && s.adaptive) {
+        const seen = s.queue.slice(0, s.index + 1);
+        const remainingCount = Math.max(0, (s.targetCount || 4) - seen.length);
+        if (remainingCount > 0) {
+            const tail = (0, adaptive_practice_1.planPractice)(
+                v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress, masteryStats,
+                { count:remainingCount, excludeIds:seen.map(task => task.id) }
+            );
+            s.queue = [...seen, ...tail];
+            s.planRevision = (s.planRevision || 0) + 1;
+        }
+    }
     if (s.index >= s.queue.length - 1) { finishLearningSession(); return; }
     s.index += 1; loadSessionTask();
 }
