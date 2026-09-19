@@ -15,6 +15,7 @@ const solver_1 = require("../engine/solver");
 const validation_1 = require("./validation");
 const sections_1 = require("./sections");
 const catalogue_1 = require("./catalogue");
+const stiffness_1 = require("./stiffness");
 const clone = (v) => JSON.parse(JSON.stringify(v));
 exports.clone = clone;
 function normalise(model) {
@@ -25,6 +26,7 @@ function normalise(model) {
         i.caseId = m.cases[0].id; });
     m.selfWeightCase || (m.selfWeightCase = m.cases[0].id);
     m.combinations || (m.combinations = []);
+    m.stiffnessRegions = (0, stiffness_1.normaliseRegions)(m.stiffnessRegions);
     return m;
 }
 function validateStudy(m) {
@@ -130,11 +132,13 @@ function resultant(i) {
     return { force, firstMoment, position: Math.abs(force) > 1e-9 ? firstMoment / force : null };
 }
 function stressAt(a, x) {
-    const M = a.sample(x).M, top = -M * a.properties.c / a.properties.I / 1000;
-    return { top, bottom: -top, M };
+    const M = a.sample(x).M;
+    if (a.hasVaryingEI) return { top: NaN, bottom: NaN, M, unavailable: true };
+    const top = -M * a.properties.c / a.properties.I / 1000;
+    return { top, bottom: -top, M, unavailable: false };
 }
 function reviewLimits(a, m) {
-    const stress = Math.abs(a.peakM.M) * a.properties.c / a.properties.I / 1000;
+    const stress = a.hasVaryingEI ? null : Math.abs(a.peakM.M) * a.properties.c / a.properties.I / 1000;
     const displacement = Math.abs(a.peakD.v) * 1000;
-    return { stress, displacement, stressRatio: m.review?.stressMPa ? stress / m.review.stressMPa : null, displacementRatio: m.review?.displacementMm ? displacement / m.review.displacementMm : null };
+    return { stress, displacement, stressRatio: stress !== null && m.review?.stressMPa ? stress / m.review.stressMPa : null, displacementRatio: m.review?.displacementMm ? displacement / m.review.displacementMm : null, stressUnavailable: !!a.hasVaryingEI };
 }
