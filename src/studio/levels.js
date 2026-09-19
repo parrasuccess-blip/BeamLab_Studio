@@ -45,11 +45,11 @@ exports.modes = {
         subtitle: 'Load cases, self-weight, influence and advanced response',
         tabs: ['build', 'cases', 'section', 'layers', 'learn'],
         tools: ['pin', 'roller', 'fixed', 'hinge', 'point', 'udl', 'variable', 'moment'],
-        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight'],
+        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI'],
         examples: ['reference', 'simple', 'overhang', 'cantilever', 'continuous', 'gerber', 'suspended', 'triangle', 'fixed'],
         learns: [
             'Load cases and user-defined combinations',
-            'Catalogue/derived sections and self-weight',
+            'Catalogue/derived sections, self-weight and piecewise EI zones',
             'Influence lines and sampled moving-load envelopes',
             'Model verification, serviceability context and comparison studies'
         ]
@@ -59,7 +59,7 @@ exports.modes = {
         subtitle: 'Everything BeamLab currently supports',
         tabs: ['build', 'cases', 'section', 'layers', 'learn'],
         tools: ['pin', 'roller', 'fixed', 'hinge', 'point', 'udl', 'variable', 'moment'],
-        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'precision'],
+        features: ['annotations', 'deformation', 'stress', 'shear', 'moving', 'teaching', 'practice', 'review', 'cases', 'catalogue', 'selfweight', 'varyingEI', 'precision'],
         examples: ['reference', 'simple', 'overhang', 'cantilever', 'continuous', 'gerber', 'suspended', 'triangle', 'fixed'],
         learns: [
             'All current analysis and editing tools',
@@ -88,6 +88,7 @@ function restrictedStudyFeatures(id, study, view = {}) {
         if (!canUseFeature(id, key) && view[key]) out.push(key === 'moving' ? 'moving-load lab' : key);
     }
     if (!canUseFeature(id, 'catalogue') && study.section?.catalogue) out.push('catalogue section');
+    if (!canUseFeature(id, 'varyingEI') && (study.stiffnessRegions?.length || 0)) out.push('piecewise EI zones');
     return [...new Set(out)];
 }
 function recommendedExample(id) {
