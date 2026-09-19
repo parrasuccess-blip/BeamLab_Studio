@@ -1024,3 +1024,10 @@ button[disabled] { pointer-events:none; }
 .recommended-next{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;margin:14px 0;padding:15px 16px;border:1px solid #416057;border-radius:12px;background:linear-gradient(135deg,#12211f,#10191b 68%);box-shadow:inset 0 1px 0 #8ad9bf0d}
 .recommended-next-copy{min-width:0}.recommended-next-copy>b{display:block;margin-top:5px;color:#edf6f2;font-size:14px;line-height:1.3}.recommended-next-copy p{margin:6px 0;color:#a7bbb4;font-size:10px;line-height:1.55}.recommended-next-copy small{display:block;color:#799088;font-size:8px;letter-spacing:.25px}.recommended-next-action{display:flex;align-items:center}.recommended-next-action button{min-height:38px;white-space:nowrap}
 @media(max-width:760px){.recommended-next{grid-template-columns:1fr;gap:11px}.recommended-next-action{display:grid}.recommended-next-action button{width:100%}}
+
+
+/* BeamLab 4.0.4 / adaptive four-question practice */
+.session-adaptive-why{margin:10px 0;padding:11px 12px;border:1px solid #3d5a53;border-radius:9px;background:#10201d}
+.session-adaptive-why>span{display:block;color:#78cfb6;font:700 7.5px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.9px}
+.session-adaptive-why p{margin:5px 0;color:#aec2bb;font-size:9.5px;line-height:1.55}
+.session-adaptive-why small{display:block;color:#728981;font-size:7.5px;line-height:1.4}
