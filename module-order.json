@@ -8,6 +8,7 @@
   "model/study",
   "model/validation",
   "studio/design",
+  "studio/design-workflow",
   "studio/app",
   "studio/common",
   "studio/diagrams",
