@@ -252,7 +252,10 @@ test('results CSV carries local true-section properties and blanks stress only f
   m.stiffnessRegions = [{id:'ei-tip',label:'Unknown tip',x:5,end:10,factor:.8}];
   r = solveStudy(m);
   csv = studioExport.resultsCsv(r);
-  const ambiguous = csv.split('\n').find(row => row.startsWith('5.416666666666667,') || row.startsWith('5.416666666666666,'));
+  const ambiguous = csv.split('\n').slice(1).find(row => {
+    const x = Number(row.split(',')[0]);
+    return x > 5.05 && x < 9.95;
+  });
   assert.ok(ambiguous, 'sample exists inside EI-only zone');
   assert.equal(ambiguous.split(',').at(-1), '');
 });
