@@ -164,7 +164,7 @@ function reviewLimits(a, m) {
     return {
         stress,
         stressX: envelope?.x ?? null,
-        stressSection: envelope?.sectionLabel || null,
+        stressSection: envelope ? [envelope.regionLabel, envelope.sectionLabel].filter(Boolean).join(' · ') : null,
         displacement,
         stressRatio: stress !== null && m.review?.stressMPa ? stress / m.review.stressMPa : null,
         displacementRatio: m.review?.displacementMm ? displacement / m.review.displacementMm : null,
