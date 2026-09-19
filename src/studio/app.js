@@ -634,14 +634,22 @@ function finishLearningSession() {
     v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null; v.practice = false; v.learnSection = 'session';
     render();
 }
-function sessionReviewWeakest() {
-    const rows = buildMasteryView(v.level), weak = rows[0], rec = weak?.recommendation;
+function sessionReviewNext() {
+    const rec = v.learningRecommendation;
     const old = v.session;
     restoreSessionOrigin(old);
     if (!rec) return;
     v.tab = 'learn';
-    v.learnSection = rec.kind === 'lesson' ? 'lessons' : 'challenges';
-    if (rec.kind === 'lesson') startLesson(rec.id); else startChallenge(rec.id);
+    if (rec.kind === 'lesson') {
+        v.learnSection = 'lessons';
+        startLesson(rec.id);
+    } else if (rec.kind === 'challenge') {
+        v.learnSection = 'challenges';
+        startChallenge(rec.id);
+    } else if (rec.kind === 'session' && rec.id === 'practice') {
+        v.learnSection = 'session';
+        startLearningSession('practice');
+    }
 }
 function comparisonMetrics(a) {
     if (!a) return null;
@@ -1117,7 +1125,7 @@ async function action(key, el) {
     if (name === 'session-exit') { if (v.session?.active) openDialog('Exit this learning session?', `<p>Your original structural study is preserved. This unfinished session will be discarded, but mastery from answers already checked remains in this browser.</p>${(0,common_1.button)('session-exit-confirm','Exit session','danger')}`); return; }
     if (name === 'session-exit-confirm') { const old=v.session; closeDialog(); restoreSessionOrigin(old); return; }
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
-    if (name === 'session-review-weak') { sessionReviewWeakest(); return; }
+    if (name === 'session-review-next') { sessionReviewNext(); return; }
     if (name === 'mastery-review') { const [kind,taskId]=id.split('|'); v.learnSection=kind==='lesson'?'lessons':'challenges'; if(kind==='lesson') startLesson(taskId); else startChallenge(taskId); return; }
     if (name === 'recommended-next') {
         if (v.session?.active || v.session?.review) return;
