@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler, { modeInstruction, extractResponseText } from '../api/tutor.js';
+import handler, { modeInstruction, extractResponseText, systemPrompt } from '../api/tutor.js';
 
 function mock(method, body) {
   let statusCode = 200;
@@ -12,9 +12,18 @@ function mock(method, body) {
   return { req: { method, body }, res, result: () => ({ statusCode, payload }) };
 }
 
-test('quiz and hint remain Socratic', () => {
+test('quiz and hint remain Socratic and do not leak expected answers', () => {
   assert.match(modeInstruction('quiz'), /exactly one question/i);
+  assert.match(modeInstruction('quiz'), /expected field/i);
   assert.match(modeInstruction('hint'), /Socratic hint/i);
+  assert.match(modeInstruction('hint'), /repeated wrong response/i);
+});
+
+test('adaptive evidence is diagnostic rather than a misconception verdict', () => {
+  assert.match(systemPrompt, /stable response pattern only/i);
+  assert.match(systemPrompt, /not proof of a misconception/i);
+  assert.match(systemPrompt, /expected fields.*diagnostic-only/i);
+  assert.match(systemPrompt, /not.*structural numerical authority/i);
 });
 
 test('exam mode is blocked before any provider call', async () => {
