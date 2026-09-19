@@ -768,3 +768,15 @@ test('guided study resume replans only unfinished work from current evidence', (
   assert.match(html, /Date\.now\(\) - saved\.elapsedMs/);
   assert.match(html, /Time away from the tab was not counted/);
 });
+
+
+test('piecewise EI boundaries propagate through worked solution, Design and exports', () => {
+  assert.match(html, /using compatibility and the EI assigned to each event-aligned beam element/i);
+  assert.match(html, /EI ×/);
+  assert.match(html, /Peak elastic extreme-fibre stress is not inferred for EI-only stiffness zones/i);
+  assert.match(html, /Euler-Bernoulli small-deflection bending with optional piecewise-constant EI/i);
+  assert.match(html, /Not inferred for EI-only zones/i);
+  assert.match(html, /Verify local section geometry and that every entered capacity applies to the relevant zone/i);
+  assert.match(html, /Piecewise EI stiffness profile changed/i);
+  assert.match(html, /localStressInferenceAvailable/);
+});
