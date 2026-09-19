@@ -10,6 +10,8 @@ exports.raster = raster;
 exports.pngExport = pngExport;
 exports.pdfReport = pdfReport;
 const study_1 = require("../model/study");
+const sections_1 = require("../model/sections");
+const section_regions_1 = require("../model/section-regions");
 const diagrams_1 = require("./diagrams");
 const common_1 = require("./common");
 const { fingerprint, RELEASE } = require('./verification');
@@ -39,13 +41,15 @@ function fromSnapshot(code) {
     return (0, study_1.parseStudy)(new TextDecoder().decode(Uint8Array.from(raw, c => c.charCodeAt(0))));
 }
 function resultsCsv(a) {
-    // Duplicate coordinates intentionally retain both sides of point/couple jumps.
-    const rows = ['x_m,side,shear_kN,moment_kNm,displacement_up_mm,rotation_CCW_rad,top_fibre_stress_MPa'];
-    a.elements.forEach((e, index) => {
+    // Duplicate coordinates intentionally retain both sides of point/couple and property jumps.
+    const rows = ['x_m,side,shear_kN,moment_kNm,displacement_up_mm,rotation_CCW_rad,local_section,local_EI_kNm2,top_fibre_stress_MPa'];
+    a.elements.forEach((e) => {
         const n = Math.max(12, Math.ceil((e.b - e.a) * 20));
         for (let i = 0; i <= n; i++) {
             const x = e.a + (e.b - e.a) * i / n, side = i === n ? 'left' : 'right', s = a.sample(x, side);
-            rows.push([x, i === 0 ? 'right' : i === n ? 'left' : 'interior', s.V, s.M, s.v * 1000, s.theta, -s.M * a.properties.c / a.properties.I / 1000].join(','));
+            const stress = Math.abs((s.stiffnessFactor ?? 1)-1) > 1e-12 ? '' : -s.M * (s.c ?? a.properties.c) / (s.I ?? a.properties.I) / 1000;
+            const section = JSON.stringify(String(s.sectionRegionLabel ? s.sectionRegionLabel + ' / ' + s.sectionLabel : s.sectionLabel || 'Base section'));
+            rows.push([x, i === 0 ? 'right' : i === n ? 'left' : 'interior', s.V, s.M, s.v * 1000, s.theta, section, s.localEI, stress].join(','));
         }
     });
     return rows.join('\n');
@@ -174,18 +178,34 @@ async function pdfReport(m, a, v) {
     add(`Peak shear |V| = ${(0,common_1.fmt)(Math.abs(a.peakV.V),4)} kN at ${(0,common_1.fmt)(a.peakV.x,4)} m.`);
     add(`Peak moment |M| = ${(0,common_1.fmt)(Math.abs(a.peakM.M),4)} kN m at ${(0,common_1.fmt)(a.peakM.x,4)} m.`);
     add(`Peak displacement = ${(0,common_1.fmt)(a.peakD.v*1000,5)} mm at ${(0,common_1.fmt)(a.peakD.x,4)} m (up positive).`);
-    const stress = a.hasVaryingEI ? null : Math.abs(a.peakM.M)*a.properties.c/a.properties.I/1000;
-    add(a.hasVaryingEI ? 'Peak elastic extreme-fibre stress is not inferred for EI-only stiffness zones because local E/I split and section geometry are not defined.' : `Peak elastic extreme-fibre stress magnitude = ${(0,common_1.fmt)(stress,4)} MPa. No capacity check.`);
+    const stressEnvelope = a.hasEIOnlyRegions ? null : a.elasticStressEnvelope;
+    const stress = stressEnvelope?.stress ?? (a.hasEIOnlyRegions ? null : Math.abs(a.peakM.M)*a.properties.c/a.properties.I/1000);
+    add(a.hasEIOnlyRegions
+        ? 'Peak elastic extreme-fibre stress is not inferred while EI-only stiffness overrides are active because their local E/I split and section geometry are undefined.'
+        : `Peak elastic extreme-fibre stress magnitude = ${(0,common_1.fmt)(stress,4)} MPa${stressEnvelope ? ' at x '+(0,common_1.fmt)(stressEnvelope.x,4)+' m in '+stressEnvelope.sectionLabel : ''}. No capacity check.`);
     heading('02  MEMBER & SECTION');
     add(`${(0,common_1.fmt)(m.length)} m / ${a.system}. Base section: ${m.section.catalogue || m.section.shape}.`);
     add(`${m.section.material}. E ${(0,common_1.fmt)(m.section.E)} GPa; density ${(0,common_1.fmt)(m.section.density)} kg/m3; depth ${(0,common_1.fmt)(m.section.h)} mm.`);
     add(`A ${(0,common_1.fmt)(a.properties.A*1e6)} mm2; Ix ${(a.properties.I*1e12).toExponential(5)} mm4; base EI ${(0,common_1.fmt)(a.properties.EI/1000,5)} MN m2.`);
-    if (a.hasVaryingEI) {
-        add('Piecewise EI zones (stiffness only): ' + (a.stiffnessRegions || []).map(r => r.label + ' ' + (0,common_1.fmt)(r.x,3) + '-' + (0,common_1.fmt)(r.end,3) + ' m, EI x' + (0,common_1.fmt)(r.factor,3)).join(' / ') + '.');
-        add('These EI multipliers do not define local section geometry, stress, self-weight or resistance.');
+    if (a.hasSectionRegions) {
+        add('True stepped-section regions:');
+        for (const r of (a.sectionRegions || [])) {
+            const rp=(0,sections_1.sectionProperties)(r.section);
+            add(`  ${r.label}: ${(0,common_1.fmt)(r.x,3)}-${(0,common_1.fmt)(r.end,3)} m / ${(0,section_regions_1.sectionLabel)(r.section)} / E ${(0,common_1.fmt)(r.section.E,3)} GPa / A ${(0,common_1.fmt)(rp.A*1e6,2)} mm2 / Ix ${(rp.I*1e12).toExponential(5)} mm4 / h ${(0,common_1.fmt)(r.section.h,2)} mm / EI ${(0,common_1.fmt)(rp.EI/1000,5)} MN m2 / SW ${(0,common_1.fmt)(rp.weight,5)} kN/m.`,9);
+        }
+        add('Abrupt section transitions are member-property boundaries only; transition stress concentrations, tapers and connection effects are outside this model.',9);
+    }
+    if (a.hasEIOnlyRegions) {
+        add('EI-only stiffness overrides: ' + (a.stiffnessRegions || []).map(r => r.label + ' ' + (0,common_1.fmt)(r.x,3) + '-' + (0,common_1.fmt)(r.end,3) + ' m, EI x' + (0,common_1.fmt)(r.factor,3)).join(' / ') + '.');
+        add('EI-only multipliers do not define local section geometry, stress, self-weight or resistance.');
     }
     const wc=m.cases.find(c=>c.id===m.selfWeightCase);
-    add(`Self-weight: ${m.selfWeight ? (0,common_1.fmt)(a.properties.weight,5)+' kN/m nominal, case '+(wc?.name || m.selfWeightCase) : 'excluded'}.`);
+    if (!m.selfWeight) add('Self-weight: excluded.');
+    else if (a.hasSectionRegions) {
+        const swSegments=(0,section_regions_1.sectionSegments)(m);
+        add('Self-weight: piecewise from local section area/density, case '+(wc?.name || m.selfWeightCase)+'.');
+        for (const seg of swSegments) add(`  ${(0,common_1.fmt)(seg.a,3)}-${(0,common_1.fmt)(seg.b,3)} m / ${seg.regionLabel}: ${(0,common_1.fmt)(seg.properties.weight,5)} kN/m nominal.`,9);
+    } else add(`Self-weight: ${(0,common_1.fmt)(a.properties.weight,5)} kN/m nominal, case ${wc?.name || m.selfWeightCase}.`);
     heading('03  ACTIVE FACTORS & SUPPORT REACTIONS');
     add('User-defined factors, not prescribed design-code combinations.');
     add(m.cases.map(c => c.name+': '+(c.enabled?(0,common_1.fmt)(c.factor,3):'OFF')).join(' / '));
@@ -199,9 +219,9 @@ async function pdfReport(m, a, v) {
     heading('05  CONSISTENCY & SCOPE');
     add(`Force residual ${a.forceResidual.toExponential(2)} kN; moment residual ${a.momentResidual.toExponential(2)} kN m; hinge residual ${a.hingeResidual.toExponential(2)} kN m.`,9);
     add(`Support residual ${a.boundaryResidual.toExponential(2)} m; element compatibility ${a.endCompatibilityResidual.toExponential(2)} m.`,9);
-    add('Euler-Bernoulli small-deflection bending with optional piecewise-constant EI. EI-only zones do not infer local stress or section capacity. No axial, shear-deformation, settlement, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
+    add('Euler-Bernoulli small-deflection bending with optional true piecewise section properties and optional EI-only multipliers. True stepped regions use their local E/I/A/depth/density; abrupt transition stress concentrations are not modelled. EI-only overrides do not infer local stress or section capacity. No axial, shear-deformation, settlement, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
     for (const w of a.warnings) add(w,9);
-    if (m.section.catalogue) add('Catalogue: Liberty / InfraBuild HRSSP, 9th edition, Oct 2019, Tables 9/11/15. Historical starter subset. PFC torsion excluded.',9);
+    if (m.section.catalogue || (m.sectionRegions || []).some(r=>r.section?.catalogue)) add('Catalogue geometry used in the base and/or local regions: Liberty / InfraBuild HRSSP, 9th edition, Oct 2019, Tables 9/11/15. Historical starter subset. PFC torsion excluded.',9);
     finish();
     // Group aligned figures, not a tiny chart on an otherwise empty page.
     const svgWidth=800, ns='http://www.w3.org/2000/svg';

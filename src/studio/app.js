@@ -5,6 +5,7 @@ const validation_1 = require("../model/validation");
 const study_1 = require("../model/study");
 const catalogue_1 = require("../model/catalogue");
 const sections_1 = require("../model/sections");
+const section_regions_1 = require("../model/section-regions");
 const stiffness_1 = require("../model/stiffness");
 const history_1 = require("./history");
 const common_1 = require("./common");
@@ -196,7 +197,8 @@ if (levelStarterActive) {
 }
 const publicOrigin = /^https?:$/.test(location.protocol) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 function shown(key) {
-    if ((key === 'stress' || key === 'shear') && (history.model.stiffnessRegions?.length || 0)) return false;
+    const hasEIOnlyOverrides = (history.model.stiffnessRegions || []).some(r => Math.abs(Number(r.factor)-1) > 1e-12);
+    if ((key === 'stress' || key === 'shear') && hasEIOnlyOverrides) return false;
     return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key];
 }
 function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: v.practiceStep || 0, trace: v.trace, compare: comparison, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
@@ -365,17 +367,19 @@ function renderDesignStudio() {
     const standards = design_1.referenceBasis.map(row=>`<article class="design-standard"><span>${(0,common_1.esc)(row.label)}</span><b>${(0,common_1.esc)(row.title)}</b><small>${(0,common_1.esc)(row.source)}</small><a href="${row.url}" target="_blank" rel="noopener noreferrer">Public NCC reference</a></article>`).join('');
     const governing = r.governing ? `${(0,common_1.esc)(r.governing.label)} / ${(0,common_1.fmt)(r.governing.ratio,3)}` : 'No entered checks yet';
     const sourceLine = s.capacitySource ? `<span class="design-source-note"><b>Recorded source:</b> ${(0,common_1.esc)(s.capacitySource)}</span>` : '';
+    const steppedRows = (r.section.steppedRegions || []).map(row => `<div class="design-step-section-row"><div><b>${(0,common_1.esc)(row.label)}</b><small>${(0,common_1.fmt)(row.x_m,2)} → ${(0,common_1.fmt)(row.end_m,2)} m · ${(0,common_1.esc)(row.section)}</small></div><span>EI ${(0,common_1.fmt)(row.EI_kNm2/1000,3)} MN·m²</span><small>Ix ${Number(row.I_mm4).toExponential(3)} mm⁴ · h ${(0,common_1.fmt)(row.depth_mm,1)} mm · SW ${(0,common_1.fmt)(row.selfWeight_kNm,3)} kN/m</small></div>`).join('');
+
     const workflow = (0, design_workflow_1.renderHeader)(designStep);
     const navigation = (0, design_workflow_1.renderNavigation)(designStep);
     const finishCard = (0, design_workflow_1.renderFinishCard)(m, r, governing, sourceLine, !!(v.session?.active&&v.session.mode==='exam'));
     root.innerHTML = `<section class="design-hero"><span class="eyebrow">BEAMLAB 4.0 / DESIGN STUDIO</span><h2>Carry verified analysis demand into a transparent design review.</h2><p>BeamLab solves the member first, then compares that deterministic demand with capacities and serviceability criteria that <b>you</b> enter from a verified source. It does not yet derive AS 4100 member capacity, classify sections or generate AS/NZS load combinations.</p><div class="design-hero-actions">${(0,common_1.button)('workspace-mode:analysis','← Back to Analysis','secondary')}</div><span class="design-beta"><i></i>SCREENING REVIEW · NOT CODE APPROVAL OR STRUCTURAL DESIGN APPROVAL</span></section>
     <section class="design-workflow">${workflow}
     <div class="design-grid" data-design-step="${designStep}"><aside class="design-inputs"><section class="design-card violet design-step-card design-step-2"><span class="eyebrow">ENTERED CAPACITY BASIS</span><h3>Bring your verified capacities.</h3><p>Enter final design capacities from your own checked calculation, standard workflow or trusted design software. BeamLab only forms demand/capacity ratios.</p>${designNumberField('momentCapacity','Bending design capacity |φMb|',s.momentCapacity,'kN·m',.001,1e9,'e.g. 180')}${designNumberField('shearCapacity','Shear design capacity |φVv|',s.shearCapacity,'kN',.001,1e9,'e.g. 250')}<label class="design-field"><span>Serviceability criterion</span><select data-design-select="deflectionMode" aria-label="Serviceability criterion"><option value="unset" ${s.deflectionMode==='unset'?'selected':''}>Not set</option><option value="ratio" ${s.deflectionMode==='ratio'?'selected':''}>Span ratio L / n</option><option value="direct" ${s.deflectionMode==='direct'?'selected':''}>Direct displacement</option></select><em>criterion</em></label>${s.deflectionMode==='ratio'?designNumberField('serviceSpanM','Reference span',s.serviceSpanM ?? m.length,'m',.001,1e5,'member length')+designNumberField('deflectionRatio','Limit denominator n',s.deflectionRatio,'L/n',1,1e6,'250'):s.deflectionMode==='direct'?designNumberField('deflectionLimitMm','Displacement limit',s.deflectionLimitMm,'mm',.001,1e6,'e.g. 20'):''}<div class="design-input-note">Deflection demand uses the <b>current active load factors</b>. Apply an independently verified serviceability factor set before treating this as a serviceability review.</div></section>
-    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M*/My = ${(0,common_1.fmt)(fy.ratio,3)}. This ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
+    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE${r.section.hasTrueSteppedSections?' / GOVERNING LOCAL SECTION':''}</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M/My = ${(0,common_1.fmt)(fy.ratio,3)}${fy.x!==null?' at x = '+(0,common_1.fmt)(fy.x,3)+' m':''}${fy.sectionLabel?' · '+(0,common_1.esc)(fy.sectionLabel):''}. This remains an elastic mechanics reference and ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
     <section class="design-card design-step-card design-step-2"><span class="eyebrow">TRACEABILITY</span><h3>Record where the numbers came from.</h3><textarea class="design-textarea" data-design-text="capacitySource" maxlength="240" placeholder="Capacity source, calculation reference, clause, software run...">${(0,common_1.esc)(s.capacitySource)}</textarea><textarea class="design-textarea" data-design-text="notes" maxlength="1000" placeholder="Design assumptions, restraint notes, combination basis, outstanding checks...">${(0,common_1.esc)(s.notes)}</textarea><div class="design-source-note">These notes are stored locally and included in the Design Review JSON. They do not modify the structural model.</div>${(0,common_1.button)('design-reset','Reset design inputs','text-button')}</section></aside>
-    <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand ${d.elasticStressMPa===null?'unavailable':''}"><span>Elastic fibre stress</span><b>${d.elasticStressMPa===null?'NOT INFERRED':(0,common_1.fmt)(d.elasticStressMPa,3)+' MPa'}</b><small>${d.elasticStressMPa===null?'EI-only zones do not define local section geometry':'from current M and I/c'}</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
+    <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand ${d.elasticStressMPa===null?'unavailable':''}"><span>Elastic fibre stress</span><b>${d.elasticStressMPa===null?'NOT INFERRED':(0,common_1.fmt)(d.elasticStressMPa,3)+' MPa'}</b><small>${d.elasticStressMPa===null?'EI-only zones do not define local section geometry':r.section.hasTrueSteppedSections?'governing local section · x '+(0,common_1.fmt)(d.elasticStressX,3)+' m · '+(0,common_1.esc)(d.elasticStressSection):'from current M and I/c'}</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
     <section class="design-card design-step-card design-step-3"><span class="eyebrow">ENTERED CHECKS</span><h3>Demand divided by the criteria you supplied.</h3><div class="design-ratio-list">${r.checks.map(designRatioCard).join('')}</div><div class="design-governing"><span>Governing entered-check ratio</span><b>${governing}</b></div>${sourceLine}<div class="design-warning">A ratio below 1.0 only means BeamLab demand is below the <b>entered</b> capacity/limit. It does not prove AS 4100 compliance, structural adequacy or project approval.</div></section>
-    <section class="design-card design-step-card design-step-1"><span class="eyebrow">SECTION & MEMBER CONTEXT</span><h3>${(0,common_1.esc)(r.section.label)}${r.section.piecewiseEI?' + piecewise EI':''}</h3><div class="design-section-grid"><article><span>${r.section.piecewiseEI?'E / base':'E'}</span><b>${(0,common_1.fmt)(r.section.E_GPa,3)} GPa</b></article><article><span>${r.section.piecewiseEI?'Ix / base':'Ix'}</span><b>${Number(r.section.I_mm4).toExponential(3)} mm⁴</b></article><article><span>${r.section.piecewiseEI?'Area / base':'Area'}</span><b>${(0,common_1.fmt)(r.section.A_mm2,1)} mm²</b></article><article><span>${r.section.piecewiseEI?'EI zones':'c'}</span><b>${r.section.piecewiseEI?(r.section.stiffnessZones?.length || 0):(0,common_1.fmt)(r.section.c_mm,2)+' mm'}</b></article></div>${r.section.piecewiseEI?`<div class="design-warning">EI multipliers change analysis stiffness only. Verify local section geometry and that every entered capacity applies to the relevant zone; BeamLab does not infer this from EI.</div>`:''}<p class="design-source-note">${m.section.catalogue?'Catalogue geometry/area/Ix comes from the existing BeamLab InfraBuild reference library. The library is not a design-capacity database.':'Current section properties come from the BeamLab section model.'}</p></section>
+    <section class="design-card design-step-card design-step-1"><span class="eyebrow">SECTION & MEMBER CONTEXT</span><h3>${(0,common_1.esc)(r.section.label)}${r.section.hasTrueSteppedSections?' + true stepped sections':''}${r.section.hasEIOnlyOverrides?' + EI-only overrides':''}</h3><div class="design-section-grid"><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'E / base':'E'}</span><b>${(0,common_1.fmt)(r.section.E_GPa,3)} GPa</b></article><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'Ix / base':'Ix'}</span><b>${Number(r.section.I_mm4).toExponential(3)} mm⁴</b></article><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'Area / base':'Area'}</span><b>${(0,common_1.fmt)(r.section.A_mm2,1)} mm²</b></article><article><span>${r.section.hasTrueSteppedSections?'True regions':r.section.hasEIOnlyOverrides?'EI zones':'c'}</span><b>${r.section.hasTrueSteppedSections?(r.section.steppedRegions?.length || 0):r.section.hasEIOnlyOverrides?(r.section.stiffnessZones?.length || 0):(0,common_1.fmt)(r.section.c_mm,2)+' mm'}</b></article></div>${r.section.hasTrueSteppedSections?`<div class="design-stepped-sections"><span class="eyebrow">LOCAL SECTION PROFILE</span>${steppedRows}</div><div class="design-input-note">BeamLab uses these local E/I/A/depth/density properties for deterministic member response and elastic stress. User-entered member capacities remain external inputs and must be verified for every relevant region.</div>`:''}${r.section.hasEIOnlyOverrides?`<div class="design-warning">EI-only multipliers change analysis stiffness without defining local geometry. Local elastic stress and first-yield references are deliberately unavailable while an EI-only override is active.</div>`:''}<p class="design-source-note">${m.section.catalogue?'Base catalogue geometry/area/Ix comes from the existing BeamLab InfraBuild reference library. The library is not a design-capacity database.':'Base section properties come from the BeamLab section model.'}</p></section>
     <section class="design-card design-step-card design-step-4"><span class="eyebrow">ACTION FACTOR LEDGER</span><h3>Exactly what produced this response.</h3><p>Current BeamLab factors are shown without implying a standard combination. Change or apply factors deliberately in Analysis / Cases.</p><div class="factor-ledger">${factorRows}</div>${combos}${(0,levels_1.canUseFeature)(v.level,'cases')?(0,common_1.button)('design-edit-cases','Edit cases & factors in Analysis','wide-button'):''}</section>
     <section class="design-card design-step-card design-step-4"><span class="eyebrow">DESIGN READINESS</span><h3>What is known, entered, and still missing.</h3><div class="design-readiness">${readiness}</div></section>
     <section class="design-card violet design-step-card design-step-5"><span class="eyebrow">PUBLIC REFERENCE BASIS INSPECTED FOR 4.0</span><h3>Australian design context, without pretending the clauses are implemented.</h3><div class="design-standards">${standards}</div><div class="design-warning">The linked NCC schedule identifies the editions above. BeamLab 4.0 does not reproduce proprietary standard clauses or derive their member capacities/load combinations. Verify the applicable NCC edition, jurisdiction, amendments, project basis and purchased standards before real design work.</div></section>${finishCard}</div></div>${navigation}</section>`;
@@ -854,7 +858,7 @@ function sessionReviewPlanAgain() {
 }
 function comparisonMetrics(a) {
     if (!a) return null;
-    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000, piecewiseEI:!!a.hasVaryingEI, stiffnessZoneCount:a.stiffnessRegions?.length || 0 };
+    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000, steppedSections:!!a.hasSectionRegions, eiOnly:!!a.hasEIOnlyRegions, sectionRegionCount:a.sectionRegions?.length || 0, stiffnessZoneCount:a.stiffnessRegions?.length || 0 };
 }
 function deltaText(a, b, unit) {
     const d = b - a, pct = Math.abs(a) > 1e-12 ? d / Math.abs(a) * 100 : null;
@@ -867,6 +871,10 @@ function compareModelChanges(A, B) {
         const aP = (0, sections_1.sectionProperties)(A.section), bP = (0, sections_1.sectionProperties)(B.section);
         if (Math.abs(aP.EI - bP.EI) > Math.max(1e-9, Math.abs(aP.EI) * 1e-9)) push('Flexural stiffness EI changed from ' + (0, common_1.fmt)(aP.EI / 1000, 3) + ' to ' + (0, common_1.fmt)(bP.EI / 1000, 3) + ' MN m².');
     } catch { /* Invalid section is already reported by the main solver. */ }
+    const sectionSignature = r => [r.x,r.end,r.label,r.section?.catalogue||'',r.section?.material,r.section?.E,r.section?.density,r.section?.shape,r.section?.A,r.section?.I,r.section?.h,r.section?.b,r.section?.t,r.section?.tf];
+    const aSections = JSON.stringify((A.sectionRegions || []).map(sectionSignature));
+    const bSections = JSON.stringify((B.sectionRegions || []).map(sectionSignature));
+    if (aSections !== bSections) push('True stepped-section profile changed (' + (A.sectionRegions?.length || 0) + ' → ' + (B.sectionRegions?.length || 0) + ' regions).');
     const aZones = JSON.stringify((A.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
     const bZones = JSON.stringify((B.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
     if (aZones !== bZones) push('Piecewise EI stiffness profile changed (' + (A.stiffnessRegions?.length || 0) + ' → ' + (B.stiffnessRegions?.length || 0) + ' zones).');
@@ -911,9 +919,9 @@ function tutorContext(mode='question') {
         learningLevel: { id: v.level, short: level.short, title: level.title, subtitle: level.subtitle },
         signConventions: { appliedVertical: 'positive downward', reactions: 'positive upward', couples: 'positive counter-clockwise', internalMoment: 'positive sagging', displacement: 'positive upward' },
         assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis'],
-        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor,EI_kNm2:props.EI*r.factor})) },
-        section: { name: m.section?.name || m.section?.catalogue || m.section?.shape || 'custom', E_GPa: m.section?.E, I_mm4: m.section?.I, A_mm2: m.section?.A, baseEI_kNm2: props.EI, localStressInferenceAvailable:!analysis.hasVaryingEI },
-        inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned },
+        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, sectionRegions:(analysis.sectionRegions || []).map(r => { const rp=(0,sections_1.sectionProperties)(r.section); return {label:r.label,x:r.x,end:r.end,section:(0,section_regions_1.sectionLabel)(r.section),E_GPa:r.section.E,I_mm4:rp.I*1e12,A_mm2:rp.A*1e6,depth_mm:r.section.h,EI_kNm2:rp.EI,weight_kNm:rp.weight}; }), stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor})) },
+        section: { name:m.section?.catalogue || m.section?.shape || 'custom', E_GPa:m.section?.E, I_mm4:props.I*1e12, A_mm2:props.A*1e6, baseEI_kNm2:props.EI, hasTrueSteppedSections:!!analysis.hasSectionRegions, hasEIOnlyOverrides:!!analysis.hasEIOnlyRegions, localStressInferenceAvailable:!analysis.hasEIOnlyRegions },
+        inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned, localSection:analysis.localSectionAt ? (() => { const local=analysis.localSectionAt(x); return {region:local.regionLabel,section:local.label,E_GPa:local.section?.E,I_mm4:local.properties?.I*1e12,A_mm2:local.properties?.A*1e6,EI_kNm2:local.EI,stiffnessFactor:local.stiffnessFactor}; })() : null },
         critical: { peakShear: { x: analysis.peakV.x, V_kN: analysis.peakV.V }, peakMoment: { x: analysis.peakM.x, M_kNm: analysis.peakM.M }, peakDeflection: { x: analysis.peakD.x, displacement_m: analysis.peakD.v } },
         reactions, compare,
         designReview: v.workspaceMode === 'design' ? (0, design_1.evaluate)(m, analysis, designSettings) : null,
@@ -977,7 +985,7 @@ function compareDialog() {
     const observed = [
         ['Peak |V|', A.shear, B.shear, 'kN'], ['Peak |M|', A.moment, B.moment, 'kN m'], ['Peak |v|', A.deflection, B.deflection, 'mm']
     ].filter(([,a,b]) => Math.abs(b-a) > Math.max(1e-9,Math.abs(a)*1e-5)).map(([label,a,b,unit]) => `<li><b>${label}</b> ${deltaText(a,b,unit)}</li>`).join('');
-    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row(A.piecewiseEI||B.piecewiseEI?'Base EI':'EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
+    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row(A.steppedSections||B.steppedSections||A.eiOnly||B.eiOnly?'Base EI':'EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
 }
 function shortcutsDialog() {
     openDialog('Quick help & shortcuts', `<div class="shortcut-grid"><div><kbd>?</kbd><span>Open this help</span></div><div><kbd>Ctrl/Cmd Z</kbd><span>Undo</span></div><div><kbd>Ctrl/Cmd Shift Z</kbd><span>Redo</span></div><div><kbd>Ctrl/Cmd D</kbd><span>Duplicate selection</span></div><div><kbd>← / →</kbd><span>Nudge selected objects</span></div><div><kbd>Shift + ← / →</kbd><span>Larger nudge</span></div><div><kbd>Delete</kbd><span>Remove unlocked selection</span></div><div><kbd>Esc</kbd><span>Clear selection / close transient edit</span></div></div><h3>Safe progressive complexity</h3><p>Learning levels and Practice mode change presentation only. They do not switch solvers, remove advanced objects, or alter structural results.</p><p class="hint">Double-click a model label for direct numeric editing. Hover a response diagram to inspect one x-position across all visible views; click to pin it.</p>`);
@@ -1046,7 +1054,7 @@ function updateTrace() {
         const k = block.dataset.kind, stage = k === 'V' ? 2 : k === 'M' ? 3 : 4, hidden = practice && pstep < stage;
         marker.style.display = text.style.display = x === null || !a || hidden ? 'none' : '';
         if (x !== null && a && !hidden) {
-            const sample = a.sample(x), value = k === 'v' ? sample.v * 1000 : k === 'stress' ? -sample.M * a.properties.c / a.properties.I / 1000 : sample[k];
+            const sample = a.sample(x), value = k === 'v' ? sample.v * 1000 : k === 'stress' ? -sample.M * (sample.c ?? a.properties.c) / (sample.I ?? a.properties.I) / 1000 : sample[k];
             const y = Number(block.dataset.base) - value / Number(block.dataset.max) * Number(block.dataset.amp);
             marker.setAttribute('cx', String(xp(x))); marker.setAttribute('cy', String(y));
             text.setAttribute('x', String((0, common_1.clamp)(xp(x) + 9, 60, width - 85))); text.setAttribute('y', String((0, common_1.clamp)(y + 18, 25, 198))); text.textContent = (0, common_1.signed)(value, 3);
@@ -1068,8 +1076,8 @@ function newIdentity(kind) {
 function add(kind, x = history.model.length / 2, preset) {
     if (!(0, levels_1.canUseTool)(v.level, kind)) { toast(`${examples_1.titles[kind]} is hidden at ${(0, levels_1.mode)(v.level).short}. Move up a learning level to use it.`); return; }
     const m = history.model;
-    if (m.items.length >= 47) {
-        toast('Keep the 48th slot free for optional self-weight.');
+    if (m.items.length >= 48) {
+        toast('48 structural objects is the limit.');
         return;
     }
     const l = m.length, range = l / 3, start = (0, common_1.clamp)(x - range / 2, 0, l - range);
@@ -1111,7 +1119,7 @@ function duplicate() {
     const chosen = selectedItems().filter(i => (0, levels_1.canEditItem)(v.level, i));
     if (!chosen.length)
         return;
-    if (history.model.items.length + chosen.length > 47) {
+    if (history.model.items.length + chosen.length > 48) {
         toast('Duplicating would exceed the object limit.');
         return;
     }
@@ -1141,6 +1149,20 @@ function remove() { const unlocked = selectedItems().filter(i => !i.locked && (0
 } const ids = new Set(unlocked.map(i => i.id)); commit({ ...history.model, items: history.model.items.filter(i => !ids.has(i.id)) }, 'Remove selection', false); }
 function openDialog(title, content) { pauseSweep(); dialogReturnFocus = document.activeElement; finishField(); $('#dialog-title').textContent = title; $('#dialog-content').innerHTML = content; $('#dialog').classList.add('open'); $('#dialog').setAttribute('aria-hidden', 'false'); $('#dialog-close').focus(); }
 function closeDialog() { $('#dialog').classList.remove('open'); $('#dialog').setAttribute('aria-hidden', 'true'); if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus(); }
+function openSectionRegionDialog(id = '') {
+    if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) { toast('True stepped-section editing appears from 3rd+ Year mode.'); return; }
+    const regions = history.model.sectionRegions || [];
+    const existing = regions.find(r => r.id === id) || null;
+    if (!existing && regions.length >= section_regions_1.MAX_SECTION_REGIONS) { toast(section_regions_1.MAX_SECTION_REGIONS + ' stepped-section regions is the limit.'); return; }
+    const m = history.model, fallbackStart = m.length * .5, fallbackEnd = m.length;
+    const region = existing || { label:'Section region ' + (regions.length + 1), x:fallbackStart, end:fallbackEnd, section:(0,study_1.clone)(m.section) };
+    const source = existing?.section?.catalogue || (existing ? '__existing__' : '__base__');
+    const opt = (value,label,selected=false) => `<option value="${(0,common_1.esc)(value)}" ${selected?'selected':''}>${(0,common_1.esc)(label)}</option>`;
+    const groups = catalogue_1.catalogueFamilies.map(f => `<optgroup label="${(0,common_1.esc)(f.name)}">${catalogue_1.catalogue.filter(row=>row.family===f.id).map(row=>opt(row.name,row.name+' / '+row.mass+' kg/m',source===row.name)).join('')}</optgroup>`).join('');
+    const existingOption = existing ? opt('__existing__','Keep current local section / '+(0,section_regions_1.sectionLabel)(existing.section),source==='__existing__') : '';
+    const currentProps = (() => { try { return (0,sections_1.sectionProperties)(region.section); } catch { return null; } })();
+    openDialog(existing ? 'Edit true stepped section' : 'Add true stepped section', `<div class="section-region-dialog-intro"><p>Assign an actual BeamLab section to one non-overlapping interval. The section is stored as an independent local property set, so the deterministic solver can use its own E, I, area, depth, density and self-weight.</p></div><label class="field"><span>Region label</span><div><input id="section-region-label" maxlength="40" value="${(0,common_1.esc)(region.label)}" aria-label="Stepped section label"></div><em class="field-error"></em></label><label class="field"><span>Start x</span><div><input id="section-region-start" type="number" min="0" max="${m.length}" step="any" value="${region.x}" aria-label="Stepped section start"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>End x</span><div><input id="section-region-end" type="number" min="0" max="${m.length}" step="any" value="${region.end}" aria-label="Stepped section end"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>Local section source</span><select id="section-region-source" aria-label="Local stepped section source">${existingOption}${opt('__base__','Copy current base section',source==='__base__')}${groups}</select><em class="field-error"></em></label><div class="section-region-dialog-summary"><b>Current local definition</b><span>${(0,common_1.esc)((0,section_regions_1.sectionLabel)(region.section))}</span><small>E ${(0,common_1.fmt)(region.section.E,2)} GPa · Ix ${currentProps ? (currentProps.I*1e12).toExponential(3) : '--'} mm⁴ · depth ${(0,common_1.fmt)(region.section.h,1)} mm · self-weight ${currentProps ? (0,common_1.fmt)(currentProps.weight,3) : '--'} kN/m</small></div><p class="section-region-dialog-note">“Copy current base section” stores a snapshot; later edits to the base section do not silently rewrite this region. Catalogue choices use BeamLab's tabulated A/Ix geometry and editable teaching material assumptions.</p><p id="section-region-dialog-error" class="stiffness-dialog-error" role="alert"></p><div class="dialog-actions">${(0,common_1.button)('section-region-save:'+(existing ? existing.id : 'new'), existing ? 'Save stepped section' : 'Add stepped section', 'primary')}${(0,common_1.button)('dialog-close','Cancel','secondary')}</div>`);
+}
 function openStiffnessDialog(id = '') {
     if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) { toast('Piecewise EI editing appears from 3rd+ Year mode.'); return; }
     const regions = history.model.stiffnessRegions || [];
@@ -1273,6 +1295,7 @@ function applyNumber(input) {
         m.length = n;
         m.items.forEach(i => { i.x *= ratio; if (i.end !== undefined)
             i.end *= ratio; });
+        (m.sectionRegions || []).forEach(r => { r.x *= ratio; r.end *= ratio; });
         (m.stiffnessRegions || []).forEach(r => { r.x *= ratio; r.end *= ratio; });
         v.pan = 0;
     }
@@ -1702,6 +1725,54 @@ async function action(key, el) {
         catch {
             toast('Browser storage is unavailable or this snapshot is invalid. Export JSON instead.');
         }
+        return;
+    }
+    if (name === 'section-region-add') { openSectionRegionDialog(); return; }
+    if (name === 'section-region-edit') { openSectionRegionDialog(id); return; }
+    if (name === 'section-region-remove') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) return;
+        const m = (0, study_1.clone)(history.model);
+        const before = m.sectionRegions?.length || 0;
+        m.sectionRegions = (m.sectionRegions || []).filter(r => r.id !== id);
+        if (m.sectionRegions.length === before) return;
+        commit(m, 'Remove stepped section');
+        return;
+    }
+    if (name === 'section-region-save') {
+        if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) return;
+        const label = $('#section-region-label')?.value.trim() || '';
+        const x = Number($('#section-region-start')?.value);
+        const end = Number($('#section-region-end')?.value);
+        const source = $('#section-region-source')?.value || '__base__';
+        const m = (0, study_1.clone)(history.model);
+        m.sectionRegions || (m.sectionRegions = []);
+        const regionId = id === 'new' ? 'section-' + Date.now().toString(36) : id;
+        const existingIndex = m.sectionRegions.findIndex(r => r.id === regionId);
+        const existing = existingIndex >= 0 ? m.sectionRegions[existingIndex] : null;
+        let section;
+        try {
+            section = source === '__base__'
+                ? (0,study_1.clone)(m.section)
+                : source === '__existing__' && existing
+                    ? (0,study_1.clone)(existing.section)
+                    : (0,catalogue_1.fromCatalogue)(source);
+        } catch (e) {
+            const errorEl = $('#section-region-dialog-error');
+            if (errorEl) errorEl.textContent = e instanceof Error ? e.message : 'Invalid section source.';
+            return;
+        }
+        const region = { id:regionId, label, x, end, section };
+        if (existingIndex >= 0) m.sectionRegions[existingIndex] = region;
+        else m.sectionRegions.push(region);
+        m.sectionRegions = (0, section_regions_1.normaliseSectionRegions)(m.sectionRegions);
+        try { (0, study_1.validateStudy)(m); }
+        catch (e) {
+            const errorEl = $('#section-region-dialog-error');
+            if (errorEl) errorEl.textContent = e instanceof Error ? e.message : 'Invalid stepped-section region.';
+            return;
+        }
+        closeDialog();
+        commit(m, existingIndex >= 0 ? 'Edit stepped section' : 'Add stepped section');
         return;
     }
     if (name === 'stiffness-add') { openStiffnessDialog(); return; }

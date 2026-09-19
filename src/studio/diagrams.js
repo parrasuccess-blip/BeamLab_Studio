@@ -10,6 +10,7 @@ exports.renderSection = renderSection;
 exports.teaching = teaching;
 const linear_1 = require("../engine/linear");
 const validation_1 = require("../model/validation");
+const section_regions_1 = require("../model/section-regions");
 const study_1 = require("../model/study");
 const common_1 = require("./common");
 function layoutModel(m, width) {
@@ -66,13 +67,27 @@ function renderDiagrams(m, a, v) {
     }).join('');
     const tracer = (H) => `<g class="trace-group" style="display:${v.trace === null ? 'none' : ''};pointer-events:none"><line class="trace-line" x1="${xp(v.trace || 0)}" x2="${xp(v.trace || 0)}" y1="15" y2="${H - 28}" stroke="#cae9e2" opacity=".6" stroke-dasharray="3 4"/></g>`;
     const layout = v.layout || layoutModel(m, W), beamY = layout.height - 160;
+    const sectionSegments = (0, section_regions_1.sectionSegments)(m);
+    const baseDepth = Math.max(1, Number(m.section?.h) || 1);
+    const sectionBands = sectionSegments.map(seg => {
+        const x1=xp(seg.a), x2=xp(seg.b), mid=(x1+x2)/2;
+        const depthRatio=Math.max(.35,Math.min(2.5,(Number(seg.section?.h)||baseDepth)/baseDepth));
+        const stroke=Math.max(4,Math.min(18,7*depthRatio));
+        const explicit=!!seg.regionId;
+        const col=explicit?'#a9d8cf':'url(#beam-metal)';
+        const boundary=explicit?`<line x1="${x1}" x2="${x1}" y1="${beamY-13}" y2="${beamY+13}" stroke="#b4d9d1" opacity=".55"/><line x1="${x2}" x2="${x2}" y1="${beamY-13}" y2="${beamY+13}" stroke="#b4d9d1" opacity=".55"/>`:'';
+        const label=explicit && annotationOn && visible((seg.a+seg.b)/2)
+            ? svgText((0,common_1.clamp)(mid,65,W-65),beamY+27,`${seg.regionLabel} / ${seg.label}`,'#a9cfc7','middle',8)
+            : '';
+        return `<g class="section-region-band" aria-label="${(0,common_1.esc)(seg.regionLabel)} ${(0,common_1.esc)(seg.label)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="${stroke}" stroke-linecap="butt"/>${boundary}${label}</g>`;
+    }).join('');
     const stiffnessBands = (m.stiffnessRegions || []).map(r => {
         const x1 = xp(r.x), x2 = xp(r.end), mid = (x1 + x2) / 2;
         const col = r.factor >= 1 ? '#83dcc5' : '#efcb72';
-        const label = annotationOn && visible((r.x+r.end)/2) ? svgText((0,common_1.clamp)(mid,55,W-55), beamY - 13, `${r.label} / EI ×${(0,common_1.fmt)(r.factor,2)}`, col, 'middle', 8) : '';
-        return `<g class="stiffness-band" aria-label="${(0,common_1.esc)(r.label)} EI multiplier ${(0,common_1.fmt)(r.factor,2)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="17" opacity=".16"/><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="2" opacity=".9"/><line x1="${x1}" x2="${x1}" y1="${beamY-8}" y2="${beamY+8}" stroke="${col}" opacity=".75"/><line x1="${x2}" x2="${x2}" y1="${beamY-8}" y2="${beamY+8}" stroke="${col}" opacity=".75"/>${label}</g>`;
+        const label = annotationOn && visible((r.x+r.end)/2) ? svgText((0,common_1.clamp)(mid,55,W-55), beamY - 16, `${r.label} / EI ×${(0,common_1.fmt)(r.factor,2)}`, col, 'middle', 8) : '';
+        return `<g class="stiffness-band" aria-label="${(0,common_1.esc)(r.label)} EI multiplier ${(0,common_1.fmt)(r.factor,2)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="21" opacity=".12"/><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="2" opacity=".9"/>${label}</g>`;
     }).join('');
-    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${layout.height}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${layout.height}"/></clipPath></defs>${grid(layout.height)}<g clip-path="url(#model-clip)">${stiffnessBands}<line x1="${xp(0)}" x2="${xp(m.length)}" y1="${beamY}" y2="${beamY}" stroke="url(#beam-metal)" stroke-width="7" stroke-linecap="round"/>`;
+    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${layout.height}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${layout.height}"/></clipPath></defs>${grid(layout.height)}<g clip-path="url(#model-clip)">${sectionBands}${stiffnessBands}`;
     for (const i of m.items.filter(i => (0, validation_1.isLoad)(i.kind))) {
         const x = xp(i.x), lane = layout.lanes.get(i.id) || 0;
         const base = beamY - ((0, validation_1.isDistributed)(i.kind) ? 70 : 18) - lane * 108;
@@ -147,7 +162,7 @@ function renderDiagrams(m, a, v) {
     }
     model += tracer(layout.height) + `</g></svg>`;
     let html = `<section class="diagram-block" id="structure-block">${diagramHeader('01', 'Structure', 'm / kN', `${(0, common_1.fmt)(m.length)} m member`)}${model}<div class="diagram-caption"><span>Load labels are nominal. Active case factors are applied to the results.${m.selfWeight ? ' Additional self-weight acts over the full beam.' : ''}</span><span>Double-click a label to edit</span></div></section>`;
-    const val = (s, k, a) => k === 'stress' ? -s.M * a.properties.c / a.properties.I / 1000 : k === 'v' ? s.v * 1000 : s[k];
+    const val = (s, k, a) => k === 'stress' ? -s.M * (s.c ?? a.properties.c) / (s.I ?? a.properties.I) / 1000 : k === 'v' ? s.v * 1000 : s[k];
     const chart = (kind, num, title, units, colour) => {
         const H = 230, base = 108, amp = 66;
         const critical = a ? criticalSamples(a, kind) : [];
@@ -217,7 +232,12 @@ function renderDiagrams(m, a, v) {
     return html;
 }
 function renderSection(m, a, x) {
-    const props = m.section, values = a ? (0, study_1.stressAt)(a, x) : { top: 0, bottom: 0, M: 0 };
+    const values = a ? (0, study_1.stressAt)(a, x) : { top: 0, bottom: 0, M: 0, unavailable:false, local:{section:m.section,regionLabel:'Base section',label:(0,section_regions_1.sectionLabel)(m.section)} };
+    const props = values.local?.section || m.section;
+    if (values.unavailable) {
+        const local = values.local || {};
+        return `<div class="section-stress unavailable"><div><span class="eyebrow">THROUGH THE SECTION / LOCAL RESULT</span><h3>Stress is not inferred in this EI-only zone.</h3><p>At x = <b>${(0,common_1.fmt)(x)} m</b>, M = <b>${(0,common_1.signed)(values.M)} kN·m</b>.</p><p class="muted">The active local stiffness is ${(0,common_1.fmt)(local.stiffnessFactor || 1,3)}× the known section EI, but BeamLab cannot tell whether that multiplier represents E, I or both. The moment result is valid for the beam model; a fibre-stress field would require verified local section properties.</p></div></div>`;
+    }
     const H = 200, scale = Math.min(120 / props.h, 110 / props.b), b = props.b * scale, h = props.h * scale, t = Math.max(2, props.t * scale), tf = Math.max(2, props.tf * scale), cx = 110, cy = 96;
     const family = props.family || props.shape;
     let shape = '';
@@ -229,8 +249,9 @@ function renderSection(m, a, x) {
         shape = `M${cx - b / 2} ${cy - h / 2}h${b}v${h}h${-b}Z${family === 'box' ? `M${cx - b / 2 + t} ${cy - h / 2 + t}v${h - 2 * t}h${b - 2 * t}v${-(h - 2 * t)}Z` : ''}`;
     const topC = values.top >= 0 ? '#80d9c6' : '#f0a1a5', bottomC = values.bottom >= 0 ? '#80d9c6' : '#f0a1a5';
     const max = Math.max(Math.abs(values.top), 1e-9), sx = 270, stressWidth = 70, xt = sx + values.top / max * stressWidth, xb = sx + values.bottom / max * stressWidth;
-    const drawing = `<svg viewBox="0 0 400 ${H}" role="img" aria-label="Cross-section and elastic stress distribution"><defs><linearGradient id="stress-colour" x1="0" x2="0" y1="0" y2="1"><stop stop-color="${topC}"/><stop offset=".5" stop-color="#83979b"/><stop offset="1" stop-color="${bottomC}"/></linearGradient></defs><path d="${shape}" fill="url(#stress-colour)" fill-rule="evenodd" stroke="#d4e3df" stroke-width=".7"/><line x1="28" x2="190" y1="${cy}" y2="${cy}" stroke="#d0deda" opacity=".4" stroke-dasharray="3 4"/>${svgText(110, cy + h / 2 + 20, props.catalogue || (family === 'custom' ? 'Symmetric outline' : family.toUpperCase()), '#a2b4b8', 'middle', 10)}<line x1="${sx}" x2="${sx}" y1="${cy - h / 2 - 12}" y2="${cy + h / 2 + 12}" stroke="#b3c0c4" opacity=".5"/><path d="M${sx} ${cy - h / 2}H${xt}L${sx} ${cy}Z" fill="${topC}" opacity=".4"/><path d="M${sx} ${cy}L${xb} ${cy + h / 2}H${sx}Z" fill="${bottomC}" opacity=".4"/><line x1="${xt}" y1="${cy - h / 2}" x2="${xb}" y2="${cy + h / 2}" stroke="#e2e9e7"/>${svgText(sx, cy - h / 2 - 20, (0, common_1.signed)(values.top) + ' MPa', topC, 'middle', 11)}${svgText(sx, cy + h / 2 + 29, (0, common_1.signed)(values.bottom) + ' MPa', bottomC, 'middle', 11)}${svgText(sx, 190, 'Compression -  /  Tension +', '#8ea3ab', 'middle', 9)}</svg>`;
-    return `<div class="section-stress"><div><span class="eyebrow">THROUGH THE SECTION</span><h3>Compression. Neutral axis. Tension.</h3><p>At x = <b>${(0, common_1.fmt)(x)} m</b>, M = <b>${(0, common_1.signed)(values.M)} kN\u00b7m</b></p><p class="muted">${props.shape === 'custom' && !props.catalogue ? 'Outline is schematic; the calculation uses your entered I and depth.' : 'Cross-section schematic; fillets are omitted from the drawing.'} Constant symmetric depth, bending about x-x. Stress is elastic, not a capacity check.</p><div class="formula">\u03c3(y) = -M y / I</div></div>${drawing}</div>`;
+    const localName = values.local?.regionId ? `${values.local.regionLabel} · ${values.local.label}` : values.local?.label || (0,section_regions_1.sectionLabel)(props);
+    const drawing = `<svg viewBox="0 0 400 ${H}" role="img" aria-label="Local cross-section and elastic stress distribution"><defs><linearGradient id="stress-colour" x1="0" x2="0" y1="0" y2="1"><stop stop-color="${topC}"/><stop offset=".5" stop-color="#83979b"/><stop offset="1" stop-color="${bottomC}"/></linearGradient></defs><path d="${shape}" fill="url(#stress-colour)" fill-rule="evenodd" stroke="#d4e3df" stroke-width=".7"/><line x1="28" x2="190" y1="${cy}" y2="${cy}" stroke="#d0deda" opacity=".4" stroke-dasharray="3 4"/>${svgText(110, cy + h / 2 + 20, props.catalogue || (family === 'custom' ? 'Symmetric outline' : family.toUpperCase()), '#a2b4b8', 'middle', 10)}<line x1="${sx}" x2="${sx}" y1="${cy - h / 2 - 12}" y2="${cy + h / 2 + 12}" stroke="#b3c0c4" opacity=".5"/><path d="M${sx} ${cy - h / 2}H${xt}L${sx} ${cy}Z" fill="${topC}" opacity=".4"/><path d="M${sx} ${cy}L${xb} ${cy + h / 2}H${sx}Z" fill="${bottomC}" opacity=".4"/><line x1="${xt}" y1="${cy - h / 2}" x2="${xb}" y2="${cy + h / 2}" stroke="#e2e9e7"/>${svgText(sx, cy - h / 2 - 20, (0, common_1.signed)(values.top) + ' MPa', topC, 'middle', 11)}${svgText(sx, cy + h / 2 + 29, (0, common_1.signed)(values.bottom) + ' MPa', bottomC, 'middle', 11)}${svgText(sx, 190, 'Compression -  /  Tension +', '#8ea3ab', 'middle', 9)}</svg>`;
+    return `<div class="section-stress"><div><span class="eyebrow">THROUGH THE LOCAL SECTION</span><h3>Compression. Neutral axis. Tension.</h3><p>At x = <b>${(0, common_1.fmt)(x)} m</b>, M = <b>${(0, common_1.signed)(values.M)} kN·m</b></p><p class="local-section-chip">${(0,common_1.esc)(localName)}</p><p class="muted">${props.shape === 'custom' && !props.catalogue ? 'Outline is schematic; the calculation uses the local entered I and depth.' : 'Local cross-section schematic; fillets are omitted from the drawing.'} Bending about x-x. Stress is elastic, not a capacity check.</p><div class="formula">σ(y) = -M y / I</div></div>${drawing}</div>`;
 }
 function teaching(m, a, x, level = 'all') {
     if (!a)
