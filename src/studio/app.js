@@ -397,10 +397,11 @@ function render() {
     const learningSnapshot = learningEvidenceSnapshot();
     v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningSnapshot, lessonProgress, challengeProgress);
     v.learningTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 6);
+    const planningTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 10);
     v.learningStudyPlan = (0, study_plan_1.build)(
         v.level,
         { ...learningSnapshot, recentEvents:learningEvidenceEvents },
-        v.learningTrajectory,
+        planningTrajectory,
         lessonProgress,
         challengeProgress,
         masteryStats
