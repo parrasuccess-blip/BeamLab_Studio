@@ -5,6 +5,7 @@
   "model/catalogue",
   "model/examples",
   "model/sections",
+  "model/stiffness",
   "model/study",
   "model/validation",
   "studio/design",
