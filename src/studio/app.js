@@ -854,7 +854,7 @@ function sessionReviewPlanAgain() {
 }
 function comparisonMetrics(a) {
     if (!a) return null;
-    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000 };
+    return { shear: Math.abs(a.peakV.V), moment: Math.abs(a.peakM.M), deflection: Math.abs(a.peakD.v) * 1000, EI: a.properties.EI / 1000, piecewiseEI:!!a.hasVaryingEI, stiffnessZoneCount:a.stiffnessRegions?.length || 0 };
 }
 function deltaText(a, b, unit) {
     const d = b - a, pct = Math.abs(a) > 1e-12 ? d / Math.abs(a) * 100 : null;
@@ -867,6 +867,9 @@ function compareModelChanges(A, B) {
         const aP = (0, sections_1.sectionProperties)(A.section), bP = (0, sections_1.sectionProperties)(B.section);
         if (Math.abs(aP.EI - bP.EI) > Math.max(1e-9, Math.abs(aP.EI) * 1e-9)) push('Flexural stiffness EI changed from ' + (0, common_1.fmt)(aP.EI / 1000, 3) + ' to ' + (0, common_1.fmt)(bP.EI / 1000, 3) + ' MN m².');
     } catch { /* Invalid section is already reported by the main solver. */ }
+    const aZones = JSON.stringify((A.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
+    const bZones = JSON.stringify((B.stiffnessRegions || []).map(r => [r.x,r.end,r.factor]));
+    if (aZones !== bZones) push('Piecewise EI stiffness profile changed (' + (A.stiffnessRegions?.length || 0) + ' → ' + (B.stiffnessRegions?.length || 0) + ' zones).');
     if (!!A.selfWeight !== !!B.selfWeight) push('Self-weight was ' + (B.selfWeight ? 'enabled.' : 'disabled.'));
     const aCases = new Map((A.cases || []).map(c => [c.id, c])), bCases = new Map((B.cases || []).map(c => [c.id, c]));
     for (const [id, b] of bCases) { const a = aCases.get(id); if (a && (Math.abs(a.factor - b.factor) > 1e-10 || a.enabled !== b.enabled)) push('Load case ' + b.name + ' changed from ' + (a.enabled ? (0, common_1.fmt)(a.factor, 2) + '×' : 'off') + ' to ' + (b.enabled ? (0, common_1.fmt)(b.factor, 2) + '×.' : 'off.')); }
@@ -908,8 +911,8 @@ function tutorContext(mode='question') {
         learningLevel: { id: v.level, short: level.short, title: level.title, subtitle: level.subtitle },
         signConventions: { appliedVertical: 'positive downward', reactions: 'positive upward', couples: 'positive counter-clockwise', internalMoment: 'positive sagging', displacement: 'positive upward' },
         assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis'],
-        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items },
-        section: { name: m.section?.name || m.section?.catalogue || m.section?.shape || 'custom', E_GPa: m.section?.E, I_mm4: m.section?.I, A_mm2: m.section?.A, EI_kNm2: props.EI },
+        study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor,EI_kNm2:props.EI*r.factor})) },
+        section: { name: m.section?.name || m.section?.catalogue || m.section?.shape || 'custom', E_GPa: m.section?.E, I_mm4: m.section?.I, A_mm2: m.section?.A, baseEI_kNm2: props.EI, localStressInferenceAvailable:!analysis.hasVaryingEI },
         inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned },
         critical: { peakShear: { x: analysis.peakV.x, V_kN: analysis.peakV.V }, peakMoment: { x: analysis.peakM.x, M_kNm: analysis.peakM.M }, peakDeflection: { x: analysis.peakD.x, displacement_m: analysis.peakD.v } },
         reactions, compare,
