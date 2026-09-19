@@ -69,7 +69,9 @@ function evaluate(model, analysis, rawSettings) {
     const props = analysis.properties || (0, sections_1.sectionProperties)(model.section);
     const moments = extrema(analysis.points, 'M');
     const shears = extrema(analysis.points, 'V');
-    const piecewiseEI = !!analysis.hasVaryingEI;
+    const hasEIOnly = !!analysis.hasEIOnlyRegions;
+    const hasTrueSteppedSections = !!analysis.hasSectionRegions;
+    const stressEnvelope = !hasEIOnly ? analysis.elasticStressEnvelope : null;
     const demand = {
         moment: Math.abs(analysis.peakM.M),
         momentPositive: moments.max,
@@ -82,7 +84,10 @@ function evaluate(model, analysis, rawSettings) {
         deflectionMm: Math.abs(analysis.peakD.v) * 1000,
         deflectionSignedMm: analysis.peakD.v * 1000,
         deflectionX: analysis.peakD.x,
-        elasticStressMPa: piecewiseEI ? null : Math.abs(analysis.peakM.M) * props.c / props.I / 1000
+        elasticStressMPa: stressEnvelope?.stress ?? (hasEIOnly ? null : Math.abs(analysis.peakM.M) * props.c / props.I / 1000),
+        elasticStressX: stressEnvelope?.x ?? (hasEIOnly ? null : analysis.peakM.x),
+        elasticStressSection: stressEnvelope?.sectionLabel || (hasEIOnly ? null : (model.section.catalogue || model.section.shape || 'Base section')),
+        elasticStressRegion: stressEnvelope?.regionLabel || (hasEIOnly ? null : 'Base section')
     };
     const serviceSpanM = settings.serviceSpanM || model.length;
     const deflectionLimitMm = settings.deflectionMode === 'ratio'
@@ -95,10 +100,30 @@ function evaluate(model, analysis, rawSettings) {
         ratioCheck('shear', 'Shear', demand.shear, settings.shearCapacity, 'kN', 'User-supplied final design capacity'),
         ratioCheck('deflection', 'Deflection', demand.deflectionMm, deflectionLimitMm, 'mm', settings.deflectionMode === 'ratio' ? `User study criterion L/${settings.deflectionRatio}` : 'User-supplied displacement limit')
     ];
-    const assessed = checks.filter(c => c.ratio !== null);
+    const assessed = checks.filter(row => row.ratio !== null);
     const governing = assessed.length ? assessed.reduce((a,b) => b.ratio > a.ratio ? b : a) : null;
-    const elasticYieldMoment = !piecewiseEI && settings.fyMPa ? settings.fyMPa * 1e6 * props.I / props.c / 1000 : null;
-    const elasticYieldRatio = elasticYieldMoment ? demand.moment / elasticYieldMoment : null;
+
+    let elasticReference = { fyMPa: settings.fyMPa, momentKNm: null, ratio: null, x:null, sectionLabel:null, regionLabel:null, unavailable:false, reason:null };
+    if (hasEIOnly) {
+        elasticReference = {
+            ...elasticReference,
+            unavailable:true,
+            reason:'EI-only zones do not define local section modulus or the E/I split required for a first-yield reference.'
+        };
+    } else if (settings.fyMPa) {
+        const candidates = (analysis.stressCandidates || []).length
+            ? analysis.stressCandidates
+            : [{ x:analysis.peakM.x, M:analysis.peakM.M, properties:props, sectionLabel:model.section.catalogue || model.section.shape || 'Base section', regionLabel:'Base section' }];
+        const rows = candidates.map(row => {
+            const my = settings.fyMPa * 1e6 * row.properties.I / row.properties.c / 1000;
+            return { x:row.x, sectionLabel:row.sectionLabel, regionLabel:row.regionLabel, momentKNm:my, ratio:my ? Math.abs(row.M)/my : null };
+        }).filter(row => Number.isFinite(row.ratio));
+        if (rows.length) {
+            const critical = rows.reduce((a,b)=>b.ratio>a.ratio?b:a);
+            elasticReference = { ...elasticReference, ...critical };
+        }
+    }
+
     const factors = (model.cases || []).map(c => ({
         id: c.id,
         name: c.name,
@@ -110,7 +135,11 @@ function evaluate(model, analysis, rawSettings) {
     }));
     const readiness = [
         { id:'analysis', state:'ready', label:'Stable analysis result', detail:'Demand comes directly from the current deterministic BeamLab solution.' },
-        ...(piecewiseEI ? [{ id:'piecewise-section', state:'missing', label:'Local stepped-section properties', detail:'EI multipliers redistribute stiffness but do not define local E, I, section modulus, shear geometry, self-weight or resistance. Verify that every entered capacity applies to every relevant region.' }] : []),
+        ...(hasTrueSteppedSections ? [
+            { id:'stepped-section-profile', state:'ready', label:'Local stepped-section properties', detail:'Each stepped region carries deterministic local E, I, area, depth, density and elastic self-weight properties.' },
+            { id:'stepped-capacity-applicability', state:'missing', label:'Capacity applicability across section changes', detail:'Entered bending/shear capacities are global user inputs. Verify independently that the chosen capacities apply to every relevant stepped region and transition.' }
+        ] : []),
+        ...(hasEIOnly ? [{ id:'piecewise-section', state:'missing', label:'EI-only local section properties', detail:'EI multipliers redistribute stiffness but do not define local E, I, section modulus, shear geometry, self-weight or resistance. Replace them with true stepped sections when verified local properties are available.' }] : []),
         { id:'factors', state:'input', label:'Action-factor provenance', detail:'Current factors are visible below. BeamLab 4.0 does not claim they are automatic AS/NZS combinations.' },
         { id:'moment-capacity', state:settings.momentCapacity ? 'ready':'input', label:'Bending capacity', detail:settings.momentCapacity ? 'A final design capacity has been entered by the user.' : 'Enter a verified final design capacity to assess bending demand.' },
         { id:'shear-capacity', state:settings.shearCapacity ? 'ready':'input', label:'Shear capacity', detail:settings.shearCapacity ? 'A final design capacity has been entered by the user.' : 'Enter a verified final design capacity to assess shear demand.' },
@@ -119,14 +148,32 @@ function evaluate(model, analysis, rawSettings) {
         { id:'ltb', state:'missing', label:'Member stability / restraint', detail:'LTB, restraint spacing and unbraced length are not automatically checked.' },
         { id:'classification', state:'missing', label:'Section classification', detail:'Plate slenderness/local buckling and effective section properties are not automatically checked.' },
         { id:'combined', state:'missing', label:'Combined actions / second-order', detail:'Axial force, P-delta and code interaction checks are outside the current beam model.' },
-        { id:'connections', state:'missing', label:'Connections & local checks', detail:'Web bearing/buckling, holes, bolts, welds and connection design are not included.' }
+        { id:'connections', state:'missing', label:'Connections & local checks', detail:'Web bearing/buckling, holes, bolts, welds, abrupt transition details and connection design are not included.' }
     ];
+    const steppedRegions = (analysis.sectionRegions || []).map(r => {
+        const rp = (0, sections_1.sectionProperties)(r.section);
+        return {
+            label:r.label,
+            x_m:r.x,
+            end_m:r.end,
+            section:r.section.catalogue || r.section.shape || 'Custom section',
+            family:r.section.family || null,
+            material:r.section.material,
+            E_GPa:r.section.E,
+            I_mm4:rp.I*1e12,
+            A_mm2:rp.A*1e6,
+            c_mm:rp.c*1000,
+            depth_mm:r.section.h,
+            EI_kNm2:rp.EI,
+            selfWeight_kNm:rp.weight
+        };
+    });
     return {
         settings,
         demand,
         checks,
         governing,
-        elasticReference: { fyMPa: settings.fyMPa, momentKNm: elasticYieldMoment, ratio: elasticYieldRatio, unavailable:piecewiseEI, reason:piecewiseEI ? 'EI-only zones do not define local section modulus or the E/I split required for a first-yield reference.' : null },
+        elasticReference,
         serviceability: { mode: settings.deflectionMode, serviceSpanM, limitMm: deflectionLimitMm },
         factors,
         section: {
@@ -138,8 +185,11 @@ function evaluate(model, analysis, rawSettings) {
             c_mm: props.c * 1000,
             EI_kNm2: props.EI,
             selfWeight_kNm: props.weight,
-            piecewiseEI,
-            stiffnessZones: (analysis.stiffnessRegions || []).map(r => ({ label:r.label, x_m:r.x, end_m:r.end, factor:r.factor, EI_kNm2:props.EI * r.factor }))
+            hasTrueSteppedSections,
+            hasEIOnlyOverrides:hasEIOnly,
+            piecewiseEI:hasEIOnly,
+            steppedRegions,
+            stiffnessZones: (analysis.stiffnessRegions || []).map(r => ({ label:r.label, x_m:r.x, end_m:r.end, factor:r.factor }))
         },
         readiness
     };
@@ -162,7 +212,11 @@ function reviewSnapshot(model, analysis, rawSettings, reference) {
         section: review.section,
         caseFactors: review.factors,
         readiness: review.readiness,
-        limitations: [...exports.limitations, ...(analysis.hasVaryingEI ? ['Piecewise EI multipliers do not define local section geometry, elastic stress, self-weight or member resistance; applicability of entered capacities across all regions must be verified independently.'] : [])],
+        limitations: [
+            ...exports.limitations,
+            ...(analysis.hasSectionRegions ? ['True stepped sections are analysed as abrupt prismatic property regions. Transition stress concentrations, tapers and connection details are not modelled; entered capacities must be verified for every relevant region.'] : []),
+            ...(analysis.hasEIOnlyRegions ? ['EI-only multipliers do not define local section geometry, elastic stress, self-weight or member resistance; replace them with verified local sections when those quantities are required.'] : [])
+        ],
         publicReferenceBasis: exports.referenceBasis.map(r => ({ id:r.id, label:r.label, title:r.title, source:r.source, url:r.url })),
         disclaimer: 'This is a transparent review of BeamLab demand against user-entered capacities/criteria. It is not automatic AS 4100 or AS/NZS 1170 compliance and is not structural design approval.'
     };
