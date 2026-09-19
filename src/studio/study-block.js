@@ -78,7 +78,7 @@ function replanFocusTail(queueInput, indexInput, freshPlan, freshMixed, options 
     const focus = focusSteps(freshPlan, excluded, remainingFocus);
     for (const task of focus) excluded.add(key(task));
     const mixed = uniqueTasks(freshMixed, excluded).slice(0, mixedTarget);
-    const phaseTotal = focusTarget + 1;
+    const phaseTotal = completedFocus + focus.length + 1;
     return [
         ...seen.map(row => ({ ...row, studyPhaseTotal: phaseTotal })),
         ...decorateFocus(focus, completedFocus + 1, phaseTotal),
