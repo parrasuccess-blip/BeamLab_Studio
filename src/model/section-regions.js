@@ -84,7 +84,7 @@ function sectionAt(model, x, side='right') {
 }
 function sectionLabel(section) {
     if (!section) return 'Unknown section';
-    return section.catalogue || (section.shape === 'rectangle' ? 'Solid rectangle' : section.shape === 'i' ? 'Symmetric I-section' : section.shape === 'box' ? 'Box section' : 'Custom section');
+    return section.catalogue || (section.shape === 'rectangle' ? 'Solid rectangle' : section.shape === 'i' ? 'Symmetric I-section' : section.shape === 'box' ? 'Box section' : section.shape === 'circle' ? 'Solid circle' : section.shape === 'tube' ? 'Circular hollow section' : 'Custom section');
 }
 function sectionSegments(model) {
     const length = model.length;

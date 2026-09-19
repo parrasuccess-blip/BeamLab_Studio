@@ -356,8 +356,8 @@ test('support settlement is represented across inspector, diagrams, working and 
 });
 
 test('migration preserves Design Studio and tutor hooks', () => {
-  assert.match(html, /BeamLab Studio 4\.0 - Design Studio/);
-  assert.match(html, /BEAMLAB 4\.0 \/ DESIGN STUDIO/);
+  assert.match(html, /BeamLab Studio 4\.1 - Guided Engineering Studio/);
+  assert.match(html, /BEAMLAB 4\.1 \/ DESIGN STUDIO/);
   assert.match(html, /BeamLabTutorApi/);
   assert.match(html, /Screening review · not code approval/);
 });
@@ -437,7 +437,8 @@ test('production tutor wiring exposes the adaptive evidence provider', () => {
   assert.match(html, /BeamLabLearningEvidence/);
   assert.match(html, /learning-evidence/);
   assert.match(html, /repeatedWrongResponses/);
-  assert.match(html, /adaptive context/);
+  assert.match(html, /learning: learningEvidenceSnapshot\(\)/);
+  assert.match(html, /context: tutorContext\(mode\)/);
 });
 
 

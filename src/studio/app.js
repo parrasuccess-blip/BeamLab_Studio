@@ -11,6 +11,11 @@ const history_1 = require("./history");
 const common_1 = require("./common");
 const diagrams_1 = require("./diagrams");
 const panels_1 = require("./panels");
+const workspace = require("./workspace");
+const sectionLab = require("./section-lab");
+const reviewHub = require("./review-hub");
+const learningTransfer = require("./learning-transfer");
+let pendingLearningImport = null;
 const levels_1 = require("./levels");
 const challenges_1 = require("./challenges");
 const design_1 = require("./design");
@@ -61,7 +66,7 @@ try {
     learningConfigured = !!learningSaved?.level || existingStudioState;
 }
 catch { existingStudioState = false; learningConfigured = false; learningSaved = null; }
-const v = { workspaceMode: 'analysis', tab: 'build', level: learningSaved?.level || (existingStudioState ? 'all' : 'year1'), teachMe: learningSaved?.teachMe !== false, advanced: false, annotations: true, annotationMode: 'guided', deformation: false, stress: false, shear: false, moving: false, teaching: false, practice: false, practiceStep: 0, learnSection: 'lessons', lessonId: null, lessonChoice: null, lessonFeedback: null, lessonMethod: 'choice', lessonSketch: [], lessonSketchResult: null, lessonSketchReference: false, lessonSketchReferencePoints: [], challengeId: null, challengeFeedback: null, masteryView: [], session: null, taskAttempted: false, taskMasteryLocked: false, review: false, selected: new Set(), controls: true, inspector: true, snap: .1, zoom: 1, pan: 0, step: 0, working: false, trace: null, pinned: false, currentCase: history.model.cases[0].id };
+const v = { fibre:0, sectionSide:'right', reviewDetail:'overview', workspaceMode: 'analysis', tab: 'build', level: learningSaved?.level || (existingStudioState ? 'all' : 'year1'), teachMe: learningSaved?.teachMe !== false, advanced: false, annotations: true, annotationMode: 'guided', deformation: false, stress: false, shear: false, moving: false, teaching: false, practice: false, practiceStep: 0, learnSection: 'lessons', lessonId: null, lessonChoice: null, lessonFeedback: null, lessonMethod: 'choice', lessonSketch: [], lessonSketchResult: null, lessonSketchReference: false, lessonSketchReferencePoints: [], challengeId: null, challengeFeedback: null, masteryView: [], session: null, taskAttempted: false, taskMasteryLocked: false, review: false, selected: new Set(), controls: true, inspector: true, snap: .1, zoom: 1, pan: 0, step: 0, working: false, trace: null, pinned: false, currentCase: history.model.cases[0].id };
 try {
     const saved = JSON.parse(localStorage.getItem(storageKey + ':view') || '{}');
     for (const k of ['deformation', 'stress', 'shear', 'teaching', 'annotations', 'practice'])
@@ -265,6 +270,7 @@ function renderLearningBar() {
 function setLearningMode(id, fromSetup = false) {
     if (v.session?.active || v.session?.review) { toast('Finish or close the learning session before changing level.'); return; }
     if (!levels_1.modes[id]) return;
+    finishField();
     const previous = v.level;
     v.level = id;
     v.advanced = false;
@@ -333,10 +339,18 @@ function commit(next, label, keepSelection = true) {
     save();
 }
 function renderWorkspaceModeBar() {
-    const root = $('#workspace-mode-bar');
-    if (!root) return;
-    const design = v.workspaceMode === 'design';
-    root.innerHTML = `<div class="workspace-mode-copy"><span>WORKSPACE MODE</span><b>${design ? 'Design reviews the current solved demand. Analysis remains unchanged underneath.' : 'Analysis builds and solves the structural model.'}</b></div><div class="workspace-mode-switch" role="tablist" aria-label="Analysis or design workspace"><button data-action="workspace-mode:analysis" role="tab" aria-selected="${!design}" class="${!design?'active':''}"><b>ANALYSIS</b><small>Build · solve · learn</small></button><button data-action="workspace-mode:design" role="tab" aria-selected="${design}" class="${design?'active':''}"><b>DESIGN</b><small>Demand · entered capacity</small></button></div>`;
+    $('#workspace-mode-bar').innerHTML = workspace.renderNavigation(v);
+    $('#workflow-context').innerHTML = workspace.renderContext(v, !!analysis);
+    $('#workspace-grid').dataset.phase = workspace.phaseFor(v);
+}
+function setWorkflow(target) {
+    const next = workspace.transition(v, target);
+    if (!next) { toast('Finish or close the learning session before changing workspace.'); return; }
+    finishField();
+    Object.assign(v, next);
+    if(target==='review') v.reviewDetail='overview';
+    v.selected.clear();
+    render();
 }
 function designNumberField(key,label,value,unit,min,max,placeholder='') {
     const val = value === null || value === undefined ? '' : String(value);
@@ -354,6 +368,7 @@ function renderDesignStudio() {
     const root = $('#design-studio');
     if (!root) return;
     const m = history.model, a = analysis;
+    if (v.reviewDetail !== 'criteria') { root.innerHTML=reviewHub.render(m,a,v); return; }
     if (!a) {
         root.innerHTML = `<section class="design-invalid"><span class="eyebrow">DESIGN STUDIO / DEMAND UNAVAILABLE</span><h3>Stabilise the analysis model first.</h3><p>Design mode never guesses demand. Return to Analysis, resolve the model error, then come back.</p>${(0,common_1.button)('workspace-mode:analysis','Return to Analysis','primary')}</section>`;
         return;
@@ -372,7 +387,7 @@ function renderDesignStudio() {
     const workflow = (0, design_workflow_1.renderHeader)(designStep);
     const navigation = (0, design_workflow_1.renderNavigation)(designStep);
     const finishCard = (0, design_workflow_1.renderFinishCard)(m, r, governing, sourceLine, !!(v.session?.active&&v.session.mode==='exam'));
-    root.innerHTML = `<section class="design-hero"><span class="eyebrow">BEAMLAB 4.0 / DESIGN STUDIO</span><h2>Carry verified analysis demand into a transparent design review.</h2><p>BeamLab solves the member first, then compares that deterministic demand with capacities and serviceability criteria that <b>you</b> enter from a verified source. It does not yet derive AS 4100 member capacity, classify sections or generate AS/NZS load combinations.</p><div class="design-hero-actions">${(0,common_1.button)('workspace-mode:analysis','← Back to Analysis','secondary')}</div><span class="design-beta"><i></i>SCREENING REVIEW · NOT CODE APPROVAL OR STRUCTURAL DESIGN APPROVAL</span></section>
+    root.innerHTML = `<section class="design-hero"><span class="eyebrow">BEAMLAB 4.1 / DESIGN STUDIO</span><h2>Carry verified analysis demand into a transparent design review.</h2><p>BeamLab solves the member first, then compares that deterministic demand with capacities and serviceability criteria that <b>you</b> enter from a verified source. It does not yet derive AS 4100 member capacity, classify sections or generate AS/NZS load combinations.</p><div class="design-hero-actions">${(0,common_1.button)('review-overview','← Review overview','secondary')}</div><span class="design-beta"><i></i>SCREENING REVIEW · NOT CODE APPROVAL OR STRUCTURAL DESIGN APPROVAL</span></section>
     <section class="design-workflow">${workflow}
     <div class="design-grid" data-design-step="${designStep}"><aside class="design-inputs"><section class="design-card violet design-step-card design-step-2"><span class="eyebrow">ENTERED CAPACITY BASIS</span><h3>Bring your verified capacities.</h3><p>Enter final design capacities from your own checked calculation, standard workflow or trusted design software. BeamLab only forms demand/capacity ratios.</p>${designNumberField('momentCapacity','Bending design capacity |φMb|',s.momentCapacity,'kN·m',.001,1e9,'e.g. 180')}${designNumberField('shearCapacity','Shear design capacity |φVv|',s.shearCapacity,'kN',.001,1e9,'e.g. 250')}<label class="design-field"><span>Serviceability criterion</span><select data-design-select="deflectionMode" aria-label="Serviceability criterion"><option value="unset" ${s.deflectionMode==='unset'?'selected':''}>Not set</option><option value="ratio" ${s.deflectionMode==='ratio'?'selected':''}>Span ratio L / n</option><option value="direct" ${s.deflectionMode==='direct'?'selected':''}>Direct displacement</option></select><em>criterion</em></label>${s.deflectionMode==='ratio'?designNumberField('serviceSpanM','Reference span',s.serviceSpanM ?? m.length,'m',.001,1e5,'member length')+designNumberField('deflectionRatio','Limit denominator n',s.deflectionRatio,'L/n',1,1e6,'250'):s.deflectionMode==='direct'?designNumberField('deflectionLimitMm','Displacement limit',s.deflectionLimitMm,'mm',.001,1e6,'e.g. 20'):''}<div class="design-input-note">Deflection demand uses the <b>current active load factors</b>. Apply an independently verified serviceability factor set before treating this as a serviceability review.</div></section>
     <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE${r.section.hasTrueSteppedSections?' / GOVERNING LOCAL SECTION':''}</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M/My = ${(0,common_1.fmt)(fy.ratio,3)}${fy.x!==null?' at x = '+(0,common_1.fmt)(fy.x,3)+' m':''}${fy.sectionLabel?' · '+(0,common_1.esc)(fy.sectionLabel):''}. This remains an elastic mechanics reference and ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
@@ -425,9 +440,9 @@ function render() {
     $('#level-notice').hidden = !restricted.length;
     $('#level-notice').innerHTML = restricted.length ? `<span>${(0, common_1.icon)('help', 14)}</span><div><b>This study goes beyond ${(0, common_1.esc)((0, levels_1.mode)(v.level).short)}.</b><p>${(0, common_1.esc)(restricted.join(', '))} remain active in the calculation but some editing controls are hidden.</p></div>${(0, common_1.button)('level:all', 'Show all tools', 'secondary')}` : '';
     $('#workspace-grid').classList.toggle('controls-hidden', !v.controls);
-    $('#workspace-grid').classList.toggle('inspector-hidden', !v.inspector);
+    $('#workspace-grid').classList.add('inspector-hidden');
     $('#controls').hidden = !v.controls;
-    $('#inspector').hidden = !v.inspector;
+    $('#inspector').hidden = !v.inspector || !v.selected.size || designMode;
     v.masteryView = buildMasteryView(v.level);
     const learningSnapshot = learningEvidenceSnapshot();
     v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningSnapshot, lessonProgress, challengeProgress);
@@ -499,6 +514,18 @@ function saveMasteryStats() {
     v.masteryStats = masteryStats;
     try { localStorage.setItem(storageKey + ':mastery', JSON.stringify(masteryStats)); v.progressStorageAvailable = true; }
     catch { v.progressStorageAvailable = false; }
+}
+function learningTransferDialog() {
+    if(v.session?.active||v.session?.review){toast('Finish or close the learning session before transferring progress.');return;}
+    openDialog('Keep your learning progress', `<p>Save progress before changing devices. This file contains completed activities, topic counters and the last 24 learning events. Your beam, design inputs and active sessions are separate.</p><div class="dialog-actions"><button class="primary" data-action="progress-export">Download progress JSON</button><button class="secondary" data-action="progress-import">Choose progress file</button></div><p class="hint">Importing shows a preview before replacing local progress. It never changes your beam or learning level.</p>`);
+}
+async function previewLearningImport(file) {
+    try {
+        if(!file||file.size>100000) throw new Error('Choose a progress JSON smaller than 100 kB.');
+        pendingLearningImport=learningTransfer.parse(await file.text());
+        const counts=learningTransfer.summary(pendingLearningImport);
+        openDialog('Review learning-progress import', `<p>This file contains <b>${counts.lessons} completed lessons</b>, <b>${counts.challenges} completed challenges</b>, ${counts.topics} topic records and ${counts.events} recent events.</p><p>Replacing progress also discards any saved, unfinished study block. Download your current progress first if you want to keep it.</p><div class="dialog-actions"><button data-action="progress-export" class="secondary">Back up current progress</button><button data-action="progress-import-confirm" class="primary">Replace learning progress</button><button data-action="dialog-close" class="secondary">Cancel</button></div>`);
+    } catch(e) {pendingLearningImport=null;toast(e.message||'Progress could not be imported.');}
 }
 function recordMastery(kind, spec, correct, lockAfter = false) {
     if (!spec || v.taskMasteryLocked) return;
@@ -888,6 +915,7 @@ function compareModelChanges(A, B) {
         const label = b.label || examples_1.titles[b.kind];
         if (Math.abs((a.x || 0) - (b.x || 0)) > 1e-8) push(label + ' moved from ' + (0, common_1.fmt)(a.x, 2) + ' to ' + (0, common_1.fmt)(b.x, 2) + ' m.');
         if ((0,validation_1.isSupport)(b.kind) && Math.abs((a.settlementMm || 0) - (b.settlementMm || 0)) > 1e-9) push(label + ' settlement changed from ' + (0,common_1.signed)(a.settlementMm || 0,2) + ' to ' + (0,common_1.signed)(b.settlementMm || 0,2) + ' mm (up +).');
+        if (b.kind === 'fixed' && Math.abs((a.rotationMrad || 0) - (b.rotationMrad || 0)) > 1e-9) push(label + ' prescribed rotation changed from ' + (0,common_1.signed)(a.rotationMrad || 0,2) + ' to ' + (0,common_1.signed)(b.rotationMrad || 0,2) + ' mrad (CCW +).');
         if (Number.isFinite(a.value) && Number.isFinite(b.value) && Math.abs(a.value - b.value) > 1e-8) push(label + ' changed from ' + (0, common_1.signed)(a.value, 2) + ' to ' + (0, common_1.signed)(b.value, 2) + (b.kind === 'moment' ? ' kN m.' : (0, validation_1.isDistributed)(b.kind) ? ' kN/m.' : ' kN.'));
         if ((0, validation_1.isDistributed)(b.kind) && Math.abs((a.end || 0) - (b.end || 0)) > 1e-8) push(label + ' end moved from ' + (0, common_1.fmt)(a.end, 2) + ' to ' + (0, common_1.fmt)(b.end, 2) + ' m.');
     }
@@ -906,9 +934,9 @@ function tutorContext(mode='question') {
         end: Number.isFinite(i.end) ? i.end : undefined,
         value: Number.isFinite(i.value) ? i.value : undefined,
         endValue: Number.isFinite(i.endValue) ? i.endValue : undefined,
-        caseId: i.caseId
+        caseId: i.caseId, settlementMm:i.settlementMm, rotationMrad:i.rotationMrad
     }));
-    const reactions = (analysis.reactions || []).map(r => ({ label: r.label, x: r.x, force: r.force, moment: r.moment || 0, fixed: !!r.fixed, settlementMm:r.settlementMm || 0 }));
+    const reactions = (analysis.reactions || []).map(r => ({ label: r.label, x: r.x, force: r.force, moment: r.moment || 0, fixed: !!r.fixed, settlementMm:r.settlementMm || 0, rotationMrad:r.rotationMrad || 0 }));
     const A = comparisonMetrics(comparison), B = comparisonMetrics(analysis);
     const compare = compareModel && comparison ? {
         changes: compareModelChanges(compareModel, m),
@@ -916,10 +944,11 @@ function tutorContext(mode='question') {
         deltas: A && B ? { shear: B.shear - A.shear, moment: B.moment - A.moment, deflection: B.deflection - A.deflection, EI: B.EI - A.EI } : null
     } : null;
     return {
-        release: '4.0.0', mode,
+        release: verification.RELEASE, mode,
+        learning: learningEvidenceSnapshot(),
         learningLevel: { id: v.level, short: level.short, title: level.title, subtitle: level.subtitle },
         signConventions: { appliedVertical: 'positive downward', reactions: 'positive upward', couples: 'positive counter-clockwise', internalMoment: 'positive sagging', displacement: 'positive upward' },
-        assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis', ...(analysis.hasSupportSettlement ? ['prescribed vertical support settlement; positive displacement upward'] : [])],
+        assumptions: ['straight Euler-Bernoulli beam', 'linear elastic', 'small deflection', 'static analysis', ...(analysis.hasSupportSettlement ? ['prescribed vertical support settlement; positive displacement upward'] : []), ...(analysis.hasSupportRotation ? ['prescribed fixed-support rotation; positive counter-clockwise'] : [])],
         study: { name: m.name, length: m.length, selfWeight: !!m.selfWeight, activeCases: (m.cases || []).filter(c => c.enabled && c.factor !== 0).map(c => ({ name: c.name, factor: c.factor })), items, sectionRegions:(analysis.sectionRegions || []).map(r => { const rp=(0,sections_1.sectionProperties)(r.section); return {label:r.label,x:r.x,end:r.end,section:(0,section_regions_1.sectionLabel)(r.section),E_GPa:r.section.E,I_mm4:rp.I*1e12,A_mm2:rp.A*1e6,depth_mm:r.section.h,EI_kNm2:rp.EI,weight_kNm:rp.weight}; }), stiffnessRegions:(analysis.stiffnessRegions || []).map(r => ({label:r.label,x:r.x,end:r.end,factor:r.factor})) },
         section: { name:m.section?.catalogue || m.section?.shape || 'custom', E_GPa:m.section?.E, I_mm4:props.I*1e12, A_mm2:props.A*1e6, baseEI_kNm2:props.EI, hasTrueSteppedSections:!!analysis.hasSectionRegions, hasEIOnlyOverrides:!!analysis.hasEIOnlyRegions, localStressInferenceAvailable:!analysis.hasEIOnlyRegions },
         inspected: { x, V_kN: sample.V, M_kNm: sample.M, displacement_m: sample.v, rotation_rad: sample.theta, pinned: !!v.pinned, localSection:analysis.localSectionAt ? (() => { const local=analysis.localSectionAt(x); return {region:local.regionLabel,section:local.label,E_GPa:local.section?.E,I_mm4:local.properties?.I*1e12,A_mm2:local.properties?.A*1e6,EI_kNm2:local.EI,stiffnessFactor:local.stiffnessFactor}; })() : null },
@@ -946,10 +975,10 @@ function renderTutorDialog() {
     const content = $('#dialog-content');
     if (!content) return;
     const ctx = analysis ? tutorContext(aiTutor.mode) : null;
-    const available = !!window.BeamLabTutorApi?.ask;
+    const available = window.BeamLabTutorApi?.available === true;
     const messages = aiTutor.history.map(m => `<div class="ai-message ${m.role}"><small>${m.role === 'assistant' ? 'BeamLab Tutor' : 'You'}</small>${(0, common_1.esc)(m.text)}</div>`).join('');
     const x = ctx?.inspected?.x;
-    content.innerHTML = `<div class="ai-dialog"><div class="ai-boundary"><b>Solver first.</b> The tutor receives BeamLab's deterministic results as authoritative context. It explains and asks questions; it does not calculate or certify the structure.</div><div class="ai-context-strip"><span>${(0, common_1.esc)((0, levels_1.mode)(v.level).short)}</span>${ctx ? `<span>x ${(0, common_1.fmt)(x, 3)} m</span><span>V ${(0, common_1.signed)(ctx.inspected.V_kN, 2)} kN</span><span>M ${(0, common_1.signed)(ctx.inspected.M_kNm, 2)} kN·m</span>` : ''}<span>4.0 contextual AI</span></div><div class="ai-quick"><button data-action="ai-quick:point" ${!analysis ? 'disabled' : ''}>Explain this point</button><button data-action="ai-quick:peak" ${!analysis ? 'disabled' : ''}>Why is max moment here?</button><button data-action="ai-quick:compare" ${!comparison ? 'disabled' : ''}>Explain what changed</button><button data-action="ai-quick:quiz" ${!analysis ? 'disabled' : ''}>Quiz me on this beam</button><button data-action="ai-quick:hint" ${!analysis ? 'disabled' : ''}>Give me a hint</button><button data-action="ai-quick:design" ${v.workspaceMode !== 'design' || !analysis ? 'disabled' : ''}>Explain design review</button></div>${messages ? `<div class="ai-thread">${messages}</div>` : '<p class="hint">Choose a prompt above or ask your own question. Explanations adapt to your current learning level.</p>'}${aiTutor.error ? `<div class="ai-error">${(0, common_1.esc)(aiTutor.error)}</div>` : ''}${aiTutor.busy ? '<div class="ai-thinking"><i></i>Connecting the solved model to an explanation…</div>' : ''}<div class="ai-compose"><textarea id="ai-question" maxlength="600" placeholder="Ask about the current beam, diagram, support, load or comparison…" aria-label="Question for BeamLab Tutor" ${aiTutor.busy ? 'disabled' : ''}></textarea><div class="ai-compose-row"><button type="button" data-action="ai-clear" class="secondary" ${!aiTutor.history.length ? 'disabled' : ''}>Clear</button><button type="button" data-action="ai-send" class="primary" ${aiTutor.busy || !available || !analysis ? 'disabled' : ''}>Ask BeamLab</button></div></div>${available ? '' : '<p class="hint">The live AI service is unavailable in this copy. Deterministic Show Why, lessons, solver results and exports still work normally.</p>'}<p class="hint">AI explanations may be imperfect. For numerical values, diagrams and equilibrium, use BeamLab's solver outputs shown in the workspace.</p></div>`;
+    content.innerHTML = `<div class="ai-dialog"><div class="ai-boundary"><b>Solver first.</b> The tutor receives BeamLab's deterministic results as authoritative context. It explains and asks questions; it does not calculate or certify the structure.</div><div class="ai-context-strip"><span>${(0, common_1.esc)((0, levels_1.mode)(v.level).short)}</span>${ctx ? `<span>x ${(0, common_1.fmt)(x, 3)} m</span><span>V ${(0, common_1.signed)(ctx.inspected.V_kN, 2)} kN</span><span>M ${(0, common_1.signed)(ctx.inspected.M_kNm, 2)} kN·m</span>` : ''}<span>4.1 contextual tutor</span></div><div class="ai-quick"><button data-action="ai-quick:point" ${!analysis || !available ? 'disabled' : ''}>Explain this point</button><button data-action="ai-quick:peak" ${!analysis || !available ? 'disabled' : ''}>Why is max moment here?</button><button data-action="ai-quick:compare" ${!comparison || !available ? 'disabled' : ''}>Explain what changed</button><button data-action="ai-quick:quiz" ${!analysis || !available ? 'disabled' : ''}>Quiz me on this beam</button><button data-action="ai-quick:hint" ${!analysis || !available ? 'disabled' : ''}>Give me a hint</button><button data-action="ai-quick:design" ${v.workspaceMode !== 'design' || !analysis || !available ? 'disabled' : ''}>Explain design review</button></div>${messages ? `<div class="ai-thread">${messages}</div>` : '<p class="hint">Choose a prompt above or ask your own question. Explanations adapt to your current learning level.</p>'}${aiTutor.error ? `<div class="ai-error">${(0, common_1.esc)(aiTutor.error)}</div>` : ''}${aiTutor.busy ? '<div class="ai-thinking"><i></i>Connecting the solved model to an explanation…</div>' : ''}<div class="ai-compose"><textarea id="ai-question" maxlength="600" placeholder="Ask about the current beam, diagram, support, load or comparison…" aria-label="Question for BeamLab Tutor" ${aiTutor.busy ? 'disabled' : ''}></textarea><div class="ai-compose-row"><button type="button" data-action="ai-clear" class="secondary" ${!aiTutor.history.length ? 'disabled' : ''}>Clear</button><button type="button" data-action="ai-send" class="primary" ${aiTutor.busy || !available || !analysis ? 'disabled' : ''}>Ask BeamLab</button></div></div>${available ? '' : '<div class="ai-offline"><b>Online tutor is not connected.</b><p>Use a local explanation of this exact solved model.</p><button data-action="explain-here" class="primary">Open deterministic Show Why</button></div>'}<p class="hint">AI explanations may be imperfect. For numerical values, diagrams and equilibrium, use BeamLab's solver outputs shown in the workspace.</p></div>`;
 }
 function openTutor() {
     if (v.session?.active && v.session.mode === 'exam') { toast('Ask BeamLab is disabled during Exam Mode. Submit the exam before using the tutor.'); return; }
@@ -963,7 +992,7 @@ async function askTutor(mode = 'question', override = '') {
     const input = $('#ai-question');
     const question = (override || input?.value || '').trim();
     if (!question) { toast('Ask a question first.'); return; }
-    if (!window.BeamLabTutorApi?.ask) { aiTutor.error = 'The live tutor is unavailable here. Use Show Why for a deterministic explanation.'; renderTutorDialog(); return; }
+    if (!window.BeamLabTutorApi?.ask || !window.BeamLabTutorApi.available) { aiTutor.error = 'The live tutor is unavailable here. Use Show Why for a deterministic explanation.'; renderTutorDialog(); return; }
     aiTutor.mode = mode; aiTutor.error = ''; aiTutor.busy = true;
     aiTutor.history.push({ role: 'user', text: question });
     if (aiTutor.history.length > 8) aiTutor.history = aiTutor.history.slice(-8);
@@ -1006,6 +1035,7 @@ function renderStage() {
         $('#compare-note').innerHTML = `${(0, common_1.icon)('compare', 14)}<span>${comparison ? 'A = dashed frozen snapshot / B = current colour.' : 'Comparison paused: restore the same member length to compare.'}</span>${comparison && A && B ? `<div class="compare-mini"><b>Δ|M| ${deltaText(A.moment,B.moment,'kN m')}</b><b>Δ|v| ${deltaText(A.deflection,B.deflection,'mm')}</b></div>${(0, common_1.button)('compare-details', 'Details', 'text-button')}` : ''}${(0, common_1.button)('compare', (0, common_1.icon)('close', 13), 'icon-button', false, 'Clear comparison')}`;
     }
     $('#graphs').innerHTML = (0, diagrams_1.renderDiagrams)(m, a, diagramView());
+    $('#trace-position').innerHTML = `<div class="trace-position"><label for="trace-number">Inspect x / m</label><input type="range" data-range="trace" aria-label="Inspection position" min="0" max="${m.length}" step="${m.length/1000}" value="${v.trace ?? m.length/2}"><input id="trace-number" type="number" data-trace-number min="0" max="${m.length}" step="any" value="${v.trace ?? m.length/2}" aria-label="Inspection position in metres"></div>`;
     $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a, 'Inspect equilibrium, energy and critical locations')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
     $('#assumptions').hidden = !a?.warnings.length && !m.section.family?.includes('PFC');
     $('#assumptions').innerHTML = `<summary>Model assumptions to review</summary>${[...(a?.warnings || []), ...(m.section.family === 'PFC' ? ['Channel bending is about horizontal x-x only. Torsion from load eccentricity and shear-centre effects is not represented.'] : [])].map(w => `<p>${(0, common_1.esc)(w)}</p>`).join('')}`;
@@ -1022,7 +1052,7 @@ function renderExtras(skipReview = false) {
         $('#teaching').innerHTML = (0, diagrams_1.teaching)(m, a, x, v.level);
     $('#section-stress').hidden = !shown('stress') || (shown('practice') && v.practiceStep < 4);
     if (shown('stress') && (!shown('practice') || v.practiceStep >= 4))
-        $('#section-stress').innerHTML = (0, diagrams_1.renderSection)(m, a, x);
+        $('#section-stress').innerHTML = sectionLab.render(m, a, x, v.fibre, v.sectionSide);
     $('#working').hidden = !v.working || !a;
     if (v.working && a)
         $('#working').innerHTML = (0, working_1.working)(m, a, v.step);
@@ -1036,6 +1066,7 @@ function updateTrace() {
     const a = analysis, m = history.model, x = v.trace;
     const { xp } = (0, diagrams_1.coordinates)(m, diagramView());
     const practice = shown('practice'), pstep = v.practiceStep || 0;
+    if (x !== null) { const slider=$('[data-range=trace]'), number=$('[data-trace-number]'); if(slider && slider!==document.activeElement) slider.value=String(x); if(number && number!==document.activeElement) number.value=String(Math.round(x*10000)/10000); }
     $('#trace-readout').innerHTML = x === null ? `<span>${(0, common_1.icon)('help', 12)} Hover a diagram. Click to pin.</span><small>${practice ? 'Practice mode hides unrevealed responses. ' : ''}Reactions up + / loads down + / sagging moment +</small>` : (() => {
         const r = a?.sample(x), l = a?.sample(x, 'left'), cr = comparison?.sample(x), cl = comparison?.sample(x, 'left');
         const pair = (k, units, stage) => {
@@ -1062,7 +1093,7 @@ function updateTrace() {
         }
     });
     if (shown('teaching')) $('#teaching').innerHTML = (0, diagrams_1.teaching)(m, a, x ?? a?.peakM.x ?? 0, v.level);
-    if (shown('stress') && (!practice || pstep >= 4)) $('#section-stress').innerHTML = (0, diagrams_1.renderSection)(m, a, x ?? a?.peakM.x ?? 0);
+    if (shown('stress') && (!practice || pstep >= 4)) $('#section-stress').innerHTML = sectionLab.render(m, a, x ?? a?.peakM.x ?? 0, v.fibre, v.sectionSide);
     if (shown('shear') && (!practice || pstep >= 4)) $('#shear-stress').innerHTML = renderShear(m, a, x ?? a?.peakM.x ?? 0);
 }
 
@@ -1247,7 +1278,15 @@ function share() {
     openDialog('Share a model snapshot', `<p>${publicOrigin ? 'Anyone with this link can read the complete model snapshot. No account is needed.' : 'This is the downloadable edition. Share the snapshot code with someone using this same HTML build. Public links require hosting this build first.'}</p><p class="hint">The snapshot is encoded, not encrypted. Avoid including confidential project information.</p><textarea id="share-code" aria-label="Model snapshot code" readonly>${(0, common_1.esc)(url)}</textarea>${(0, common_1.button)('copy-share', 'Copy snapshot', 'primary')}<div class="divider"></div><h3>Open a shared snapshot</h3><textarea id="paste-snapshot" aria-label="Paste model snapshot" placeholder="Paste a BLSTUDIO3: code or a compatible model link"></textarea>${(0, common_1.button)('open-snapshot', 'Open snapshot', 'secondary')}`);
 }
 function openHistory() { openDialog('Edit history', `<p>Up to 80 edits are kept in this session. Dragging a group counts as one edit. Reload keeps the model, not its history.</p><div class="history-list">${history.past.slice().reverse().map((e, i) => `<div><span>${history.past.length - i}</span><b>${(0, common_1.esc)(e.label)}</b></div>`).join('') || '<p>No edits yet.</p>'}</div>${(0, common_1.button)('undo-dialog', 'Undo latest', 'secondary', !history.past.length)}`); }
-function method() { openDialog('Method, sources & scope', `<span class="eyebrow">TRANSPARENT BY DESIGN</span><h3>Engineering calculations, not generated answers.</h3><p>Constant-EI Euler-Bernoulli matrix stiffness with event-aligned nodes and exact polynomial field recovery for supported loads. Prescribed supports are zero-displacement; fixed supports also have zero rotation. The same deterministic engine drives every result and export.</p><h3>Sign conventions</h3><p>Loads are entered positive downward. Reactions are positive upward. Applied couples are positive counter-clockwise. Sagging moment is positive and plotted upward. Displacement is positive upward: a downward deflected shape appears below its undeformed line. Extreme-fibre tension is positive.</p><h3>Limits of this edition</h3><p>No support settlements, shear deformation, axial response, dynamics, geometric non-linearity, concrete cracking or code-design certification. Only one uniform section is used. Manual stress/displacement limits are not code checks. Catalogue PFC entries do not model torsion. Locking protects objects from direct editing, not undo or whole-model replacement.</p><h3>Moving loads and shear profiles</h3><p>The optional moving-load lab uses a separately formulated fixed-topology Hermite point-load solver. Its plotted influence-line extrema and axle envelopes are sampled. It is static, not dynamic, and adds no impact or code vehicle. The optional transverse-shear profile is available only for dimension-derived rectangles and symmetric I-sections; no shear deformation is added to the beam model.</p><h3>Material and section sources</h3><p>The 51-row UB/UC/PFC reference library uses manufacturer-tabulated area and horizontal Ix from Liberty / InfraBuild HRSSP ninth edition, October 2019, Tables 9, 11 and 15. Preset E and density remain labelled illustrative. RHS/SHS geometry is a sharp-corner approximation, not a catalogue claim.</p><a href="${catalogue_1.catalogueSource}" target="_blank" rel="noopener noreferrer">Open manufacturer catalogue</a><p><a href="https://interactivetextbooks.citg.tudelft.nl/computational-modelling/structural_linear/euler_bernouilli.html" target="_blank" rel="noopener noreferrer">TU Delft: beam-element formulation</a></p><h3>Design Studio / 4.0 boundary</h3><p>Studio 4.0 separates Analysis from Design. Design demand is read directly from the same deterministic solver, while bending/shear capacities and serviceability criteria are user-supplied. BeamLab does not yet automate AS 4100 member capacity, AS/NZS load combinations, section classification, lateral-torsional buckling, combined actions or connection design. A ratio below 1.0 means only that solver demand is below the value the user entered.</p><h3>AI and deployment</h3><p>The optional contextual tutor may explain both Analysis and Design Studio context, but it is instructed never to invent missing capacities, load combinations or code compliance. The deterministic beam solver remains the source of numerical truth. AI is disabled in Exam Mode. In the downloadable HTML, the tutor simply reports unavailable while deterministic teaching, analysis and Design Studio continue to work.</p>`); }
+function privacyDialog() {
+    openDialog('Privacy & local data', `<h3>Your model stays on this device.</h3><p>BeamLab stores the current study, named local studies, learning evidence and review inputs in this browser. There is no account or analytics tracker in this release. Clearing this browser's site data removes these local copies.</p><h3>When data leaves your browser</h3><p>Exports are files you choose to save. Shared model links contain an encoded, readable snapshot; anyone with the link can open it. If you choose the optional online tutor, your question, recent conversation and structured model/learning context are sent to the hosting endpoint and its configured AI provider. The tutor never runs automatically and is disabled in exams.</p><p>Model calculations, Show Why and practice work without the online tutor. Export a JSON copy before changing devices. Only include information you intend to share in a snapshot or public issue.</p>`);
+}
+function issueReport() {
+    const audit=analysis?verification.audit(history.model,analysis):null;
+    const report={release:verification.RELEASE,reference:verification.fingerprint(history.model),model:history.model,checks:audit?.checks||[],error:error||null,stepsToReproduce:'Describe what you did, what you expected, and what happened.'};
+    openDialog('Prepare an issue report', `<p>Download the report below, add reproduction steps, then attach it to a GitHub issue. Review the model labels before posting; this repository is public.</p><textarea aria-label="Issue report JSON" id="issue-json" readonly>${(0,common_1.esc)(JSON.stringify(report,null,2))}</textarea><button data-action="issue-download" class="primary">Download issue report</button><a class="secondary" href="https://github.com/parrasuccess-blip/BeamLab_Studio/issues/new" target="_blank" rel="noopener noreferrer">Open GitHub issue form ↗</a>`);
+}
+function method() { openDialog('Method, sources & scope', `<span class="eyebrow">TRANSPARENT BY DESIGN</span><h3>Engineering calculations, not generated answers.</h3><p>Euler-Bernoulli matrix stiffness with event-aligned nodes, local section/EI properties and exact polynomial field recovery for supported loads. Support vertical displacement and fixed-support rotation may be prescribed (mm upward and mrad counter-clockwise). The same deterministic engine drives every result and export.</p><h3>Sign conventions</h3><p>Loads are entered positive downward. Reactions are positive upward. Applied couples are positive counter-clockwise. Sagging moment is positive and plotted upward. Displacement is positive upward: a downward deflected shape appears below its undeformed line. Extreme-fibre tension is positive.</p><h3>Limits of this edition</h3><p>No shear deformation, axial response, dynamics, geometric non-linearity, concrete cracking or code-design certification. The model supports uniform members and abrupt prismatic section/EI regions. Transition stresses, smooth tapers and thermal curvature are outside this release. Manual stress/displacement limits are not code checks. Catalogue PFC entries do not model torsion. Locking protects objects from direct editing, not undo or whole-model replacement.</p><h3>Moving loads and shear profiles</h3><p>The optional moving-load lab uses a separately formulated fixed-topology Hermite point-load solver. It uses the same local sections and EI regions. Moving response is incremental: prescribed support movements enter only through the optional static base case. Plotted axle envelopes remain sampled. It is static, not dynamic, and adds no impact or code vehicle. The optional transverse-shear profile is available only for dimension-derived rectangles and symmetric I-sections; no shear deformation is added to the beam model.</p><h3>Material and section sources</h3><p>The 51-row UB/UC/PFC reference library uses manufacturer-tabulated area and horizontal Ix from Liberty / InfraBuild HRSSP ninth edition, October 2019, Tables 9, 11 and 15. Preset E and density remain labelled illustrative. RHS/SHS geometry is a sharp-corner approximation; circular solid and hollow sections use exact ideal-circle formulas. These derived shapes are not manufacturer catalogue claims.</p><a href="${catalogue_1.catalogueSource}" target="_blank" rel="noopener noreferrer">Open manufacturer catalogue</a><p><a href="https://interactivetextbooks.citg.tudelft.nl/computational-modelling/structural_linear/euler_bernouilli.html" target="_blank" rel="noopener noreferrer">TU Delft: beam-element formulation</a></p><h3>Guided criteria review / boundary</h3><p>Studio 4.1 separates Analysis from Design. Design demand is read directly from the same deterministic solver, while bending/shear capacities and serviceability criteria are user-supplied. BeamLab does not yet automate AS 4100 member capacity, AS/NZS load combinations, section classification, lateral-torsional buckling, combined actions or connection design. A ratio below 1.0 means only that solver demand is below the value the user entered.</p><h3>AI and deployment</h3><p>The optional contextual tutor may explain both Analysis and Design Studio context, but it is instructed never to invent missing capacities, load combinations or code compliance. The deterministic beam solver remains the source of numerical truth. AI is disabled in Exam Mode. In the downloadable HTML, the tutor simply reports unavailable while deterministic teaching, analysis and Design Studio continue to work.</p>`); }
 function finishField() {
     if (!fieldTransaction)
         return;
@@ -1258,7 +1297,7 @@ function finishField() {
     if (t.input.getAttribute('aria-invalid') === 'true') {
         toast('Invalid value was not applied. The previous value is restored.');
     }
-    else {
+    else if (verification.canonical(next) !== verification.canonical(t.base)) {
         levelStarterActive = false;
         history.commit(next, t.description);
     }
@@ -1272,7 +1311,7 @@ function applyNumber(input) {
     if (fieldTransaction && fieldTransaction.input !== input) {
         const previous = fieldTransaction; fieldTransaction = null;
         const next = history.model; history.model = previous.base;
-        if (previous.input.getAttribute('aria-invalid') !== 'true') { levelStarterActive = false; history.commit(next, previous.description); }
+        if (previous.input.getAttribute('aria-invalid') !== 'true' && verification.canonical(next) !== verification.canonical(previous.base)) { levelStarterActive = false; history.commit(next, previous.description); }
     }
     if (!fieldTransaction)
         fieldTransaction = { base: (0, study_1.clone)(history.model), description: 'Edit ' + (input.getAttribute('aria-label') || key), input };
@@ -1359,6 +1398,22 @@ async function action(key, el) {
     if (name === 'ai-send') { await askTutor('question'); return; }
     if (name === 'ai-quick') { const prompt = tutorPromptText(id); if (prompt) await askTutor(id, prompt); return; }
     if (name === 'ai-design') { const prompt = tutorPromptText('design'); if (prompt) { openTutor(); await askTutor('design', prompt); } return; }
+    if (name === 'design-open') { if (!(0,levels_1.canUseFeature)(v.level,'review')) return; v.reviewDetail='criteria'; designStep=1;renderDesignStudio();return; }
+    if(name==='progress-transfer'){learningTransferDialog();return;}
+    if(name==='progress-export'){const payload=learningTransfer.create(lessonProgress,challengeProgress,masteryStats,learningEvidenceEvents);(0,export_1.download)(JSON.stringify(payload,null,2),'beamlab-learning-progress.json','application/json');return;}
+    if(name==='progress-import'){if(v.session?.active||v.session?.review)return;$('#progress-file').value='';$('#progress-file').click();return;}
+    if(name==='progress-import-confirm'){
+        if(!pendingLearningImport||v.session?.active||v.session?.review)return;
+        const incoming=pendingLearningImport;pendingLearningImport=null;
+        lessonProgress=incoming.lessons;challengeProgress=incoming.challenges;masteryStats=incoming.mastery;learningEvidenceEvents=incoming.events;
+        v.lessonProgress=lessonProgress;v.challengeProgress=challengeProgress;saveLessonProgress();saveChallengeProgress();saveMasteryStats();saveLearningEvidence();clearGuidedStudyBlockResume();closeDialog();render();toast('Learning progress imported. Your structural study is unchanged.');return;
+    }
+    if (name === 'review-overview') {v.reviewDetail='overview';renderDesignStudio();return;}
+    if (name === 'section-side') {if(['left','right'].includes(id)){v.sectionSide=id;renderExtras();}return;}
+    if (name === 'issue-download') {(0,export_1.download)($('#issue-json').value,'beamlab-issue-report.json','application/json');return;}
+    if (name === 'privacy') {privacyDialog();return;}
+    if (name === 'issue-report') {issueReport();return;}
+    if (name === 'workflow') { setWorkflow(id); return; }
     if (name === 'workspace-mode') { setWorkspaceMode(id); return; }
     if (name === 'design-step') { setDesignStep(id); return; }
     if (name === 'design-next') { setDesignStep(designStep + 1); return; }
@@ -2348,16 +2403,17 @@ function updateFocusControl() {
 }
 
 function bootstrap() {
+    window.addEventListener('beamlab:tutor-status',()=>{if($('#dialog-title')?.textContent==='Ask BeamLab' && $('#dialog')?.classList.contains('open')) renderTutorDialog();});
     $('#app').innerHTML = `
-  <div class="progress-line" id="scroll-progress"></div>
-  <header class="topbar"><a class="brand" href="#home"><span>B</span><b>BeamLab</b><em>STUDIO 4.0</em></a><nav><a href="#home">Home</a><a href="#workspace">Workspace</a>${(0, common_1.button)('method', 'Method & scope', 'text-button')}</nav><div class="header-actions">${(0, common_1.button)('share', (0, common_1.icon)('share', 15) + '<span>Share</span>', 'share-button')}<div class="export-wrap">${(0, common_1.button)('export-menu', (0, common_1.icon)('download', 15) + '<span>Export</span>' + (0, common_1.icon)('down', 12), 'export-button')}<div id="export-menu" class="export-menu" hidden>${['json', 'svg', 'png', 'csv', 'pdf'].map(k => (0, common_1.button)('export:' + k, ({ json: 'Save model JSON', svg: 'Vector diagram SVG', png: 'Annotated PNG', csv: 'Results CSV', pdf: 'Calculation report PDF' })[k], '')).join('')}${(0, common_1.button)('open-json', 'Open model JSON', '')}${(0, common_1.button)('method', 'Method & sources', '')}${(0, common_1.button)('demo', 'Presentation tour', '')}${(0, common_1.button)('audit', 'Model checks & verification JSON', '')}${(0, common_1.button)('verify', 'Run benchmark checks', '')}</div></div><a class="launch" href="#workspace">Launch model ${(0, common_1.icon)('right', 14)}</a></div></header>
+  <a class="skip-link" href="#workspace">Skip to workspace</a><div class="progress-line" id="scroll-progress"></div>
+  <header class="topbar"><a class="brand" href="#home"><span>B</span><b>BeamLab</b><em>STUDIO 4.1</em></a><nav><a href="#home">Home</a><a href="#workspace">Workspace</a>${(0, common_1.button)('method', 'Method & scope', 'text-button')}</nav><div class="header-actions">${(0, common_1.button)('share', (0, common_1.icon)('share', 15) + '<span>Share</span>', 'share-button')}<div class="export-wrap">${(0, common_1.button)('export-menu', (0, common_1.icon)('download', 15) + '<span>Export</span>' + (0, common_1.icon)('down', 12), 'export-button')}<div id="export-menu" class="export-menu" hidden>${['json', 'svg', 'png', 'csv', 'pdf'].map(k => (0, common_1.button)('export:' + k, ({ json: 'Save model JSON', svg: 'Vector diagram SVG', png: 'Annotated PNG', csv: 'Results CSV', pdf: 'Calculation report PDF' })[k], '')).join('')}${(0, common_1.button)('open-json', 'Open model JSON', '')}${(0, common_1.button)('method', 'Method & sources', '')}${(0, common_1.button)('demo', 'Presentation tour', '')}${(0, common_1.button)('audit', 'Model checks & verification JSON', '')}${(0, common_1.button)('verify', 'Run benchmark checks', '')}</div></div><a class="launch" href="#workspace">Launch model ${(0, common_1.icon)('right', 14)}</a></div></header>
   <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><a class="hero-cta" href="#workspace">Open BeamLab ${(0, common_1.icon)('right', 16)}</a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}<span class="hero-detail">No sign-in. No opaque answers. Analyse first, then carry verified demand into Design Studio.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
   <section class="transition-copy"><span class="eyebrow">ONE CONNECTED SYSTEM</span><h2>Analyse the behaviour.<br><span>Then review the design context.</span></h2><p>Start with first-year statics. Let BeamLab reveal deeper analysis as you progress, then move into a separate Design Studio without changing the underlying solver.</p></section>
-  <main id="workspace"><div id="learning-bar" class="learning-bar"></div><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
-  <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
+  <main id="workspace" tabindex="-1"><div id="learning-bar" class="learning-bar"></div><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div id="workflow-context"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
+  <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><div id="trace-position"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
   <div class="workspace-foot"><span>Same model. Different depth.</span><button data-action="history" id="history-count" class="text-button">0 edits</button><span>Analysis + transparent design screening / not structural design approval</span></div></main>
-  <footer class="site-footer"><a class="brand" href="#home"><span>B</span><b>BeamLab</b></a><p>Build understanding before building structures.</p><small>Studio 4.0 / analysis + design-context preview. Your model and design inputs stay in your browser unless you export or share them.</small></footer>
-  <input id="model-file" type="file" accept=".json,application/json" aria-label="Import BeamLab model JSON" hidden><div id="toast" class="toast" role="status"></div><div id="inline-edit" class="inline-edit"></div><div id="drag-ghost" class="drag-ghost" hidden></div><div id="marquee" class="marquee" hidden></div>
+  <footer class="site-footer"><a class="brand" href="#home"><span>B</span><b>BeamLab</b></a><p>Build understanding before building structures.</p><small>Studio 4.1 / analysis + design-context preview. Your model and design inputs stay in your browser unless you export or share them.</small></footer>
+  <input id="progress-file" type="file" accept=".json,application/json" aria-label="Import learning progress" hidden><input id="model-file" type="file" accept=".json,application/json" aria-label="Import BeamLab model JSON" hidden><div id="toast" class="toast" role="status"></div><div id="inline-edit" class="inline-edit"></div><div id="drag-ghost" class="drag-ghost" hidden></div><div id="marquee" class="marquee" hidden></div>
   <div id="dialog" class="dialog-overlay" aria-hidden="true"><section role="dialog" aria-modal="true" aria-labelledby="dialog-title" class="dialog"><header><h2 id="dialog-title"></h2><button id="dialog-close" class="icon-button" data-action="dialog-close" aria-label="Close dialog">${(0, common_1.icon)('close', 20)}</button></header><div id="dialog-content"></div></section></div><button id="mobile-done" data-action="deselect" class="mobile-done" hidden>Done editing ${(0, common_1.icon)('check', 14)}</button>`;
     movingLab = new MovingLab($('#moving-lab'),()=>{v.moving=false;render();});
     document.addEventListener('click', e => {
@@ -2400,7 +2456,12 @@ function bootstrap() {
     });
     document.addEventListener('dblclick', e => { const el = e.target, object = el.closest('[data-object]'); if (object)
         inlineEdit(object.dataset.object, e); });
-    document.addEventListener('input', e => { const el = e.target; if (el instanceof HTMLInputElement && el.dataset.field)
+    document.addEventListener('input', e => { const el = e.target;
+        if (el instanceof HTMLInputElement && (el.dataset.range === 'trace' || el.hasAttribute('data-trace-number'))) {
+            const x=el.valueAsNumber; if (!Number.isFinite(x) || x<0 || x>history.model.length) {el.setAttribute('aria-invalid','true');return;}
+            el.removeAttribute('aria-invalid');v.trace=x;v.pinned=true;updateTrace();return;
+        }
+        if (el instanceof HTMLInputElement && el.dataset.field)
         applyNumber(el); if (el instanceof HTMLInputElement && el.dataset.range === 'pan') {
         v.pan = Number(el.value);
         $('#graphs').innerHTML = (0, diagrams_1.renderDiagrams)(history.model, analysis, diagramView());
@@ -2410,7 +2471,7 @@ function bootstrap() {
         setTimeout(() => { if (fieldTransaction?.input === el)
             finishField(); }, 0);
     } });
-    document.addEventListener('change', e => { const el = e.target; if (el instanceof HTMLSelectElement && el.dataset.select)
+    document.addEventListener('change', e => { const el = e.target; if(el.id==='progress-file'){void previewLearningImport(el.files?.[0]);return;} if(el instanceof HTMLInputElement && el.dataset.range==='fibre'){v.fibre=Number(el.value);$('#section-stress').innerHTML=sectionLab.render(history.model,analysis,v.trace ?? analysis?.peakM.x ?? 0,v.fibre,v.sectionSide);$('#fibre-slider')?.focus({preventScroll:true});return;} if (el instanceof HTMLSelectElement && el.dataset.select)
         selectChanged(el); if (el instanceof HTMLInputElement && el.dataset.text)
         textChanged(el); if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)
         if (el.dataset.designNumber || el.dataset.designSelect || el.dataset.designText) updateDesignInput(el); });

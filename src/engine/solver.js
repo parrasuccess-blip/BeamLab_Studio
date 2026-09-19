@@ -109,6 +109,7 @@ function solveBeam(model) {
     for (const support of supports) {
         const n = nodes[index(support.x)];
         d[n.v] = (support.settlementMm || 0) / 1000;
+        if (support.kind === 'fixed') d[n.left] = (support.rotationMrad || 0) / 1000;
     }
     const free = Array.from({ length: count }, (_, i) => i).filter(i => !constrained.has(i));
     const rhs = free.map(i => F[i] - Array.from(constrained).reduce((sum, j) => sum + K[i][j] * d[j], 0));
@@ -186,7 +187,7 @@ function solveBeam(model) {
     }
     const reactions = supports.map(s => {
         const n = nodes[index(s.x)];
-        return { id: s.id, label: s.label, x: s.x, force: R[n.v], moment: s.kind === 'fixed' ? R[n.left] : 0, fixed: s.kind === 'fixed', settlementMm: s.settlementMm || 0 };
+        return { id: s.id, label: s.label, x: s.x, force: R[n.v], moment: s.kind === 'fixed' ? R[n.left] : 0, fixed: s.kind === 'fixed', settlementMm: s.settlementMm || 0, rotationMrad: s.rotationMrad || 0 };
     });
     let total = 0, loadMoment = 0, appliedCouple = 0;
     model.items.forEach(o => {
@@ -206,7 +207,7 @@ function solveBeam(model) {
     const forceResidual = reactions.reduce((sum, r) => sum + r.force, 0) - total;
     const momentResidual = reactions.reduce((sum, r) => sum + r.force * r.x + r.moment, 0) - loadMoment + appliedCouple;
     const hingeResidual = Math.max(0, ...hinges.flatMap(h => [Math.abs(sample(h.x, 'left').M), Math.abs(sample(h.x, 'right').M)]));
-    const boundaryResidual = Math.max(0, ...supports.flatMap(s => [Math.abs(sample(s.x).v - (s.settlementMm || 0) / 1000), s.kind === 'fixed' ? Math.abs(sample(s.x).theta) * length : 0]));
+    const boundaryResidual = Math.max(0, ...supports.flatMap(s => [Math.abs(sample(s.x).v - (s.settlementMm || 0) / 1000), s.kind === 'fixed' ? Math.abs(sample(s.x).theta - (s.rotationMrad || 0) / 1000) * length : 0]));
     const finiteResults = [total, loadMoment, appliedCouple, forceResidual, momentResidual, hingeResidual, boundaryResidual, compatibility,
         ...reactions.flatMap(r => [r.force, r.moment]), ...points.flatMap(row => [row.V, row.M, row.v, row.theta])];
     if (!finiteResults.every(Number.isFinite))
@@ -220,6 +221,7 @@ function solveBeam(model) {
         warnings.push('Negative reaction: this ideal model needs hold-down restraint. An unanchored bearing may lift off.');
     if (Math.abs(peakD.v) / length > 0.01)
         warnings.push('Large relative deflection: the small-deflection model may no longer be appropriate.');
+    if(supports.some(s=>Math.abs(s.rotationMrad||0)>1e-12)) warnings.push('Fixed-support rotation is prescribed in mrad, positive counter-clockwise. Small-rotation assumptions apply.');
     const settledSupports = supports.filter(s => Math.abs(s.settlementMm || 0) > 1e-12);
     if (settledSupports.length)
         warnings.push('Support settlement is imposed as a prescribed vertical displacement (positive upward). It can generate reactions and moments in indeterminate systems even without applied loads.');
@@ -239,7 +241,8 @@ function solveBeam(model) {
         hasEIOnlyRegions,
         hasVaryingEI: sectionRegions.length > 0 || hasEIOnlyRegions,
         hasSupportSettlement: supports.some(s => Math.abs(s.settlementMm || 0) > 1e-12),
-        prescribedSupportDisplacements: supports.map(s => ({ id:s.id, label:s.label, x:s.x, settlementMm:s.settlementMm || 0 })),
+        hasSupportRotation: supports.some(s => Math.abs(s.rotationMrad || 0) > 1e-12),
+        prescribedSupportDisplacements: supports.map(s => ({ id:s.id, label:s.label, x:s.x, settlementMm:s.settlementMm || 0, rotationMrad:s.rotationMrad || 0 })),
         elements,
         reactions,
         points,

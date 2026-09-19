@@ -137,6 +137,8 @@ function renderDiagrams(m, a, v) {
         else
             model += `<path d="M${x} ${beamY + 5}l-11 20h22Z" fill="${col}"/>${i.kind === 'roller' ? `<circle cx="${x - 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/><circle cx="${x + 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/>` : `<line x1="${x - 15}" x2="${x + 15}" y1="${beamY + 29}" y2="${beamY + 29}" stroke="${col}"/>`}`;
         model += svgText(labelX, beamY + 49, `${i.label}${i.locked ? ' [L]' : ''} / ${(0, common_1.fmt)(i.x, 2)} m`, col, 'middle', 9);
+        if (i.kind==='fixed' && Math.abs(i.rotationMrad || 0)>1e-12)
+            model += svgText(labelX, beamY + 73, `θ ${(0,common_1.signed)(i.rotationMrad,2)} mrad`, '#efcb72', 'middle', 8);
         if (Math.abs(i.settlementMm || 0) > 1e-12)
             model += svgText(labelX, beamY + 59, `Δ ${(0,common_1.signed)(i.settlementMm,2)} mm`, '#efcb72', 'middle', 8);
         if (r && (!v.practice || v.practiceStep >= 1)) {
@@ -245,6 +247,11 @@ function renderSection(m, a, x) {
     let shape = '';
     if (family === 'i' || family === 'UB' || family === 'UC')
         shape = `M${cx - b / 2} ${cy - h / 2}h${b}v${tf}h${-(b - t) / 2}v${h - 2 * tf}h${(b - t) / 2}v${tf}h${-b}v${-tf}h${(b - t) / 2}v${-(h - 2 * tf)}h${-(b - t) / 2}Z`;
+    else if (family === 'circle' || family === 'tube') {
+        const radius=h/2, inner=(props.h/2-props.t)*scale;
+        const circle=r=>`M${cx-r} ${cy}a${r} ${r} 0 1 0 ${2*r} 0a${r} ${r} 0 1 0 ${-2*r} 0Z`;
+        shape=circle(radius)+(family==='tube'?circle(inner):'');
+    }
     else if (family === 'PFC')
         shape = `M${cx - b / 2} ${cy - h / 2}h${b}v${tf}h${-(b - t)}v${h - 2 * tf}h${b - t}v${tf}h${-b}Z`;
     else

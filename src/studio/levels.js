@@ -91,6 +91,7 @@ function restrictedStudyFeatures(id, study, view = {}) {
     if (!canUseFeature(id, 'varyingEI') && (study.stiffnessRegions?.length || 0)) out.push('piecewise EI zones');
     if (!canUseFeature(id, 'steppedSections') && (study.sectionRegions?.length || 0)) out.push('stepped section regions');
     if (!canUseFeature(id, 'settlement') && study.items.some(i => ['pin','roller','fixed'].includes(i.kind) && Math.abs(i.settlementMm || 0) > 1e-12)) out.push('support settlement');
+    if (!canUseFeature(id,'settlement') && study.items.some(i=>Math.abs(i.rotationMrad||0)>1e-12)) out.push('prescribed fixed-support rotation');
     return [...new Set(out)];
 }
 function recommendedExample(id) {

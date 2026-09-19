@@ -46,3 +46,42 @@ test('Responses API text extraction supports raw output arrays', () => {
   const text = extractResponseText({ output:[{type:'message', content:[{type:'output_text', text:'answer'}]}] });
   assert.equal(text, 'answer');
 });
+
+test('health reports configuration without exposing provider credentials', async () => {
+  const previous=process.env.OPENAI_API_KEY;
+  try {
+    delete process.env.OPENAI_API_KEY;
+    const off=mock('GET');await handler(off.req,off.res);
+    assert.deepEqual(off.result().payload,{message:'Success',release:'4.1.0',configured:false});
+    process.env.OPENAI_API_KEY='test-only-not-a-secret';
+    const on=mock('GET');await handler(on.req,on.res);
+    assert.equal(on.result().payload.configured,true);
+    assert.ok(!JSON.stringify(on.result().payload).includes('test-only'));
+  } finally {if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
+});
+
+test('invalid and oversized tutor requests are rejected before provider access', async () => {
+  for(const [body,status] of [
+    [{mode:'invent',question:'why',level:'year1',context:{}},400],
+    [{mode:'point',question:'why',level:'unknown',context:{}},400],
+    [{mode:'point',question:' ',level:'year1',context:{}},400],
+    [{mode:'point',question:'why',level:'year1',context:null},400],
+    [{mode:'point',question:'why',level:'year1',context:{name:'a'.repeat(30001)}},413]
+  ]) {const m=mock('POST',body);await handler(m.req,m.res);assert.equal(m.result().statusCode,status);}
+  const m=mock('DELETE');await handler(m.req,m.res);assert.equal(m.result().statusCode,405);
+});
+
+test('configured tutor sends bounded deterministic context and a timeout signal', async () => {
+  const priorKey=process.env.OPENAI_API_KEY,priorFetch=globalThis.fetch;
+  try {
+    process.env.OPENAI_API_KEY='test-only-not-a-secret';let captured;
+    globalThis.fetch=async(url,options)=>{captured={url,options};return {ok:true,json:async()=>({output_text:'The supplied reaction is 10 kN.'})};};
+    const m=mock('POST',{mode:'point',question:'Explain',level:'year1',context:{reactions:[{force:10}],learning:{recentEvents:[]}}});
+    await handler(m.req,m.res);assert.equal(m.result().statusCode,200);
+    assert.equal(m.result().payload.solverAuthoritative,true);
+    assert.equal(captured.url,'https://api.openai.com/v1/responses');
+    assert.ok(captured.options.signal instanceof AbortSignal);
+    const body=JSON.parse(captured.options.body);assert.match(body.input,/"force":10/);assert.match(body.input,/"learning"/);
+    assert.match(body.instructions,/Never replace, recalculate/);
+  } finally {globalThis.fetch=priorFetch;if(priorKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=priorKey;}
+});

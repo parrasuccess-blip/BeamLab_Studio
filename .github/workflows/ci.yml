@@ -19,3 +19,32 @@ jobs:
           node-version: "24"
       - name: Run deterministic regression suite
         run: npm test
+      - name: Keep the tested release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beamlab-release
+          path: dist/
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: regression
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Exercise desktop and mobile user journeys
+        run: npm run test:browser
+      - name: Keep browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

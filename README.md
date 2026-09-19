@@ -1,58 +1,55 @@
-# BeamLab Studio - clean source migration
+# BeamLab Studio 4.1 — Guided Engineering Studio
 
-This repository is the editable-source migration of the BeamLab Studio 4.0.1 / AppDeploy v22 product line.
+Interactive beam analysis and learning, built from readable source. Educational/static-analysis research preview; **not structural design approval or code certification**.
 
-## Engineering rule
+Public site: https://beam-lab-studio.vercel.app/
 
-BeamLab has one deterministic structural solver. The learning system, Design Studio and contextual tutor sit around that solver and must never replace its numerical results.
+## Four connected destinations
 
-## Source layout
+- **Build:** drag supports and loads, edit geometry, assign sections and load cases.
+- **Analyse:** aligned Structure → SFD → BMD, deformation, local stress, moving-load studies and deterministic explanations.
+- **Learn:** diagram prediction and sketching, numerical challenges, adaptive practice, exams and resumable guided study blocks. Progress can be exported independently of the model.
+- **Review:** numerical consistency checks, model/data/report exports, and optional user-entered criteria. Demand/capacity screening is not a code design calculation.
 
-- `src/engine/` - deterministic structural analysis
-- `src/model/` - study model, examples, validation, catalogue and section properties
-- `src/studio/` - workspace, diagrams, learning, verification and Design Studio
-- `src/browser/` - browser-only tutor client and readability/product enhancements
-- `api/tutor.js` - Vercel serverless contextual tutor endpoint
-- `scripts/build.cjs` - builds the standalone BeamLab application from readable source
-- `tests/` - numerical and tutor-boundary regression tests
-- `reference/BeamLab-Studio-v22.html` - frozen AppDeploy v22 reference artifact
+One deterministic Euler–Bernoulli model powers every learning level. Changing level never replaces a genuinely edited beam. Existing advanced features remain active even when lower levels hide their editing controls.
 
-## Build
+## Build and verify
+
+Node 24 or later:
 
 ```bash
-npm run build
-```
-
-The standalone application is written to `dist/index.html`.
-
-## Test
-
-```bash
+npm ci
 npm test
+npx playwright install --with-deps chromium firefox webkit
+npm run test:browser
 ```
 
-The migration currently verifies:
+`npm test` builds and tests the production module bundle as well as the restored historical numerical suites. It does not require a browser or network. Browser tests serve the built artifact with an offline tutor endpoint and exercise desktop Chromium/Firefox plus mobile WebKit/Chromium. CI retains the artifact, screenshots and failure traces.
 
-- 6 m simply supported beam + 20 kN centre point load -> 10 kN / 10 kN reactions and 30 kN m peak moment
-- 10 m beam + 5 kN/m UDL -> 25 kN / 25 kN reactions and 62.5 kN m peak moment
-- all 21 built-in analytical benchmarks
-- Design Studio and contextual tutor hooks remain present
-- Exam Mode tutor rejection
-- tutor failure remains isolated from deterministic BeamLab
+`npm run build` creates `dist/index.html`, `SHA256.txt` and `release.json`. The build is deterministic: no timestamps, historical HTML patch chain, or catch-and-publish fallback. The app remains usable as standalone HTML without the optional tutor.
 
-## Vercel
+## Source map
 
-The project is Vercel-ready. `vercel.json` runs `npm run build` and serves `dist/` while `api/tutor.js` provides the tutor endpoint.
+- `src/engine/`: static solver, numerical utilities, elementary shear and moving point-load analysis.
+- `src/model/`: validation, examples, load cases, true section regions, EI-only overrides and section references.
+- `src/studio/`: workspace, diagrams, learning, verification, local stress explorer and review/export.
+- `src/browser/`: optional online tutor client.
+- `api/tutor.js`: bounded contextual explanation endpoint; never a numerical solver.
+- `tests/legacy/PROVENANCE.md`: origin and minimal adaptations of the restored 3.8.6 suites.
+- `docs/RELEASE_4_1.md`: implementation, validation scope and remaining roadmap.
 
-The entire deterministic application works without an AI secret. If the tutor is not configured, BeamLab shows tutor unavailability while analysis, diagrams, learning, Design Studio and exports remain available.
+## Engineering boundaries
 
-For the optional tutor backend set these Vercel environment variables:
+Applied vertical loads are positive downward; reactions/displacement positive upward; applied couples/rotation positive counter-clockwise; bending moment positive sagging. Inputs retain the original kN, m, GPa and mm section-property conventions.
 
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` (optional; defaults to `gpt-5.6-luna` in the migration source)
+True stepped sections and optional EI-only overrides are supported. Vertical support settlement and fixed-support rotation are prescribed boundary conditions. Local elastic stress is not inferred from an EI-only multiplier. Circular, hollow circular, rectangle, box and I geometries are idealised, not additional verified catalogue products. Unsupported shear/torsion/section fields remain explicitly unavailable.
 
-Never commit secrets to this repository.
+Moving-load analysis uses successive static positions and local element stiffness. Influence lines exclude static loads and prescribed movements; optional base addition in envelopes includes them once. Envelopes are sampled, not dynamic analysis or certified exact maxima.
 
-## Migration status
+## Deployment
 
-This is the first clean-source milestone. It intentionally preserves the current solver before further UI restructuring. The next source-native feature branch should implement the five-step Design workflow directly in readable files rather than adding another release-patch layer.
+GitHub is canonical. `vercel.json` runs the full numerical regression gate and serves `dist/`; `api/tutor.js` supplies the optional endpoint. Inspect GitHub CI and the Vercel preview before merging a release. After deployment, compare public `release.json`/`SHA256.txt` with the downloaded public HTML and verify real interaction flows. A successful source commit alone is not a successful deployment.
+
+No provider secret is required for analysis, learning, review or exports. The tutor health endpoint reports whether a key is configured. The UI offers deterministic Show Why when the online tutor is unavailable. For an intentionally enabled tutor, configure `OPENAI_API_KEY` and a verified `OPENAI_MODEL` in the host; never commit credentials. The migration's fallback model identifier is retained for compatibility, not asserted as a generally available provider model. Validate provider access and add appropriate abuse/cost controls before enabling it for unrestricted public use.
+
+Model and learning data are local to the browser. Snapshot URLs are readable encodings, not encryption. An explicit online-tutor request transmits bounded model/learning context to the host and configured AI provider. See the in-app Privacy & local data notice.
