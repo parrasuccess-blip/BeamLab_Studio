@@ -449,7 +449,7 @@ test('Learn mastery UI exposes launchable deterministic study plan steps', () =>
 
 
 test('study planner uses a wider retained trajectory than the six-topic display', () => {
-  assert.match(html, /learningTrajectory\)\(learningEvidenceEvents, masteryStats, 6\)/);
-  assert.match(html, /planningTrajectory = .*learningTrajectory\)\(learningEvidenceEvents, masteryStats, 10\)/);
-  assert.match(html, /study_plan_1\.build[\s\S]*planningTrajectory/);
+  assert.match(html, /learning_trajectory_1\.build\)\(learningEvidenceEvents, masteryStats, 6\)/);
+  assert.match(html, /planningTrajectory = \(0, learning_trajectory_1\.build\)\(learningEvidenceEvents, masteryStats, 10\)/);
+  assert.match(html, /study_plan_1\.build\)[\s\S]*planningTrajectory/);
 });
