@@ -42,7 +42,11 @@ function statusFor(rows) {
     const attempts = rows.filter(row => row.event === 'attempt');
     const lastTwo = attempts.slice(-2);
     const twoFirstTry = lastTwo.length === 2 && lastTwo.every(row => row.correct === true && row.firstTry === true);
-    if (twoFirstTry && latestMarker.state !== 'unresolved') return 'stable';
+    const betweenFirstTryAttempts = lastTwo.length === 2
+        ? rows.filter(row => row.timestamp > lastTwo[0].timestamp && row.timestamp < lastTwo[1].timestamp)
+        : [];
+    const interveningDifficulty = betweenFirstTryAttempts.some(row => marker(row).state === 'unresolved');
+    if (twoFirstTry && !interveningDifficulty && latestMarker.state !== 'unresolved') return 'stable';
 
     const hadEarlierDifficulty = rows.slice(0,-1).some(row => marker(row).state === 'unresolved');
     if (latest.event === 'attempt' && latest.correct === true && hadEarlierDifficulty) return 'recovered';
