@@ -17,6 +17,7 @@ const learning_evidence_1 = require("./learning-evidence");
 const learning_path_1 = require("./learning-path");
 const adaptive_practice_1 = require("./adaptive-practice");
 const learning_trajectory_1 = require("./learning-trajectory");
+const topic_drilldown_1 = require("./topic-drilldown");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -939,6 +940,25 @@ function remove() { const unlocked = selectedItems().filter(i => !i.locked && (0
 } const ids = new Set(unlocked.map(i => i.id)); commit({ ...history.model, items: history.model.items.filter(i => !ids.has(i.id)) }, 'Remove selection', false); }
 function openDialog(title, content) { pauseSweep(); dialogReturnFocus = document.activeElement; finishField(); $('#dialog-title').textContent = title; $('#dialog-content').innerHTML = content; $('#dialog').classList.add('open'); $('#dialog').setAttribute('aria-hidden', 'false'); $('#dialog-close').focus(); }
 function closeDialog() { $('#dialog').classList.remove('open'); $('#dialog').setAttribute('aria-hidden', 'true'); if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus(); }
+function trajectoryTopicDialog(topic) {
+    if (v.session?.active || v.session?.review) return;
+    const d = (0, topic_drilldown_1.detail)(v.level, topic, learningEvidenceEvents, masteryStats, lessonProgress, challengeProgress);
+    if (!d.current) { toast('No retained learning evidence is available for this topic.'); return; }
+    const timeLabel = value => {
+        if (!value) return 'Time not recorded';
+        try { return new Date(value).toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); }
+        catch { return 'Recorded locally'; }
+    };
+    const eventRows = d.events.map((row, index) => {
+        const response = row.answer || row.expected ? `<div class="topic-event-response">${row.answer ? `<span><b>Your response</b>${(0,common_1.esc)(row.answer)}</span>` : ''}${row.expected ? `<span><b>Reference</b>${(0,common_1.esc)(row.expected)}</span>` : ''}</div>` : '';
+        return `<article class="topic-event ${(0,common_1.esc)(row.stateKey)}"><div class="topic-event-index">${String(index+1).padStart(2,'0')}</div><div class="topic-event-body"><div class="topic-event-head"><b>${(0,common_1.esc)(row.taskTitle)}</b><span>${(0,common_1.esc)(row.outcome)}</span></div><small>${(0,common_1.esc)(row.kind === 'lesson' ? 'Concept lesson' : row.kind === 'challenge' ? 'Numerical challenge' : 'Learning activity')} · ${(0,common_1.esc)(row.mode)} · ${(0,common_1.esc)(timeLabel(row.timestamp))}</small>${response}<div class="topic-state-after">Trajectory after this event: <b>${(0,common_1.esc)(row.stateAfter)}</b></div></div></article>`;
+    }).join('');
+    const taskRows = d.tasks.map(task => `<div class="topic-task-row"><div><b>${(0,common_1.esc)(task.title)}</b><small>${task.kind === 'lesson' ? 'Concept lesson' : 'Numerical challenge'} · ${task.completed ? 'completed before' : 'not yet complete'}</small></div><span>${task.completed ? 'COMPLETE' : 'AVAILABLE'}</span></div>`).join('');
+    const next = d.nextTask
+        ? `<section class="topic-next"><div><span class="eyebrow">BEST NEXT EXERCISE / DETERMINISTIC</span><b>${(0,common_1.esc)(d.nextTask.title)}</b><p>${(0,common_1.esc)(d.nextReason)}</p><small>${d.nextTask.kind === 'lesson' ? 'Concept lesson' : 'Numerical challenge'} · ${(0,common_1.esc)(d.topic)}</small></div>${(0,common_1.button)(`trajectory-next:${d.nextTask.kind}|${d.nextTask.id}`, 'Open this exercise', 'primary')}</section>`
+        : `<section class="topic-next no-drill"><div><span class="eyebrow">TOPIC-SPECIFIC NEXT STEP</span><b>No repeat drill recommended.</b><p>${(0,common_1.esc)(d.nextReason)}</p><small>Use the broader Recommended Next path to keep progressing.</small></div></section>`;
+    openDialog(d.topic + ' · trajectory evidence', `<section class="topic-drilldown"><header class="topic-drill-head ${(0,common_1.esc)(d.current.status)}"><div><span class="eyebrow">RECENT TRAJECTORY / LOCAL EVIDENCE</span><h3>${(0,common_1.esc)(d.current.label)}</h3><p>${(0,common_1.esc)(d.current.explanation)}</p></div><strong>${d.current.masteryScore === null ? 'NO AGGREGATE SCORE' : (0,common_1.esc)(d.current.masteryScore + '% mastery heuristic')}</strong></header><div class="topic-drill-grid"><section><div class="topic-section-head"><span>EVENTS BEHIND THIS STATE</span><small>Newest retained evidence is at the bottom.</small></div><div class="topic-events">${eventRows || '<p class="muted">No retained events.</p>'}</div></section><aside><div class="topic-section-head"><span>AVAILABLE TASKS AT THIS LEVEL</span><small>These are the lesson/challenge records BeamLab can link to this topic.</small></div><div class="topic-tasks">${taskRows || '<p class="muted">No mapped tasks at this level.</p>'}</div></aside></div>${next}<p class="topic-boundary">${(0,common_1.esc)(d.boundary)}</p></section>`);
+}
 function referenceExample() { const m = (0, study_1.normalise)((0, examples_1.example)('simple')); m.name = 'Centre load / 6 metre study'; m.length = 6; m.items = m.items.filter(i => (0, validation_1.isSupport)(i.kind)); m.items[1].x = 6; const o = { ...(0, examples_1.makeItem)('point', 3, undefined, 20), label: 'P1', colour: '#f19b82', caseId: m.cases[0].id }; m.items.push(o); return m; }
 function loadExample(key) { v.zoom = 1; v.pan = 0; commit(key === 'reference' ? referenceExample() : (0, study_1.normalise)((0, examples_1.example)(key)), 'Load example', false); if (!sessionLoading) toast('Example loaded. Undo restores your previous model.'); }
 function openLibrary() {
@@ -1129,6 +1149,19 @@ async function action(key, el) {
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
     if (name === 'session-review-next') { sessionReviewNext(); return; }
     if (name === 'mastery-review') { const [kind,taskId]=id.split('|'); v.learnSection=kind==='lesson'?'lessons':'challenges'; if(kind==='lesson') startLesson(taskId); else startChallenge(taskId); return; }
+    if (name === 'trajectory-topic') {
+        if (v.session?.active || v.session?.review) return;
+        try { trajectoryTopicDialog(decodeURIComponent(id)); } catch { toast('Could not open this topic evidence view.'); }
+        return;
+    }
+    if (name === 'trajectory-next') {
+        const [kind,taskId] = id.split('|');
+        closeDialog();
+        v.tab = 'learn';
+        if (kind === 'lesson') { v.learnSection='lessons'; startLesson(taskId); }
+        else if (kind === 'challenge') { v.learnSection='challenges'; startChallenge(taskId); }
+        return;
+    }
     if (name === 'recommended-next') {
         if (v.session?.active || v.session?.review) return;
         const [kind,taskId] = id.split('|');
