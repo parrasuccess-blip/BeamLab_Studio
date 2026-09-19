@@ -18,6 +18,7 @@ const { benchmarks } = load('studio/verification');
 const design = load('studio/design');
 const designWorkflow = load('studio/design-workflow');
 const learningEvidence = load('studio/learning-evidence');
+const learningPath = load('studio/learning-path');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -132,4 +133,47 @@ test('production tutor wiring exposes the adaptive evidence provider', () => {
   assert.match(html, /learning-evidence/);
   assert.match(html, /repeatedWrongResponses/);
   assert.match(html, /adaptive context/);
+});
+
+
+test('recommended-next prioritises a recent unresolved difficulty', () => {
+  const evidence = {
+    recentEvents: [{event:'attempt',topic:'Shear → moment',correct:false,timestamp:20}],
+    priorityTopics: [{topic:'Shear → moment',priority:6}]
+  };
+  const rec = learningPath.recommendNext('year1', evidence, {}, {});
+  assert.equal(rec.topic, 'Shear → moment');
+  assert.equal(rec.kind, 'lesson');
+  assert.equal(rec.basis, 'recent-difficulty');
+});
+
+test('recommended-next advances after the latest relevant correction', () => {
+  const evidence = {
+    recentEvents: [
+      {event:'attempt',topic:'Shear → moment',correct:false,timestamp:10},
+      {event:'attempt',topic:'Shear → moment',correct:true,timestamp:20}
+    ],
+    priorityTopics: [{topic:'Shear → moment',priority:9}]
+  };
+  const rec = learningPath.recommendNext('year1', evidence, {'l1-shear-moment':true}, {});
+  assert.notEqual(rec.topic, 'Shear → moment');
+  assert.equal(rec.basis, 'advance-after-correction');
+});
+
+test('recommended-next becomes mixed practice when level tasks are complete', () => {
+  const tasks = learningPath.buildTasks('year1');
+  const lessons = Object.fromEntries(tasks.lessons.map(task => [task.id,true]));
+  const challenges = Object.fromEntries(tasks.challenges.map(task => [task.id,true]));
+  const rec = learningPath.recommendNext('year1', {}, lessons, challenges);
+  assert.equal(rec.kind, 'session');
+  assert.equal(rec.id, 'practice');
+  assert.equal(rec.basis, 'level-complete');
+});
+
+test('Learn UI exposes one deterministic recommended-next card and reset clears its evidence', () => {
+  assert.match(html, /RECOMMENDED NEXT/);
+  assert.match(html, /recommended-next:/);
+  assert.match(html, /learningRecommendation/);
+  assert.match(html, /learning-evidence/);
+  assert.match(html, /recent learning evidence reset/i);
 });
