@@ -291,6 +291,70 @@ test('true stepped sections are progressive, editable and represented throughout
   assert.match(html, /48 structural objects is the limit/);
 });
 
+test('support settlement redistributes reactions in a continuous beam', () => {
+  const m = normalise(example('continuous'));
+  m.items = m.items.filter(i => ['pin','roller'].includes(i.kind));
+  m.items.find(i => Math.abs(i.x - 5) < 1e-9).settlementMm = -10;
+  validateStudy(m);
+  const r = solveStudy(m);
+  near(r.reactions[0].force, -16.8, 1e-8);
+  near(r.reactions[1].force, 33.6, 1e-8);
+  near(r.reactions[2].force, -16.8, 1e-8);
+  near(r.sample(5).v * 1000, -10, 1e-9);
+  near(r.forceResidual, 0, 1e-8);
+  near(r.momentResidual, 0, 1e-8);
+  assert.equal(r.hasSupportSettlement, true);
+});
+
+test('differential settlement of a determinate simple beam can occur without induced force', () => {
+  const m = normalise(example('simple'));
+  m.items = m.items.filter(i => ['pin','roller'].includes(i.kind));
+  m.items.find(i => i.kind === 'roller').settlementMm = -10;
+  const r = solveStudy(m);
+  near(r.reactions[0].force, 0, 1e-8);
+  near(r.reactions[1].force, 0, 1e-8);
+  near(r.peakM.M, 0, 1e-8);
+  near(r.sample(10).v * 1000, -10, 1e-9);
+  near(r.sample(5).v * 1000, -5, 1e-9);
+});
+
+test('support settlement energy audit includes reaction work at prescribed displacements', () => {
+  const m = normalise(example('continuous'));
+  m.items = m.items.filter(i => ['pin','roller'].includes(i.kind));
+  m.items.find(i => Math.abs(i.x - 5) < 1e-9).settlementMm = -10;
+  const a = solveStudy(m);
+  const audit = verification.audit(m,a);
+  const energy = audit.checks.find(row => row.name === 'Strain energy / external work');
+  assert.ok(energy);
+  assert.equal(energy.pass, true);
+  assert.ok(Math.abs(energy.residual) <= energy.tolerance);
+  assert.match(audit.scope,/prescribed vertical support settlement/i);
+});
+
+test('support settlement validation and learning-level boundaries are explicit', () => {
+  const m = normalise(example('simple'));
+  m.items[0].settlementMm = 10001;
+  assert.throws(() => validateStudy(m), /settlement must be finite and between -10000 and 10000 mm/i);
+  const invalid = normalise(example('simple'));
+  invalid.items.find(i => i.kind === 'udl').settlementMm = 2;
+  assert.throws(() => validateStudy(invalid), /settlement is only valid on supports/i);
+  assert.equal(levels.canUseFeature('year1','settlement'), false);
+  assert.equal(levels.canUseFeature('year2','settlement'), false);
+  assert.equal(levels.canUseFeature('year3','settlement'), true);
+  assert.equal(levels.canUseFeature('all','settlement'), true);
+});
+
+test('support settlement is represented across inspector, diagrams, working and exports', () => {
+  assert.match(html, /Support settlement/);
+  assert.match(html, /Positive = upward prescribed movement/);
+  assert.match(html, /Kff df = Ff - Kfc dc/);
+  assert.match(html, /Settlement \/ mm/);
+  assert.match(html, /prescribed vertical support settlement/i);
+  assert.match(html, /settlement changed from/);
+  assert.match(html, /settlementMm/);
+  assert.match(html, /Support settlement is prescribed displacement \(up \+\)/);
+});
+
 test('migration preserves Design Studio and tutor hooks', () => {
   assert.match(html, /BeamLab Studio 4\.0 - Design Studio/);
   assert.match(html, /BEAMLAB 4\.0 \/ DESIGN STUDIO/);
