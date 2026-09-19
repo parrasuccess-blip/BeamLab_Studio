@@ -30,6 +30,12 @@ function validateModel(m) {
         ids.add(o.id);
         if (!Number.isFinite(o.x) || o.x < 0 || o.x > m.length)
             throw new Error(`${o.label}: position must be inside the beam.`);
+        if ((0, exports.isSupport)(o.kind)) {
+            if (o.settlementMm !== undefined && (!Number.isFinite(o.settlementMm) || Math.abs(o.settlementMm) > 10000))
+                throw new Error(`${o.label}: support settlement must be finite and between -10000 and 10000 mm.`);
+        }
+        else if (o.settlementMm !== undefined)
+            throw new Error(`${o.label}: settlement is only valid on supports.`);
         if ((0, exports.isLoad)(o.kind) && (!Number.isFinite(o.value) || Math.abs(o.value) > 100000))
             throw new Error(`${o.label}: enter a finite load between -100000 and 100000.`);
         if ((0, exports.isDistributed)(o.kind)) {
