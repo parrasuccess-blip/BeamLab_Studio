@@ -46,6 +46,7 @@ function toolsPanel(m, v) {
     }
     if (v.tab === 'section') {
         const s = m.section;
+        const stiffnessRegions = Array.isArray(m.stiffnessRegions) ? m.stiffnessRegions : [];
         let props = null;
         try {
             props = (0, sections_1.sectionProperties)(s);
@@ -83,6 +84,15 @@ function toolsPanel(m, v) {
                 html += (0, common_1.field)('section:I', 'Second moment Ix', s.I, 'mm\u2074', 1, 1e15) + (0, common_1.field)('section:A', 'Section area A', s.A, 'mm\u00b2', 1, 1e8);
         }
         html += `<div class="property-stats"><span>Area A <b>${props ? (0, common_1.fmt)(props.A * 1e6) : '--'} mm\u00b2</b></span><span>Second moment Ix <b>${props ? (props.I * 1e12).toExponential(3) : '--'} mm\u2074</b></span><span>Stiffness EI <b>${props ? (0, common_1.fmt)(props.EI / 1000, 3) : '--'} MN\u00b7m\u00b2</b></span><span>Depth <b>${(0, common_1.fmt)(s.h)} mm</b></span></div>`;
+        const stiffnessRows = stiffnessRegions.map((r,index) => {
+            const effective = props ? props.EI * r.factor / 1000 : null;
+            return `<article class="stiffness-zone-card"><div class="stiffness-zone-head"><span>${String(index+1).padStart(2,'0')}</span><div><b>${(0,common_1.esc)(r.label)}</b><small>${(0,common_1.fmt)(r.x,2)} → ${(0,common_1.fmt)(r.end,2)} m</small></div><strong>EI ×${(0,common_1.fmt)(r.factor,2)}</strong></div><div class="stiffness-zone-foot"><small>${effective === null ? 'Effective EI unavailable' : 'Effective EI ' + (0,common_1.fmt)(effective,3) + ' MN·m²'} · stiffness only</small><div>${(0,common_1.button)('stiffness-edit:'+r.id,'Edit','secondary')}${(0,common_1.button)('stiffness-remove:'+r.id,'Remove','text-button')}</div></div></article>`;
+        }).join('');
+        if ((0, levels_1.canUseFeature)(v.level, 'varyingEI')) {
+            html += `<div class="divider"></div><section class="stiffness-zones"><div class="stiffness-zones-head"><div><span class="eyebrow">PIECEWISE EI / STEPPED STIFFNESS</span><b>Change flexural rigidity by region.</b><p>The base section applies everywhere unless a non-overlapping EI zone overrides its stiffness. Each multiplier changes the finite-element EI used for reactions, moments, rotations and deflections.</p></div><span>${stiffnessRegions.length}/12</span></div><div class="stiffness-zone-list">${stiffnessRows || '<div class="stiffness-zone-empty">No EI zones. The beam currently uses one uniform base EI.</div>'}</div>${(0,common_1.button)('stiffness-add',(0,common_1.icon)('plus',14)+' Add EI zone','wide-button',stiffnessRegions.length>=12)}<div class="stiffness-boundary"><b>Interpretation boundary</b><p>An EI multiplier does not define a new section shape. BeamLab therefore does not infer local bending stress, shear stress, self-weight or member resistance inside stepped-stiffness models.</p></div></section>`;
+        } else if (stiffnessRegions.length) {
+            html += `<div class="divider"></div><div class="mode-readonly"><b>Piecewise EI is active</b><span>${stiffnessRegions.length} stiffness zone${stiffnessRegions.length===1?'':'s'} remain active in the solver. Switch to 3rd+ Year or All Tools to edit them.</span></div>`;
+        }
         if ((0, levels_1.canUseFeature)(v.level, 'selfweight')) {
             html += (0, common_1.toggle)('selfweight', 'Include self-weight', props ? `${(0, common_1.fmt)(props.weight, 3)} kN/m before case factors` : 'Requires valid properties', m.selfWeight);
             if (m.selfWeight)
@@ -96,9 +106,14 @@ function toolsPanel(m, v) {
         html += `<div class="eyebrow">REVEAL WHAT YOU NEED</div><p class="hint">${level.short} / ${level.title}. Optional response layers only appear when they are commonly useful at this stage.</p>`;
         const layer = (key, title, hint) => (0, levels_1.canUseFeature)(v.level, key) ? (0, common_1.toggle)('toggle:' + key, title, hint, !!v[key]) : '';
         html += selectField('annotationMode', 'Diagram detail', ['clean','guided','detailed'].map(k => option(k, k === 'clean' ? 'Clean / axes & curves' : k === 'guided' ? 'Guided / key values' : 'Detailed / all critical labels', v.annotationMode === k)).join(''));
+        const localSectionResponseUnavailable = (m.stiffnessRegions?.length || 0) > 0;
         html += layer('deformation', 'Deformation', 'Elastic curve, displacement and rotation context');
-        html += layer('stress', 'Bending stress', 'Live cross-section tension and compression');
-        html += layer('shear', 'Transverse shear', 'Depth profiles for rectangle and I geometry');
+        if (localSectionResponseUnavailable && ((0,levels_1.canUseFeature)(v.level,'stress') || (0,levels_1.canUseFeature)(v.level,'shear'))) {
+            html += `<div class="mode-readonly"><b>Local stress layers paused</b><span>EI zones specify stiffness only, not the local E/I split or section geometry. Bending-stress and transverse-shear visualisations are hidden to avoid inventing section properties.</span></div>`;
+        } else {
+            html += layer('stress', 'Bending stress', 'Live cross-section tension and compression');
+            html += layer('shear', 'Transverse shear', 'Depth profiles for rectangle and I geometry');
+        }
         html += layer('moving', 'Moving-load lab', 'Influence lines and sampled axle envelopes');
         html += layer('teaching', 'Show why', 'Explain slopes, jumps and hinge conditions');
         html += layer('review', 'Manual limit review', 'Compare with limits you enter, not code checks');
@@ -232,5 +247,8 @@ function inspectorPanel(m, a, v) {
 function limitReview(m, a) {
     const r = a ? (0, study_1.reviewLimits)(a, m) : null;
     const ratio = (value) => value === null ? 'Set a limit to compare.' : `${(0, common_1.fmt)(value * 100, 1)}% of your entered limit. ${value > 1 ? 'Exceeds the entered value.' : 'Does not exceed the entered value.'}`;
-    return `<header class="review-head"><span class="eyebrow">MANUAL LIMIT REVIEW</span><span class="tag warning">NOT DESIGN-CODE APPROVAL</span></header><h3>A comparison, not a certification.</h3><p>Enter project-specific limits independently. These ratios do not check buckling, lateral restraint, shear, yield class, plastic capacity, load factors or code compliance.</p><div class="review-grid"><article>${(0, common_1.field)('review:displacementMm', 'Displacement limit', m.review?.displacementMm ?? null, 'mm', .001, 1e6)}<p>Calculated max |v|: <b>${r ? (0, common_1.fmt)(r.displacement, 3) : '--'} mm</b></p><small>${ratio(r?.displacementRatio ?? null)}</small></article><article>${(0, common_1.field)('review:stressMPa', 'Elastic stress limit', m.review?.stressMPa ?? null, 'MPa', .001, 1e6)}<p>Calculated max |sigma|: <b>${r ? (0, common_1.fmt)(r.stress, 3) : '--'} MPa</b></p><small>${ratio(r?.stressRatio ?? null)}</small></article></div><p class="hint">Blank limits produce no assessment. A low ratio does not establish that a member is safe.</p>`;
+    const stressArticle = r?.stressUnavailable
+        ? `<article class="review-unavailable"><span class="eyebrow">ELASTIC STRESS</span><b>Not inferred for EI-only zones.</b><p>BeamLab knows the local flexural-rigidity multiplier but not whether it came from E, I or both. A local stress ratio would invent section properties.</p><small>Remove the EI zones or model verified local section geometry before using stress as a review quantity.</small></article>`
+        : `<article>${(0, common_1.field)('review:stressMPa', 'Elastic stress limit', m.review?.stressMPa ?? null, 'MPa', .001, 1e6)}<p>Calculated max |sigma|: <b>${r ? (0, common_1.fmt)(r.stress, 3) : '--'} MPa</b></p><small>${ratio(r?.stressRatio ?? null)}</small></article>`;
+    return `<header class="review-head"><span class="eyebrow">MANUAL LIMIT REVIEW</span><span class="tag warning">NOT DESIGN-CODE APPROVAL</span></header><h3>A comparison, not a certification.</h3><p>Enter project-specific limits independently. These ratios do not check buckling, lateral restraint, shear, yield class, plastic capacity, load factors or code compliance.</p><div class="review-grid"><article>${(0, common_1.field)('review:displacementMm', 'Displacement limit', m.review?.displacementMm ?? null, 'mm', .001, 1e6)}<p>Calculated max |v|: <b>${r ? (0, common_1.fmt)(r.displacement, 3) : '--'} mm</b></p><small>${ratio(r?.displacementRatio ?? null)}</small></article>${stressArticle}</div><p class="hint">Blank limits produce no assessment. A low ratio does not establish that a member is safe.</p>`;
 }
