@@ -41,13 +41,15 @@ function fromSnapshot(code) {
     return (0, study_1.parseStudy)(new TextDecoder().decode(Uint8Array.from(raw, c => c.charCodeAt(0))));
 }
 function resultsCsv(a) {
-    // Duplicate coordinates intentionally retain both sides of point/couple jumps.
-    const rows = ['x_m,side,shear_kN,moment_kNm,displacement_up_mm,rotation_CCW_rad,top_fibre_stress_MPa'];
-    a.elements.forEach((e, index) => {
+    // Duplicate coordinates intentionally retain both sides of point/couple and property jumps.
+    const rows = ['x_m,side,shear_kN,moment_kNm,displacement_up_mm,rotation_CCW_rad,local_section,local_EI_kNm2,top_fibre_stress_MPa'];
+    a.elements.forEach((e) => {
         const n = Math.max(12, Math.ceil((e.b - e.a) * 20));
         for (let i = 0; i <= n; i++) {
             const x = e.a + (e.b - e.a) * i / n, side = i === n ? 'left' : 'right', s = a.sample(x, side);
-            rows.push([x, i === 0 ? 'right' : i === n ? 'left' : 'interior', s.V, s.M, s.v * 1000, s.theta, -s.M * a.properties.c / a.properties.I / 1000].join(','));
+            const stress = Math.abs((s.stiffnessFactor ?? 1)-1) > 1e-12 ? '' : -s.M * (s.c ?? a.properties.c) / (s.I ?? a.properties.I) / 1000;
+            const section = JSON.stringify(String(s.sectionRegionLabel ? s.sectionRegionLabel + ' / ' + s.sectionLabel : s.sectionLabel || 'Base section'));
+            rows.push([x, i === 0 ? 'right' : i === n ? 'left' : 'interior', s.V, s.M, s.v * 1000, s.theta, section, s.localEI, stress].join(','));
         }
     });
     return rows.join('\n');
