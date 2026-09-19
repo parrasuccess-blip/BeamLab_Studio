@@ -13,6 +13,7 @@ const levels_1 = require("./levels");
 const challenges_1 = require("./challenges");
 const design_1 = require("./design");
 const design_workflow_1 = require("./design-workflow");
+const learning_evidence_1 = require("./learning-evidence");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -107,6 +108,30 @@ v.progressStorageAvailable = progressStorageAvailable;
 let masteryStats = {};
 try { masteryStats = JSON.parse(localStorage.getItem(storageKey + ':mastery') || '{}'); if (!masteryStats || typeof masteryStats !== 'object' || Array.isArray(masteryStats)) masteryStats = {}; } catch { masteryStats = {}; v.progressStorageAvailable = false; }
 v.masteryStats = masteryStats;
+let learningEvidenceEvents = [];
+try {
+    const savedEvidence = JSON.parse(localStorage.getItem(storageKey + ':learning-evidence') || '[]');
+    learningEvidenceEvents = Array.isArray(savedEvidence) ? savedEvidence.slice(-learning_evidence_1.MAX_EVENTS) : [];
+} catch { learningEvidenceEvents = []; }
+function saveLearningEvidence() {
+    try { localStorage.setItem(storageKey + ':learning-evidence', JSON.stringify(learningEvidenceEvents)); }
+    catch { /* Learning evidence remains session-only when storage is unavailable. */ }
+}
+function recordLearningEvidence(event) {
+    learningEvidenceEvents = (0, learning_evidence_1.appendEvent)(learningEvidenceEvents, event);
+    saveLearningEvidence();
+}
+function currentLearningEvidenceTask() {
+    const lesson = currentLesson(), challenge = currentChallenge();
+    const spec = lesson || challenge;
+    if (!spec) return null;
+    const kind = lesson ? 'lesson' : 'challenge';
+    return { kind, id:spec.id, title:spec.title, topic:(0, challenges_1.topicForTask)(kind, spec.id) };
+}
+function learningEvidenceSnapshot() {
+    return (0, learning_evidence_1.snapshot)(learningEvidenceEvents, masteryStats, currentLearningEvidenceTask());
+}
+if (typeof window !== 'undefined') window.BeamLabLearningEvidence = { snapshot: learningEvidenceSnapshot };
 let sessionLoading = false;
 let sessionClockHandle = null;
 // A new, untouched study follows the chosen learning level. The first real model edit freezes it.
@@ -426,7 +451,12 @@ function saveMasteryStats() {
 function recordMastery(kind, spec, correct, lockAfter = false) {
     if (!spec || v.taskMasteryLocked) return;
     const topic = (0, challenges_1.topicForTask)(kind, spec.id);
-    masteryStats[topic] = (0, challenges_1.updateMastery)(masteryStats[topic], !!correct, !v.taskAttempted);
+    const firstTry = !v.taskAttempted;
+    masteryStats[topic] = (0, challenges_1.updateMastery)(masteryStats[topic], !!correct, firstTry);
+    if (!v.session?.active) recordLearningEvidence({
+        event:'attempt', kind, taskId:spec.id, taskTitle:spec.title, topic,
+        correct:!!correct, firstTry, tries:firstTry ? 1 : 2, mode:'standalone'
+    });
     v.taskAttempted = true;
     if (correct || lockAfter) v.taskMasteryLocked = true;
     saveMasteryStats();
@@ -435,6 +465,7 @@ function recordReveal(kind, spec) {
     if (!spec) return;
     const topic = (0, challenges_1.topicForTask)(kind, spec.id), prev = masteryStats[topic] || {};
     masteryStats[topic] = { ...prev, reveals: (prev.reveals || 0) + 1, lastAt: Date.now() };
+    if (!v.session?.active) recordLearningEvidence({ event:'reveal', kind, taskId:spec.id, taskTitle:spec.title, topic, mode:'standalone' });
     saveMasteryStats();
 }
 function buildMasteryView(level = v.level) {
@@ -529,6 +560,13 @@ function sessionRecordAttempt(kind, spec, correct, answer, expected, extra = {})
     row.expected = expected || row.expected;
     Object.assign(row, extra);
     s.results[s.index] = row;
+    recordLearningEvidence({
+        event:'attempt', kind, taskId:spec.id, taskTitle:spec.title, topic:row.topic,
+        correct:!!correct, firstTry:row.tries === 1, tries:row.tries,
+        answer:answer || '', expected:expected || '',
+        method:extra?.sketchScore !== undefined ? 'sketch' : kind === 'lesson' ? v.lessonMethod : 'calculation',
+        mode:s.mode
+    });
     if (s.mode === 'exam' || correct) { row.locked = true; s.currentLocked = true; }
 }
 function sessionRecordReveal(kind, spec, expected) {
@@ -537,6 +575,7 @@ function sessionRecordReveal(kind, spec, expected) {
     let row = s.results[s.index];
     if (!row) row = {kind,id:spec.id,title:spec.title,topic:(0,challenges_1.topicForTask)(kind,spec.id),tries:0,firstCorrect:false,correct:false,skipped:false,revealed:true,answer:'Revealed without a correct answer',expected};
     row.revealed = true; row.expected = expected || row.expected; row.locked = true; s.results[s.index] = row; s.currentLocked = true;
+    recordLearningEvidence({ event:'reveal', kind, taskId:spec.id, taskTitle:spec.title, topic:row.topic, expected:row.expected || '', mode:s.mode });
 }
 function sessionSkipCurrent() {
     const s = v.session;
@@ -548,6 +587,7 @@ function sessionSkipCurrent() {
         else if (spec && analysis) expected = (0,common_1.fmt)((0,challenges_1.answerFor)(spec,analysis),4) + ' ' + spec.unit;
     } catch {}
     s.results[s.index] = {kind:task.kind,id:task.id,title:task.title,topic:task.topic,tries:0,firstCorrect:false,correct:false,skipped:true,revealed:false,answer:'Left blank',expected,locked:true};
+    recordLearningEvidence({ event:'skip', kind:task.kind, taskId:task.id, taskTitle:task.title, topic:task.topic, answer:'Left blank', expected, mode:s.mode });
     s.currentLocked = true;
     sessionAdvance();
 }
