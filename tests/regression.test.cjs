@@ -21,6 +21,7 @@ const learningEvidence = load('studio/learning-evidence');
 const learningPath = load('studio/learning-path');
 const adaptivePractice = load('studio/adaptive-practice');
 const sessionReview = load('studio/session-review');
+const learningTrajectory = load('studio/learning-trajectory');
 
 const near = (a,b,t=1e-8) => assert.ok(Math.abs(a-b) <= t * (1 + Math.abs(b)), `${a} != ${b}`);
 function centreLoad() {
@@ -281,4 +282,67 @@ test('CI uses Node 24 with current GitHub action runtimes', () => {
   assert.match(ci, /actions\/checkout@v5/);
   assert.match(ci, /actions\/setup-node@v5/);
   assert.match(ci, /node-version:\s*"24"/);
+});
+
+
+test('learning trajectory moves from unresolved to recovered to stable', () => {
+  const topic = 'Shear → moment';
+  let view = learningTrajectory.build([
+    {event:'attempt',topic,correct:false,firstTry:true,timestamp:1}
+  ], {}, 6);
+  assert.equal(view.rows[0].status, 'unresolved');
+
+  view = learningTrajectory.build([
+    {event:'attempt',topic,correct:false,firstTry:true,timestamp:1},
+    {event:'attempt',topic,correct:true,firstTry:false,timestamp:2}
+  ], {}, 6);
+  assert.equal(view.rows[0].status, 'recovered');
+
+  view = learningTrajectory.build([
+    {event:'attempt',topic,correct:false,firstTry:true,timestamp:1},
+    {event:'attempt',topic,correct:true,firstTry:false,timestamp:2},
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:3},
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:4}
+  ], {}, 6);
+  assert.equal(view.rows[0].status, 'stable');
+  assert.match(view.rows[0].explanation, /two newest checked attempts/i);
+});
+
+test('learning trajectory drops back to unresolved when newer evidence is unresolved', () => {
+  const topic = 'Reactions & equilibrium';
+  const view = learningTrajectory.build([
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:1},
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:2},
+    {event:'skip',topic,timestamp:3}
+  ], {}, 6);
+  assert.equal(view.rows[0].status, 'unresolved');
+  assert.equal(view.rows[0].markers.at(-1).label, 'Skipped');
+});
+
+test('learning trajectory stability is not inferred across an intervening difficulty', () => {
+  const topic = 'Deflection & stiffness';
+  const view = learningTrajectory.build([
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:1},
+    {event:'reveal',topic,timestamp:2},
+    {event:'attempt',topic,correct:true,firstTry:true,timestamp:3}
+  ], {}, 6);
+  assert.notEqual(view.rows[0].status, 'stable');
+  assert.equal(view.rows[0].status, 'recovered');
+});
+
+test('learning trajectory keeps a non-judgmental evidence boundary', () => {
+  const view = learningTrajectory.build([
+    {event:'attempt',topic:'Internal hinges',correct:false,firstTry:true,timestamp:1}
+  ], {}, 6);
+  assert.match(view.boundary, /not intelligence/i);
+  assert.match(view.boundary, /not.*grade/i);
+  assert.match(view.boundary, /not.*proof of a misconception/i);
+});
+
+test('Learn mastery UI exposes recent trajectory without gamification', () => {
+  assert.match(html, /RECENT LEARNING TRAJECTORY \/ LOCAL/);
+  assert.match(html, /unresolved → recovered → first-try stable/);
+  assert.match(html, /trajectory-mark/);
+  assert.match(html, /learningTrajectory/);
+  assert.doesNotMatch(html, /learning streak/i);
 });

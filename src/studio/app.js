@@ -16,6 +16,7 @@ const design_workflow_1 = require("./design-workflow");
 const learning_evidence_1 = require("./learning-evidence");
 const learning_path_1 = require("./learning-path");
 const adaptive_practice_1 = require("./adaptive-practice");
+const learning_trajectory_1 = require("./learning-trajectory");
 const working_1 = require("./working");
 const export_1 = require("./export");
 const verification = require('./verification');
@@ -392,6 +393,7 @@ function render() {
     $('#inspector').hidden = !v.inspector;
     v.masteryView = buildMasteryView(v.level);
     v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningEvidenceSnapshot(), lessonProgress, challengeProgress);
+    v.learningTrajectory = (0, learning_trajectory_1.build)(learningEvidenceEvents, masteryStats, 6);
     $('#controls').innerHTML = (0, panels_1.toolsPanel)(m, v);
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
