@@ -90,13 +90,9 @@
       panel.classList.add('bl-design-panel', cls);
       if (cls === 'bl-design-hero') heroPanel = panel;
     }
-    if (heroPanel && !workspace.querySelector('.bl-design-guide')) {
-      const guide = document.createElement('div');
-      guide.className = 'bl-design-guide';
-      guide.setAttribute('role', 'note');
-      guide.innerHTML = '<div><b>READ THIS PAGE IN ORDER</b><span>1 Analysis demand → 2 Enter criteria → 3 Compare ratios → 4 Review missing checks</span></div><strong>Screening review · not code approval</strong>';
-      heroPanel.insertAdjacentElement('afterend', guide);
-    }
+    // Design Studio now provides its own source-native guided workflow.
+    // This enhancer only applies readability classes and tutor context.
+
   };
   const schedule = () => {
     if (queued) return;
