@@ -6,7 +6,7 @@ Continues GitHub main `b6066bbe67dab54f9dae1692207084b4f072e75c`, including true
 
 ## Changes
 
-1. Build → Analyse → Learn → Review navigation with contextual controls, selected-object inspector, keyboard/touch inspection position and progressively disclosed study evidence.
+1. Build → Analyse → Learn → Review navigation with contextual controls, selected-object inspector, keyboard/touch inspection position and progressively disclosed study evidence. Phone model/analysis tools start collapsed, have a bounded scroll area, and close when an object is selected so the beam remains accessible.
 2. Fix Layers rendering of stepped-section stress controls.
 3. Correct moving point-load topology and element recovery to use actual local section/EI boundaries. Prescribed support movement belongs only to the optional static base, never each moving increment.
 4. Add prescribed rotation at fixed supports (mrad, CCW positive), validation, reaction/work accounting, warning, drawing, report and contextual explanation fields.
@@ -31,6 +31,8 @@ Continues GitHub main `b6066bbe67dab54f9dae1692207084b4f072e75c`, including true
 The initial 79-test current suite passed before edits. Restoring the original suites produced 1,226 passing checks before the new 4.1 tests. Final counts and browser evidence are recorded in GitHub Actions for the release commit, not inferred from this document.
 
 The browser suite checks the first-year reference, all four destinations, aligned diagrams, model preservation across levels/reload, invalid/no-op edits, an unstable model plus undo, stress exploration, rotation/review, progress export/import, session exit restoration, verification export and offline tutor behaviour. Every test fails on an uncaught application error. Four projects cover desktop Chromium, Firefox, mobile WebKit and a 360 px Chromium viewport. Screenshots support human visual review; automated checks alone do not establish usability or zero defects.
+
+The first browser run found a Firefox blur/click race: committing an input could replace the navigation button between pointer-down and click. Field commits now defer to the activated control's handler, with explicit pressed-control tests for both unchanged and edited values. Responsive checks also verify the phone tool panel and object-selection flow.
 
 Do not claim public deployment until the final public HTML hash/version matches the tested artifact. No diagnostic fallback is permitted if compilation or regressions fail.
 

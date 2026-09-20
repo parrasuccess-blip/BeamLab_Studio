@@ -2,12 +2,15 @@ import {test,expect} from '@playwright/test';
 import fs from 'node:fs/promises';
 
 const act=(page,name)=>page.locator(`[data-action="${name}"]`);
+async function showTools(page) {const toggle=page.locator('#mobile-tools button');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')==='false')await toggle.click();}
+async function hideMobileTools(page) {const toggle=page.locator('#mobile-tools button');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')==='true')await toggle.click();}
 async function open(page,level='year1') {
   await page.goto('/#workspace');
   await expect(page.locator('#graphs svg').first()).toBeVisible();
   const setup=act(page,`level-setup:${level}`);
   if(await setup.isVisible()) await setup.click();
   else await act(page,`level:${level}`).click();
+  await showTools(page);
 }
 async function flow(page,phase) {await page.locator('.workflow-nav').locator(`[data-action="workflow:${phase}"]`).click();}
 async function closeInspector(page) {const button=page.locator('#inspector [data-action="deselect"]');if(await button.isVisible())await button.click();else await page.keyboard.press('Escape');}
@@ -33,6 +36,7 @@ test('first-year reference, four destinations and aligned diagrams',async({page}
   await expect(page.locator('#metrics')).toContainText('30');
   for(const phase of ['build','analyse','learn','review']) {
     await flow(page,phase);
+    await hideMobileTools(page);
     await expect(page.locator('.workflow-nav [aria-current="step"]')).toContainText(phase==='analyse'?'Analyse':phase[0].toUpperCase()+phase.slice(1));
     await noOverflow(page);
     if(phase==='review') await expect(page.locator('.review-score')).toContainText('6/6');
@@ -85,12 +89,41 @@ test('unstable model reports a fault and undo restores the reference',async({pag
   await expect(page.locator('#metrics')).toContainText('30');
 });
 
+for(const value of ['6','8']) test(`numeric edit ${value} cannot remove a pressed navigation control`,async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill(value);
+  const button=act(page,'level:year2');await button.scrollIntoViewIfNeeded();
+  const handle=await button.elementHandle(),box=await button.boundingBox();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+  expect(await handle.evaluate(node=>node.isConnected)).toBe(true);
+  await page.mouse.up();
+  await expect(act(page,'level:year2')).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue(value==='6'?'10':'8');
+});
+
+test('responsive model tools leave the phone diagrams visible and close on object selection',async({page,isMobile})=>{
+  await page.goto('/#workspace');
+  const tools=page.locator('#controls'),toggle=page.locator('#mobile-tools button');
+  if(!isMobile){await expect(toggle).toBeHidden();await expect(tools).toBeVisible();return;}
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(tools).toBeHidden();
+  await expect(page.getByRole('img',{name:'Structure and loads',exact:true})).toBeVisible();
+  await toggle.click();await expect(tools).toBeVisible();
+  const height=await tools.evaluate(node=>node.getBoundingClientRect().height);
+  expect(height).toBeLessThanOrEqual(page.viewportSize().height*.6+1);
+  await tools.getByRole('button',{name:'Select P1',exact:true}).click();
+  await expect(tools).toBeHidden();await expect(page.getByLabel('Force',{exact:true})).toBeVisible();
+  await closeInspector(page);await noOverflow(page);
+});
+
 test('section fibre explorer responds to position, cut side and fibre selection',async({page})=>{
   await open(page,'all');
   await page.getByLabel('Example library',{exact:true}).selectOption('simple');
   await act(page,'tab:section').click();
   await page.getByLabel('Section geometry',{exact:true}).selectOption('rectangle');
   await flow(page,'analyse');
+  await showTools(page);
   await page.getByRole('switch',{name:'Bending stress',exact:true}).click();
   await expect(page.locator('#section-stress')).toBeVisible();
   await page.getByLabel('Inspection position in metres').fill('2');
@@ -113,6 +146,7 @@ test('fixed-support rotation is editable, auditable and preserved at a lower lev
   await flow(page,'review');await expect(page.locator('.review-score')).toContainText('6/6');
   await act(page,'level:year1').click();expect(await modelCopy(page)).toBe(rotated);
   await flow(page,'build');
+  await showTools(page);
   await page.locator('#controls').getByRole('button',{name:'Select A',exact:true}).click();
   await expect(page.locator('#inspector')).toContainText('Prescribed rotation active');
 });

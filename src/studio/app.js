@@ -348,6 +348,7 @@ function setWorkflow(target) {
     if (!next) { toast('Finish or close the learning session before changing workspace.'); return; }
     finishField();
     Object.assign(v, next);
+    if (matchMedia('(max-width:780px)').matches) v.controls = target === 'learn';
     if(target==='review') v.reviewDetail='overview';
     v.selected.clear();
     render();
@@ -433,6 +434,9 @@ function render() {
     renderLearningBar();
     renderWorkspaceModeBar();
     const designMode = v.workspaceMode === 'design';
+    const phase = workspace.phaseFor(v);
+    $('#mobile-tools').hidden = designMode || phase === 'learn';
+    $('#mobile-tools').innerHTML = `<button data-action="controls" aria-controls="controls" aria-expanded="${v.controls}"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><b>${v.controls?'Close tools ↑':'Open tools ↓'}</b></button>`;
     $('#workspace-grid').hidden = designMode;
     $('#design-studio').hidden = !designMode;
     document.querySelector('.workspace-foot')?.classList.toggle('design-active', designMode);
@@ -456,7 +460,7 @@ function render() {
         challengeProgress,
         masteryStats
     );
-    $('#controls').innerHTML = (0, panels_1.toolsPanel)(m, v);
+    $('#controls').innerHTML = `<div class="mobile-tools-close"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><button data-action="controls">Done with tools</button></div>` + (0, panels_1.toolsPanel)(m, v);
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
     $('#inspector').classList.toggle('has-selection', v.selected.size > 0);
@@ -1127,9 +1131,10 @@ function add(kind, x = history.model.length / 2, preset) {
     }
     v.selected = new Set([o.id]);
     v.inspector = true;
+    if (matchMedia('(max-width:780px)').matches) v.controls = false;
     commit({ ...m, items: [...m.items, o] }, 'Add ' + examples_1.titles[kind]);
 }
-function selectObject(id, add = false) { finishField(); if (add) {
+function selectObject(id, add = false) { finishField(); if (matchMedia('(max-width:780px)').matches && workspace.phaseFor(v)!=='learn') v.controls = false; if (add) {
     if (v.selected.has(id))
         v.selected.delete(id);
     else
@@ -2403,6 +2408,7 @@ function updateFocusControl() {
 }
 
 function bootstrap() {
+    if (matchMedia('(max-width:780px)').matches) v.controls = false;
     window.addEventListener('beamlab:tutor-status',()=>{if($('#dialog-title')?.textContent==='Ask BeamLab' && $('#dialog')?.classList.contains('open')) renderTutorDialog();});
     $('#app').innerHTML = `
   <a class="skip-link" href="#workspace">Skip to workspace</a><div class="progress-line" id="scroll-progress"></div>
@@ -2410,7 +2416,7 @@ function bootstrap() {
   <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><a class="hero-cta" href="#workspace">Open BeamLab ${(0, common_1.icon)('right', 16)}</a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}<span class="hero-detail">No sign-in. No opaque answers. Analyse first, then carry verified demand into Design Studio.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
   <section class="transition-copy"><span class="eyebrow">ONE CONNECTED SYSTEM</span><h2>Analyse the behaviour.<br><span>Then review the design context.</span></h2><p>Start with first-year statics. Let BeamLab reveal deeper analysis as you progress, then move into a separate Design Studio without changing the underlying solver.</p></section>
   <main id="workspace" tabindex="-1"><div id="learning-bar" class="learning-bar"></div><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div id="workflow-context"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
-  <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><div id="trace-position"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
+  <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="mobile-tools" class="mobile-tools"></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><div id="trace-position"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
   <div class="workspace-foot"><span>Same model. Different depth.</span><button data-action="history" id="history-count" class="text-button">0 edits</button><span>Analysis + transparent design screening / not structural design approval</span></div></main>
   <footer class="site-footer"><a class="brand" href="#home"><span>B</span><b>BeamLab</b></a><p>Build understanding before building structures.</p><small>Studio 4.1 / analysis + design-context preview. Your model and design inputs stay in your browser unless you export or share them.</small></footer>
   <input id="progress-file" type="file" accept=".json,application/json" aria-label="Import learning progress" hidden><input id="model-file" type="file" accept=".json,application/json" aria-label="Import BeamLab model JSON" hidden><div id="toast" class="toast" role="status"></div><div id="inline-edit" class="inline-edit"></div><div id="drag-ghost" class="drag-ghost" hidden></div><div id="marquee" class="marquee" hidden></div>
@@ -2468,9 +2474,14 @@ function bootstrap() {
         updateTrace();
     } });
     document.addEventListener('focusout', e => { const el = e.target; if (el instanceof HTMLInputElement && el.dataset.field) {
+        // A pointer press focuses its target before click. Replacing that target
+        // here cancels the click in Firefox. The destination's action/input
+        // handler commits this transaction before using the model instead.
+        if (e.relatedTarget instanceof Element && e.relatedTarget.closest('button,a,input,select,textarea,[data-object]')) return;
         setTimeout(() => { if (fieldTransaction?.input === el)
             finishField(); }, 0);
     } });
+    window.addEventListener('pagehide', () => { finishField(); save(); });
     document.addEventListener('change', e => { const el = e.target; if(el.id==='progress-file'){void previewLearningImport(el.files?.[0]);return;} if(el instanceof HTMLInputElement && el.dataset.range==='fibre'){v.fibre=Number(el.value);$('#section-stress').innerHTML=sectionLab.render(history.model,analysis,v.trace ?? analysis?.peakM.x ?? 0,v.fibre,v.sectionSide);$('#fibre-slider')?.focus({preventScroll:true});return;} if (el instanceof HTMLSelectElement && el.dataset.select)
         selectChanged(el); if (el instanceof HTMLInputElement && el.dataset.text)
         textChanged(el); if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)
