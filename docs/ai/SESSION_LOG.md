@@ -136,3 +136,16 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Production independently verified unchanged at 4.1.0 / 716,078-byte HTML / `40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72`; public homepage still says Open BeamLab, not Build / Explore.
 - Audit recommendation for Account B's original checkpoint: **B — fix the branch before merge**. The broader notation/diagram-label/Show Why work remains separate and unfinished. Phone lesson pages still have extensive secondary settings beneath the task.
 - Crash-safe practice: PR status updated during audit; coherent implementation and this record must be pushed before new long-running browser validation. Append actual outcomes after checks finish. Do not infer a credits warning will arrive.
+
+---
+
+## 2026-09-20 — Account B — Return audit and numeric-edit history recovery
+
+**STATUS: audit complete / repair starting / not merged or deployed**
+
+- Active account: Account B. Starting commit: `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`. Remote feature branch: `feature/direct-explore-learning-navigation`; existing draft PR #16. Main remains `08cf047d819c6b3563de95727ceea3e9b86fd7e3`.
+- Re-fetched GitHub, read every shared AI document and Account A's post-B entry, inspected actual recovery/source/test diffs, PRs, branch refs and exact-head CI. Account A added only `1cf371d` after `799fae5`, with no merge or subsequent pushed feature work. Stale local working changes remain isolated and are not incorporated.
+- Fresh `npm ci`, `npm run build`, `npm test` pass in clean checkouts: main 1,255 checks; recovery branch 1,258; zero failed/skipped. Main CI run 35497041924 has 56 passing browser checks. Recovery PR run 35506822163 and push run 35506820228 each have 84 passed / 4 failed out of 88. Downloaded and inspected browser screenshots/failure context; all twelve explicit-opening checks pass.
+- Reproduced the existing Undo defect directly on production: edit length 6 -> 8 -> 9 using Tab; diagrams change but Undo remains disabled and edit count remains zero. Returned the audit model to 6 m. Source focusout handling intentionally defers transactions to protect Firefox pointer clicks, but keyboard focus movement to the example selector never completes the edit.
+- Public production HTML matches main's deterministic build (`40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72`, 716,078 bytes), and tutor health reports unconfigured. Account B could not access the protected feature preview; no preview access or release is claimed.
+- User received the read-only return audit and approved fixing numeric-edit history, completing validation, merging when coherent and verifying production. Preserve Account A's model-opening fixes, optional Learn entry, model/progress separation and the unchanged solver/tolerances. Record this starting checkpoint before implementation and append results progressively.
