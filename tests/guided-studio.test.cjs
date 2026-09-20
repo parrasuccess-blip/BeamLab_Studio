@@ -177,6 +177,39 @@ test('active learning and review sessions cannot be abandoned by navigation',()=
   assert.ok(workflow.transition({session:{active:true}},'learn'));
 });
 
+test('engineering workflow offers review directly and marks learning optional',()=>{
+  const v={level:'all',tab:'layers',workspaceMode:'analysis'};
+  assert.match(workflow.renderContext(v,true),/workflow:review/);
+  assert.doesNotMatch(workflow.renderContext(v,true),/data-action="workflow:learn"/);
+  const nav=workflow.renderNavigation(v);
+  assert.match(nav,/Build \/ Explore/);assert.match(nav,/Optional lessons/);
+  assert.doesNotMatch(nav,/workflow-number/);
+});
+
+test('activity navigation follows catalogue order without changing completion or evidence',()=>{
+  const list=[{id:'first'},{id:'middle'},{id:'last'}],before=JSON.stringify(list);
+  assert.deepEqual(plain(workflow.activityPosition(list,'first')),{index:0,total:3,previous:null,next:'middle'});
+  assert.deepEqual(plain(workflow.activityPosition(list,'middle')),{index:1,total:3,previous:'first',next:'last'});
+  assert.deepEqual(plain(workflow.activityPosition(list,'last')),{index:2,total:3,previous:'middle',next:null});
+  assert.equal(workflow.renderActivityNavigation(list,'unknown','lesson'),'');
+  assert.equal(workflow.renderActivityNavigation(list,'first','unknown'),'');
+  assert.match(workflow.renderActivityNavigation(list,'middle','lesson'),/2 of 3/);
+  assert.match(workflow.renderActivityNavigation(list,'middle','challenge'),/All challenges/);
+  assert.equal(JSON.stringify(list),before);
+});
+
+test('standalone lessons focus the active task and retain a route to the full catalogue',()=>{
+  const m=normalise(example('simple')),lesson=listLessons('year1')[0];
+  const v={level:'year1',tab:'learn',workspaceMode:'analysis',selected:new Set(),learnSection:'lessons',lessonId:lesson.id,standaloneLearning:true};
+  const content=toolsPanel(m,v);
+  assert.match(content,/Temporary learning example/);assert.match(content,/Return to my model/);
+  assert.match(content,/aria-label="Lesson navigation"/);
+  assert.doesNotMatch(content,/<div class="lesson-list">/);
+  const catalogue=toolsPanel(m,{...v,lessonId:null,standaloneLearning:false});
+  assert.match(catalogue,/<div class="lesson-list">/);
+  assert.doesNotMatch(catalogue,/Temporary learning example/);
+});
+
 test('portable progress round-trips known activities and excludes models, levels and sessions',()=>{
   const lesson=listLessons('year1')[0],topic=topicForTask('lesson',lesson.id);
   const state=transfer.create({[lesson.id]:true},{},{[topic]:{attempts:2,firstAttempts:1,firstCorrect:0,correct:1,reveals:0,lastAt:100}},[]);

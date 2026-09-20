@@ -2,8 +2,9 @@
 
 ## Current state
 
-**Last active account:** Account A  
-**Current branch:** `main`  
+**Last active account:** Account B  
+**Current branch:** `feature/direct-explore-learning-navigation` (implementation / validation in progress)  
+**Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`  
 **Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`  
 **Repository version at baseline:** 4.1.0  
 **Production URL:** https://beam-lab-studio.vercel.app/  
@@ -23,7 +24,7 @@ This is the BeamLab Studio 4.1 release commit.
 
 ### Account B
 
-No development checkpoint has been established yet.
+Recovery audit completed: there were no engineering commits after the AI-documentation setup commit. The initial handoff accurately described repository state. Account B has begun the user-approved direct-entry / learning-navigation update on the feature branch above; see the appended session log. Do not treat this work-in-progress checkpoint as deployed.
 
 When Account B first takes over, it should treat the current repository HEAD as its initial observed checkpoint after reading all files in `docs/ai/`.
 

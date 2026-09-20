@@ -9,7 +9,11 @@ async function open(page,level='year1') {
   await expect(page.locator('#graphs svg').first()).toBeVisible();
   const setup=act(page,`level-setup:${level}`);
   if(await setup.isVisible()) await setup.click();
-  else await act(page,`level:${level}`).click();
+  else {
+    const preferences=act(page,'level-preferences');
+    if(await preferences.isVisible()&&await preferences.getAttribute('aria-expanded')==='false')await preferences.click();
+    await act(page,`level:${level}`).click();
+  }
   await showTools(page);
 }
 async function flow(page,phase) {await page.locator('.workflow-nav').locator(`[data-action="workflow:${phase}"]`).click();}
@@ -30,6 +34,85 @@ test.beforeEach(async({page})=>{
 });
 test.afterEach(async({page})=>{expect(page.__beamErrors,'uncaught application errors').toEqual([]);});
 
+test('homepage opens full engineering tools without a learning gate',async({page},testInfo)=>{
+  await page.goto('/');
+  const primary=page.locator('.hero-cta');
+  await expect(primary).toContainText('Build / Explore');
+  await primary.focus();await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Build / Explore');
+  await expect(page.locator('#level-options')).toBeHidden();
+  await expect(page.locator('#learning-bar')).toContainText('All Tools');
+  await showTools(page);
+  await expect(act(page,'tab:cases')).toBeVisible();await expect(act(page,'tab:section')).toBeVisible();
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await expect(page.locator('#metrics')).toContainText('30');
+  await hideMobileTools(page);await noOverflow(page);
+  await page.screenshot({path:testInfo.outputPath('direct-explore.png'),fullPage:true});
+  await flow(page,'analyse');
+  await expect(page.locator('#workflow-context [data-action="workflow:review"]')).toBeVisible();
+  await expect(page.locator('#workflow-context [data-action="workflow:learn"]')).toHaveCount(0);
+});
+
+test('guided entry is optional and direct engineering entry preserves an edited beam',async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const original=await modelCopy(page);
+  await page.locator('.hero-learn').click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Learn');
+  await act(page,'level:year2').click();expect(await modelCopy(page)).toBe(original);
+  await page.locator('.launch').click();
+  await expect(page.locator('#learning-bar')).toContainText('All Tools');
+  expect(await modelCopy(page)).toBe(original);
+  await page.reload();expect(await modelCopy(page)).toBe(original);
+});
+
+test('individual lessons have ordered navigation and restore model and undo history',async({page},testInfo)=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const original=await modelCopy(page),history=await page.locator('#history-count').textContent();
+  const saved=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'));
+  await flow(page,'learn');await page.locator('.lesson-list button').first().click();
+  await expect(page.locator('.learning-model-notice')).toContainText('preserved');
+  const nav=page.getByRole('navigation',{name:'Lesson navigation',exact:true});
+  await expect(nav.getByRole('button',{name:'Previous',exact:true})).toBeDisabled();
+  await nav.getByRole('button',{name:'Next',exact:true}).click();await expect(nav).toContainText('2 of');
+  await nav.getByRole('button',{name:'Previous',exact:true}).click();await expect(nav).toContainText('1 of');
+  await noOverflow(page);await page.screenshot({path:testInfo.outputPath('focused-lesson.png'),fullPage:true});
+  expect(await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'))).toBe(saved);
+  await nav.getByRole('button',{name:'All lessons',exact:false}).click();
+  await expect(page.locator('.lesson-list')).toBeVisible();expect(await modelCopy(page)).toBe(original);
+  await page.locator('.lesson-list button').first().click();
+  await flow(page,'build');expect(await modelCopy(page)).toBe(original);
+  await expect(page.locator('#history-count')).toHaveText(history);
+  await act(page,'undo').click();await showTools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+});
+
+test('challenge examples do not overwrite the browser model and reload preserves learning evidence',async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const original=await modelCopy(page),saved=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'));
+  await flow(page,'learn');await act(page,'learn-section:challenges').click();
+  await page.locator('.challenge-list button').first().click();await act(page,'challenge-reveal').click();
+  await expect(page.locator('.challenge-feedback')).toContainText('Reference answer');
+  expect(await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'))).toBe(saved);
+  const evidence=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2:learning-evidence'));
+  expect(JSON.parse(evidence).some(e=>e.event==='reveal')).toBe(true);
+  await page.reload();expect(await modelCopy(page)).toBe(original);
+  expect(await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2:learning-evidence'))).toBe(evidence);
+});
+
+test('starting full practice from a standalone lesson still restores the original engineering model',async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const original=await modelCopy(page);
+  await flow(page,'learn');await page.locator('.lesson-list button').first().click();
+  await act(page,'learn-section:session').click();await act(page,'session-start:practice').click();
+  await act(page,'session-exit').click();await act(page,'session-exit-confirm').click();
+  expect(await modelCopy(page)).toBe(original);
+});
+
 test('first-year reference, four destinations and aligned diagrams',async({page},testInfo)=>{
   await open(page);
   await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
@@ -37,7 +120,7 @@ test('first-year reference, four destinations and aligned diagrams',async({page}
   for(const phase of ['build','analyse','learn','review']) {
     await flow(page,phase);
     await hideMobileTools(page);
-    await expect(page.locator('.workflow-nav [aria-current="step"]')).toContainText(phase==='analyse'?'Analyse':phase[0].toUpperCase()+phase.slice(1));
+    await expect(page.locator('.workflow-nav [aria-current]')).toContainText(phase==='analyse'?'Analyse':phase[0].toUpperCase()+phase.slice(1));
     await noOverflow(page);
     if(phase==='review') await expect(page.locator('.review-score')).toContainText('6/6');
     else await expect(page.locator('#graphs svg').first()).toBeVisible();
@@ -172,7 +255,7 @@ test('session navigation is guarded and exiting restores the edited beam',async(
   await flow(page,'learn');await act(page,'learn-section:session').click();
   await act(page,'session-start:practice').click();
   await flow(page,'build');
-  await expect(page.locator('.workflow-nav [aria-current="step"]')).toContainText('Learn');
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Learn');
   await act(page,'session-exit').click();await act(page,'session-exit-confirm').click();
   expect(await modelCopy(page)).toBe(original);
 });

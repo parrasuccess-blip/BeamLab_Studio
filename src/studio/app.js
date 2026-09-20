@@ -66,7 +66,8 @@ try {
     learningConfigured = !!learningSaved?.level || existingStudioState;
 }
 catch { existingStudioState = false; learningConfigured = false; learningSaved = null; }
-const v = { fibre:0, sectionSide:'right', reviewDetail:'overview', workspaceMode: 'analysis', tab: 'build', level: learningSaved?.level || (existingStudioState ? 'all' : 'year1'), teachMe: learningSaved?.teachMe !== false, advanced: false, annotations: true, annotationMode: 'guided', deformation: false, stress: false, shear: false, moving: false, teaching: false, practice: false, practiceStep: 0, learnSection: 'lessons', lessonId: null, lessonChoice: null, lessonFeedback: null, lessonMethod: 'choice', lessonSketch: [], lessonSketchResult: null, lessonSketchReference: false, lessonSketchReferencePoints: [], challengeId: null, challengeFeedback: null, masteryView: [], session: null, taskAttempted: false, taskMasteryLocked: false, review: false, selected: new Set(), controls: true, inspector: true, snap: .1, zoom: 1, pan: 0, step: 0, working: false, trace: null, pinned: false, currentCase: history.model.cases[0].id };
+const v = { fibre:0, sectionSide:'right', reviewDetail:'overview', workspaceMode: 'analysis', tab: 'build', level: learningSaved?.level || 'all', levelPreferencesOpen:false, standaloneLearning:false, teachMe: learningSaved?.teachMe !== false, advanced: false, annotations: true, annotationMode: 'guided', deformation: false, stress: false, shear: false, moving: false, teaching: false, practice: false, practiceStep: 0, learnSection: 'lessons', lessonId: null, lessonChoice: null, lessonFeedback: null, lessonMethod: 'choice', lessonSketch: [], lessonSketchResult: null, lessonSketchReference: false, lessonSketchReferencePoints: [], challengeId: null, challengeFeedback: null, masteryView: [], session: null, taskAttempted: false, taskMasteryLocked: false, review: false, selected: new Set(), controls: true, inspector: true, snap: .1, zoom: 1, pan: 0, step: 0, working: false, trace: null, pinned: false, currentCase: history.model.cases[0].id };
+let standaloneOrigin = null;
 try {
     const saved = JSON.parse(localStorage.getItem(storageKey + ':view') || '{}');
     for (const k of ['deformation', 'stress', 'shear', 'teaching', 'annotations', 'practice'])
@@ -77,7 +78,7 @@ try {
     v.annotations = v.annotationMode !== 'clean';
 }
 catch { /* Model export remains available when storage is disabled. */ }
-if (!levels_1.modes[v.level]) v.level = 'year1';
+if (!levels_1.modes[v.level]) v.level = 'all';
 if (!(0, levels_1.allowedTabs)(v.level).includes(v.tab)) v.tab = 'build';
 let analysis = null, error = '', compareModel = null, comparison = null;
 let width = 760, layout, toastTimer;
@@ -177,12 +178,12 @@ function clearGuidedStudyBlockResume() {
 let levelStarterActive = !existingStudioState;
 try { if (localStorage.getItem(storageKey + ':starter-follow') === '1') levelStarterActive = true; } catch { /* session-only starter is fine */ }
 function starterModelForLevel(id) {
-    const key = (0, levels_1.recommendedExample)(id);
+    const key = id === 'all' ? 'reference' : (0, levels_1.recommendedExample)(id);
     const m = key === 'reference' ? referenceExample() : (0, study_1.normalise)((0, examples_1.example)(key));
     if (id === 'year1') m.name = 'First-year bridge / centre point load';
     if (id === 'year2') m.name = 'Second-year continuous beam';
     if (id === 'year3') m.name = 'Third-year suspended-span study';
-    if (id === 'all') m.name = 'Full-workspace overhang study';
+    if (id === 'all') m.name = 'My beam / centre point load';
     return m;
 }
 function installLevelStarter(id) {
@@ -240,6 +241,7 @@ function solve() {
 }
 function save() {
     if (demoSession) { $('#save-label').textContent = 'Demo / your original study is preserved'; return; }
+    if (standaloneOrigin) { $('#save-label').textContent = 'Learning example / your model is preserved'; return; }
     if (v.session?.active || v.session?.review) { $('#save-label').textContent = 'Practice session / original study preserved'; return; }
     try {
         (0, study_1.validateStudy)(history.model);
@@ -265,12 +267,15 @@ function renderLearningBar() {
     const root = $('#learning-bar');
     if (!root) return;
     const current = (0, levels_1.mode)(v.level);
-    root.innerHTML = `<div class="level-context"><span>LEARNING LEVEL</span><b>${(0, common_1.esc)(current.short)} / ${(0, common_1.esc)(current.title)}</b><small>${(0, common_1.esc)(current.subtitle)}${levelStarterActive ? ' · starter follows level until you edit' : ''}</small></div><div class="level-switch" role="group" aria-label="Learning level">${levels_1.modeOrder.map(id => { const m = (0, levels_1.mode)(id); return `<button data-action="level:${id}" class="${v.level === id ? 'active' : ''}" aria-pressed="${v.level === id}"><span>${(0, common_1.esc)(m.short)}</span><small>${(0, common_1.esc)(m.title)}</small></button>`; }).join('')}</div>${(0, common_1.button)('curriculum', (0, common_1.icon)('help', 14), 'icon-button level-help', false, 'How the learning levels were chosen')}`;
+    const learning = workspace.phaseFor(v) === 'learn', expanded = learning || v.levelPreferencesOpen;
+    root.classList.toggle('compact', !expanded);
+    root.innerHTML = `<div class="level-context"><span>${learning ? 'LEARNING LEVEL' : 'TOOL VISIBILITY'}</span><b>${(0, common_1.esc)(current.short)}${learning ? ' / ' + (0, common_1.esc)(current.title) : ''}</b><small>${learning ? (0, common_1.esc)(current.subtitle) : v.level === 'all' ? 'Start building. Learning is optional.' : 'Simplified controls; advanced properties stay active.'}${expanded && levelStarterActive ? ' · untouched starter follows your selected level' : ''}</small></div>${learning ? '' : `<button type="button" data-action="level-preferences" class="secondary" aria-expanded="${expanded}" aria-controls="level-options">${expanded ? 'Hide preferences' : 'Choose visible tools'}</button>`}<div id="level-options" class="level-options" ${expanded ? '' : 'hidden'}><div class="level-switch" role="group" aria-label="Learning level">${levels_1.modeOrder.map(id => { const m = (0, levels_1.mode)(id); return `<button data-action="level:${id}" class="${v.level === id ? 'active' : ''}" aria-pressed="${v.level === id}" ${v.session?.active || v.session?.review ? 'disabled' : ''}><span>${(0, common_1.esc)(m.short)}</span><small>${(0, common_1.esc)(m.title)}</small></button>`; }).join('')}</div>${(0, common_1.button)('curriculum', (0, common_1.icon)('help', 14), 'icon-button level-help', false, 'How the learning levels were chosen')}</div>`;
 }
 function setLearningMode(id, fromSetup = false) {
     if (v.session?.active || v.session?.review) { toast('Finish or close the learning session before changing level.'); return; }
     if (!levels_1.modes[id]) return;
     finishField();
+    endStandaloneLearning();
     const previous = v.level;
     v.level = id;
     v.advanced = false;
@@ -347,11 +352,29 @@ function setWorkflow(target) {
     const next = workspace.transition(v, target);
     if (!next) { toast('Finish or close the learning session before changing workspace.'); return; }
     finishField();
+    if (target !== 'learn') endStandaloneLearning();
     Object.assign(v, next);
     if (matchMedia('(max-width:780px)').matches) v.controls = target === 'learn';
     if(target==='review') v.reviewDetail='overview';
     v.selected.clear();
     render();
+    save();
+}
+function enterWorkspace(target) {
+    if (v.session?.active || v.session?.review) { setWorkflow(target); return; }
+    finishField();
+    if (target === 'build') {
+        endStandaloneLearning();
+        // Direct entry reveals every tool, without installing a level's example.
+        levelStarterActive = false;
+        v.level = 'all';
+        v.practice = false;
+        saveLearning();
+    }
+    setWorkflow(target);
+    window.history.replaceState(null, '', '#workspace');
+    $('#workspace').focus({preventScroll:true});
+    $('#workspace').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
 }
 function designNumberField(key,label,value,unit,min,max,placeholder='') {
     const val = value === null || value === undefined ? '' : String(value);
@@ -406,6 +429,8 @@ function renderDesignStudio() {
 function setWorkspaceMode(mode) {
     if (!['analysis','design'].includes(mode)) return;
     if ((v.session?.active || v.session?.review) && mode === 'design') { toast('Finish or close the learning session before opening Design Studio.'); return; }
+    finishField();
+    endStandaloneLearning();
     v.workspaceMode = mode;
     render();
     $('#workspace').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
@@ -493,6 +518,9 @@ function saveChallengeProgress() {
 function startChallenge(id) {
     const spec = (0, challenges_1.getChallenge)(id);
     if (!spec) { toast('Challenge not found.'); return; }
+    beginStandaloneLearning();
+    v.lessonId = null; v.lessonChoice = null; v.lessonFeedback = null;
+    v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     v.tab = 'learn';
     loadExample(spec.example);
     v.challengeId = spec.id;
@@ -502,7 +530,7 @@ function startChallenge(id) {
     v.practice = true;
     v.practiceStep = 0;
     solve(); render(); save();
-    $('#controls').scrollTo?.({ top: $('#controls').scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    focusLearningActivity();
 }
 function currentChallenge() { return v.challengeId ? (0, challenges_1.getChallenge)(v.challengeId) : null; }
 function saveLessonProgress() {
@@ -512,6 +540,7 @@ function saveLessonProgress() {
 function startLesson(id) {
     const spec = (0, challenges_1.getLesson)(id);
     if (!spec) { toast('Lesson not found.'); return; }
+    beginStandaloneLearning();
     v.tab = 'learn';
     loadExample(spec.example);
     v.challengeId = null; v.challengeFeedback = null;
@@ -523,7 +552,37 @@ function startLesson(id) {
     v.practice = true;
     v.practiceStep = Math.max(0, (spec.revealStep || 2) - 1);
     solve(); render(); save();
-    $('#controls').scrollTo?.({ top: $('#controls').scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    focusLearningActivity();
+}
+function beginStandaloneLearning() {
+    if (sessionLoading || v.session?.active || v.session?.review || standaloneOrigin) return;
+    finishField();
+    save();
+    standaloneOrigin = captureSessionOrigin();
+    v.standaloneLearning = true;
+}
+function endStandaloneLearning() {
+    if (!standaloneOrigin) return false;
+    finishField();
+    const origin = standaloneOrigin;
+    const preferences = {level:v.level, teachMe:v.teachMe, learnSection:v.learnSection};
+    standaloneOrigin = null;
+    v.standaloneLearning = false;
+    applySessionOrigin(origin);
+    Object.assign(v, preferences);
+    v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
+    v.lessonModelReference = null; v.challengeModelReference = null;
+    v.lessonChoice = null; v.lessonSketch = []; v.lessonSketchResult = null;
+    v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
+    return true;
+}
+function focusLearningActivity() {
+    if (sessionLoading) return;
+    const activity = $('#controls .activity-navigation') || $('#controls .lesson-active') || $('#controls .challenge-active');
+    if (!activity) return;
+    activity.setAttribute('tabindex', '-1');
+    activity.focus({preventScroll:true});
+    activity.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
 }
 function currentLesson() { return v.lessonId ? (0, challenges_1.getLesson)(v.lessonId) : null; }
 function saveMasteryStats() {
@@ -579,7 +638,7 @@ function buildMasteryView(level = v.level) {
     }).sort((a,b) => (a.score ?? 50) - (b.score ?? 50) || a.attempts - b.attempts || a.topic.localeCompare(b.topic));
 }
 function captureSessionOrigin() {
-    const viewKeys = ['tab','level','teachMe','advanced','annotations','annotationMode','deformation','stress','shear','moving','teaching','practice','practiceStep','learnSection','controls','inspector','snap','zoom','pan','step','working','trace','pinned','currentCase','review'];
+    const viewKeys = ['workspaceMode','reviewDetail','tab','level','teachMe','advanced','annotations','annotationMode','deformation','stress','shear','moving','teaching','practice','practiceStep','learnSection','controls','inspector','snap','zoom','pan','step','working','trace','pinned','currentCase','review'];
     const view = Object.fromEntries(viewKeys.map(k => [k, v[k]]));
     view.selected = [...v.selected];
     return {
@@ -642,6 +701,7 @@ function resumeGuidedStudyBlock() {
         if (!saved) clearGuidedStudyBlockResume();
         return;
     }
+    endStandaloneLearning();
     if (!applySessionOrigin(saved.session.origin)) {
         clearGuidedStudyBlockResume();
         toast('The saved study block could not restore its original study.');
@@ -701,6 +761,7 @@ function resumeGuidedStudyBlock() {
 }
 function startLearningSession(mode) {
     if (v.session?.active || v.session?.review) return;
+    endStandaloneLearning();
     const sessionMode = mode === 'exam' ? 'exam' : mode === 'plan' ? 'plan' : 'practice';
     let queue = [], focusTarget = 0, mixedTarget = 0, phaseTotal = 0, initialTrajectory = null, studyPlanRationale = '';
     if (sessionMode === 'plan') {
@@ -1431,6 +1492,16 @@ async function action(key, el) {
     if (name === 'privacy') {privacyDialog();return;}
     if (name === 'issue-report') {issueReport();return;}
     if (name === 'workflow') { setWorkflow(id); return; }
+    if (name === 'level-preferences') { v.levelPreferencesOpen = !v.levelPreferencesOpen; renderLearningBar(); return; }
+    if (name === 'learning-library') {
+        if (v.session?.active || v.session?.review) return;
+        endStandaloneLearning();
+        v.tab = 'learn'; v.controls = true;
+        render(); save();
+        const first = $('#controls .lesson-list button') || $('#controls .challenge-list button');
+        first?.focus();
+        return;
+    }
     if (name === 'workspace-mode') { setWorkspaceMode(id); return; }
     if (name === 'design-step') { setDesignStep(id); return; }
     if (name === 'design-next') { setDesignStep(designStep + 1); return; }
@@ -1446,7 +1517,8 @@ async function action(key, el) {
     if (name === 'learn-section') {
         if (!['lessons','challenges','session'].includes(id)) return;
         if ((v.session?.active || v.session?.review) && id !== 'session') { toast('Finish or close the current learning session first.'); return; }
-        v.learnSection = id; render(); return;
+        if (id !== v.learnSection) endStandaloneLearning();
+        v.learnSection = id; render(); save(); return;
     }
     if (name === 'session-start') { startLearningSession(id); return; }
     if (name === 'study-block-resume') { resumeGuidedStudyBlock(); return; }
@@ -1611,6 +1683,7 @@ async function action(key, el) {
     if (name === 'tab') {
         if ((v.session?.active || v.session?.review) && id !== 'learn') { toast('Finish or close the learning session before leaving Learn.'); return; }
         if (!(0, levels_1.allowedTabs)(v.level).includes(id)) return;
+        if (id !== 'learn') endStandaloneLearning();
         v.tab = id;
         render();
         return;
@@ -2289,6 +2362,7 @@ const demoSteps = [
     ['Look inside the section.', 'A rectangular section shows a parabolic transverse-shear profile. Move across the beam to connect changing shear force to the stresses through its depth. No new capacity claim is implied.']
 ];
 function startDemo() {
+    endStandaloneLearning();
     finishField();
     if (!demoSession) demoSession = {
         model: (0, study_1.clone)(history.model), view: {...v, selected: new Set(v.selected)},
@@ -2424,10 +2498,10 @@ function bootstrap() {
     window.addEventListener('beamlab:tutor-status',()=>{if($('#dialog-title')?.textContent==='Ask BeamLab' && $('#dialog')?.classList.contains('open')) renderTutorDialog();});
     $('#app').innerHTML = `
   <a class="skip-link" href="#workspace">Skip to workspace</a><div class="progress-line" id="scroll-progress"></div>
-  <header class="topbar"><a class="brand" href="#home"><span>B</span><b>BeamLab</b><em>STUDIO 4.1</em></a><nav><a href="#home">Home</a><a href="#workspace">Workspace</a>${(0, common_1.button)('method', 'Method & scope', 'text-button')}</nav><div class="header-actions">${(0, common_1.button)('share', (0, common_1.icon)('share', 15) + '<span>Share</span>', 'share-button')}<div class="export-wrap">${(0, common_1.button)('export-menu', (0, common_1.icon)('download', 15) + '<span>Export</span>' + (0, common_1.icon)('down', 12), 'export-button')}<div id="export-menu" class="export-menu" hidden>${['json', 'svg', 'png', 'csv', 'pdf'].map(k => (0, common_1.button)('export:' + k, ({ json: 'Save model JSON', svg: 'Vector diagram SVG', png: 'Annotated PNG', csv: 'Results CSV', pdf: 'Calculation report PDF' })[k], '')).join('')}${(0, common_1.button)('open-json', 'Open model JSON', '')}${(0, common_1.button)('method', 'Method & sources', '')}${(0, common_1.button)('demo', 'Presentation tour', '')}${(0, common_1.button)('audit', 'Model checks & verification JSON', '')}${(0, common_1.button)('verify', 'Run benchmark checks', '')}</div></div><a class="launch" href="#workspace">Launch model ${(0, common_1.icon)('right', 14)}</a></div></header>
-  <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><a class="hero-cta" href="#workspace">Open BeamLab ${(0, common_1.icon)('right', 16)}</a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}<span class="hero-detail">No sign-in. No opaque answers. Analyse first, then carry verified demand into Design Studio.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
-  <section class="transition-copy"><span class="eyebrow">ONE CONNECTED SYSTEM</span><h2>Analyse the behaviour.<br><span>Then review the design context.</span></h2><p>Start with first-year statics. Let BeamLab reveal deeper analysis as you progress, then move into a separate Design Studio without changing the underlying solver.</p></section>
-  <main id="workspace" tabindex="-1"><div id="learning-bar" class="learning-bar"></div><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div id="workflow-context"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
+  <header class="topbar"><a class="brand" href="#home"><span>B</span><b>BeamLab</b><em>STUDIO 4.1</em></a><nav><a href="#home">Home</a><a href="#workspace">Workspace</a>${(0, common_1.button)('method', 'Method & scope', 'text-button')}</nav><div class="header-actions">${(0, common_1.button)('share', (0, common_1.icon)('share', 15) + '<span>Share</span>', 'share-button')}<div class="export-wrap">${(0, common_1.button)('export-menu', (0, common_1.icon)('download', 15) + '<span>Export</span>' + (0, common_1.icon)('down', 12), 'export-button')}<div id="export-menu" class="export-menu" hidden>${['json', 'svg', 'png', 'csv', 'pdf'].map(k => (0, common_1.button)('export:' + k, ({ json: 'Save model JSON', svg: 'Vector diagram SVG', png: 'Annotated PNG', csv: 'Results CSV', pdf: 'Calculation report PDF' })[k], '')).join('')}${(0, common_1.button)('open-json', 'Open model JSON', '')}${(0, common_1.button)('method', 'Method & sources', '')}${(0, common_1.button)('demo', 'Presentation tour', '')}${(0, common_1.button)('audit', 'Model checks & verification JSON', '')}${(0, common_1.button)('verify', 'Run benchmark checks', '')}</div></div><a class="launch" href="#workspace" data-entry="build">Build / Explore ${(0, common_1.icon)('right', 14)}</a></div></header>
+  <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><a class="hero-cta" href="#workspace" data-entry="build">Build / Explore ${(0, common_1.icon)('right', 16)}</a><a class="hero-learn" href="#workspace" data-entry="learn">Guided learning <span aria-hidden="true">→</span></a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}<span class="hero-detail">Start building immediately, or choose guidance. One model, one solver. No sign-in or lesson prerequisites.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
+  <section class="transition-copy"><span class="eyebrow">ONE CONNECTED SYSTEM</span><h2>Analyse the behaviour.<br><span>Then review the design context.</span></h2><p>Build and analyse directly, explore optional lessons, and review your results. Choose the tools and explanations you need without changing the underlying solver.</p></section>
+  <main id="workspace" tabindex="-1"><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div id="learning-bar" class="learning-bar"></div><div id="workflow-context"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
   <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="mobile-tools" class="mobile-tools"></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><div id="trace-position"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
   <div class="workspace-foot"><span>Same model. Different depth.</span><button data-action="history" id="history-count" class="text-button">0 edits</button><span>Analysis + transparent design screening / not structural design approval</span></div></main>
   <footer class="site-footer"><a class="brand" href="#home"><span>B</span><b>BeamLab</b></a><p>Build understanding before building structures.</p><small>Studio 4.1 / analysis + design-context preview. Your model and design inputs stay in your browser unless you export or share them.</small></footer>
@@ -2436,9 +2510,10 @@ function bootstrap() {
     movingLab = new MovingLab($('#moving-lab'),()=>{v.moving=false;render();});
     document.addEventListener('click', e => {
         const el = e.target, actionEl = el.closest('[data-action]');
-        if (el.closest('a[href="#workspace"]') && !learningConfigured) {
+        const entry = el.closest('[data-entry]');
+        if (entry) {
             e.preventDefault();
-            learningSetup();
+            enterWorkspace(entry.dataset.entry);
             return;
         }
         if (el.closest('a[href="#home"]')) {
