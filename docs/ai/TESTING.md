@@ -125,6 +125,8 @@ When changing the interface, manually or through browser tests inspect:
 - error states;
 - undo after invalid/unstable edits.
 
+Numeric editing must also preserve the browser interaction lifecycle: Tab and Shift+Tab commit independent edits without losing their focus destination; a first valid pending edit makes Undo available; invalid edits restore the committed beam without adding history. Assert persistence immediately after Tab, before any unrelated action can accidentally finish the transaction. Retain the pointer-down/pointer-up checks that catch Firefox losing a pressed navigation control during redraw.
+
 ## Learning checks
 
 When changing Learn behaviour, verify:

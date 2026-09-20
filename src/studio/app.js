@@ -1383,9 +1383,16 @@ function issueReport() {
     openDialog('Prepare an issue report', `<p>Download the report below, add reproduction steps, then attach it to a GitHub issue. Review the model labels before posting; this repository is public.</p><textarea aria-label="Issue report JSON" id="issue-json" readonly>${(0,common_1.esc)(JSON.stringify(report,null,2))}</textarea><button data-action="issue-download" class="primary">Download issue report</button><a class="secondary" href="https://github.com/parrasuccess-blip/BeamLab_Studio/issues/new" target="_blank" rel="noopener noreferrer">Open GitHub issue form ↗</a>`);
 }
 function method() { openDialog('Method, sources & scope', `<span class="eyebrow">TRANSPARENT BY DESIGN</span><h3>Engineering calculations, not generated answers.</h3><p>Euler-Bernoulli matrix stiffness with event-aligned nodes, local section/EI properties and exact polynomial field recovery for supported loads. Support vertical displacement and fixed-support rotation may be prescribed (mm upward and mrad counter-clockwise). The same deterministic engine drives every result and export.</p><h3>Sign conventions</h3><p>Loads are entered positive downward. Reactions are positive upward. Applied couples are positive counter-clockwise. Sagging moment is positive and plotted upward. Displacement is positive upward: a downward deflected shape appears below its undeformed line. Extreme-fibre tension is positive.</p><h3>Limits of this edition</h3><p>No shear deformation, axial response, dynamics, geometric non-linearity, concrete cracking or code-design certification. The model supports uniform members and abrupt prismatic section/EI regions. Transition stresses, smooth tapers and thermal curvature are outside this release. Manual stress/displacement limits are not code checks. Catalogue PFC entries do not model torsion. Locking protects objects from direct editing, not undo or whole-model replacement.</p><h3>Moving loads and shear profiles</h3><p>The optional moving-load lab uses a separately formulated fixed-topology Hermite point-load solver. It uses the same local sections and EI regions. Moving response is incremental: prescribed support movements enter only through the optional static base case. Plotted axle envelopes remain sampled. It is static, not dynamic, and adds no impact or code vehicle. The optional transverse-shear profile is available only for dimension-derived rectangles and symmetric I-sections; no shear deformation is added to the beam model.</p><h3>Material and section sources</h3><p>The 51-row UB/UC/PFC reference library uses manufacturer-tabulated area and horizontal Ix from Liberty / InfraBuild HRSSP ninth edition, October 2019, Tables 9, 11 and 15. Preset E and density remain labelled illustrative. RHS/SHS geometry is a sharp-corner approximation; circular solid and hollow sections use exact ideal-circle formulas. These derived shapes are not manufacturer catalogue claims.</p><a href="${catalogue_1.catalogueSource}" target="_blank" rel="noopener noreferrer">Open manufacturer catalogue</a><p><a href="https://interactivetextbooks.citg.tudelft.nl/computational-modelling/structural_linear/euler_bernouilli.html" target="_blank" rel="noopener noreferrer">TU Delft: beam-element formulation</a></p><h3>Guided criteria review / boundary</h3><p>Studio 4.1 separates Analysis from Design. Design demand is read directly from the same deterministic solver, while bending/shear capacities and serviceability criteria are user-supplied. BeamLab does not yet automate AS 4100 member capacity, AS/NZS load combinations, section classification, lateral-torsional buckling, combined actions or connection design. A ratio below 1.0 means only that solver demand is below the value the user entered.</p><h3>AI and deployment</h3><p>The optional contextual tutor may explain both Analysis and Design Studio context, but it is instructed never to invent missing capacities, load combinations or code compliance. The deterministic beam solver remains the source of numerical truth. AI is disabled in Exam Mode. In the downloadable HTML, the tutor simply reports unavailable while deterministic teaching, analysis and Design Studio continue to work.</p>`); }
-function finishField() {
+function finishField(preserveFocus = false) {
     if (!fieldTransaction)
         return;
+    // Tab has already moved focus. Keep its native destination when rebuilding
+    // the controls after the edit; pointer clicks still finish in their action.
+    const focused = preserveFocus ? document.activeElement : null;
+    const focusRoot = focused?.closest('[id]');
+    const focusAttribute = focused && ['data-field', 'data-select', 'data-text', 'data-action', 'aria-label', 'href'].find(key => focused.hasAttribute(key));
+    const focusSelector = focused?.id ? '#' + CSS.escape(focused.id) : focusRoot && focusAttribute
+        ? '#' + CSS.escape(focusRoot.id) + ' [' + focusAttribute + '="' + CSS.escape(focused.getAttribute(focusAttribute)) + '"]' : null;
     const t = fieldTransaction;
     fieldTransaction = null;
     const next = history.model;
@@ -1400,6 +1407,15 @@ function finishField() {
     layout = undefined;
     render();
     save();
+    if (focusSelector) $(focusSelector)?.focus({ preventScroll: true });
+}
+function updateHistoryControls() {
+    const pendingEdit = fieldTransaction && fieldTransaction.input.getAttribute('aria-invalid') !== 'true'
+        && verification.canonical(history.model) !== verification.canonical(fieldTransaction.base);
+    // A first valid edit must make Undo clickable before focus leaves the field.
+    // Update existing buttons in place so a pointer target is never replaced.
+    $('#toolbar [data-action="undo"]').disabled = !history.past.length && !pendingEdit;
+    $('#toolbar [data-action="redo"]').disabled = !history.future.length || !!pendingEdit;
 }
 function applyNumber(input) {
     pauseSweep();
@@ -1417,14 +1433,17 @@ function applyNumber(input) {
     const em = input.closest('.field')?.querySelector('.field-error');
     if (em)
         em.textContent = valid ? '' : `Not applied. Enter ${input.min} to ${input.max}.`;
-    if (!valid)
+    if (!valid) {
+        updateHistoryControls();
         return;
+    }
     const m = (0, study_1.clone)(history.model);
     const parts = key.split(':');
     if (key === 'length') {
         if (m.items.some(i => i.locked)) {
             toast('Unlock all objects before changing member length.');
             input.setAttribute('aria-invalid', 'true');
+            updateHistoryControls();
             return;
         }
         const ratio = n / m.length;
@@ -1457,6 +1476,7 @@ function applyNumber(input) {
     solve();
     renderStage();
     renderExtras(true);
+    updateHistoryControls();
 }
 function textChanged(input) {
     const key = input.dataset.text, m = (0, study_1.clone)(history.model), text = input.value.trim();
@@ -2576,6 +2596,13 @@ function bootstrap() {
         updateTrace();
     } });
     document.addEventListener('focusout', e => { const el = e.target; if (el instanceof HTMLInputElement && el.dataset.field) {
+        const transaction = fieldTransaction;
+        if (transaction?.input === el && transaction.tabbed) {
+            // Wait for native Tab/Shift+Tab focus movement, then commit this
+            // edit independently of any later click or change on that control.
+            setTimeout(() => { if (fieldTransaction === transaction) finishField(true); }, 0);
+            return;
+        }
         // A pointer press focuses its target before click. Replacing that target
         // here cancels the click in Firefox. The destination's action/input
         // handler commits this transaction before using the model instead.
@@ -2623,6 +2650,7 @@ function bootstrap() {
         }
         const input = e.target;
         if (input.matches('input,textarea,select')) {
+            if (e.key === 'Tab' && fieldTransaction?.input === input) fieldTransaction.tabbed = true;
             if (e.key === 'Enter' && input instanceof HTMLInputElement) {
                 finishField();
                 input.blur();

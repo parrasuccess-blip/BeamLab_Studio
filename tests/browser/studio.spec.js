@@ -208,6 +208,50 @@ test('unstable model reports a fault and undo restores the reference',async({pag
   await expect(page.locator('#metrics')).toContainText('30');
 });
 
+test('Tab commits each numeric edit, keeps keyboard focus and saves before any action',async({page,isMobile})=>{
+  await open(page);
+  for(const [value,count] of [['8',1],['9',2]]) {
+    await page.getByLabel('Beam length',{exact:true}).fill(value);
+    await page.getByLabel('Beam length',{exact:true}).press('Tab');
+    await expect(page.getByLabel('Example library',{exact:true})).toBeFocused();
+    await expect(page.locator('#history-count')).toHaveText(`${count} edits`);
+    await expect(act(page,'undo')).toBeEnabled();
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('beamlab:studio:3.2')).length)).toBe(Number(value));
+  }
+  await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
+  await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
+  await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
+  await page.getByLabel('Beam length',{exact:true}).fill('10');
+  await page.getByLabel('Beam length',{exact:true}).press('Shift+Tab');
+  await expect(page.getByRole('button',{name:isMobile?'Done with tools':'Studies',exact:true})).toBeFocused();
+  await expect(page.locator('#history-count')).toHaveText('3 edits');
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('beamlab:studio:3.2')).length)).toBe(10);
+  await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
+  await page.reload();await showTools(page);
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
+  await expect(act(page,'undo')).toBeDisabled();await expect(act(page,'redo')).toBeDisabled();
+});
+
+test('Undo accepts the first pending edit and invalid Tab edits restore the committed model',async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('8');
+  await expect(act(page,'undo')).toBeEnabled();
+  await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await expect(page.locator('#history-count')).toHaveText('0 edits');
+  await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
+  await page.getByLabel('Beam length',{exact:true}).fill('9');
+  await page.getByLabel('Beam length',{exact:true}).fill('0');
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  await expect(page.getByLabel('Example library',{exact:true})).toBeFocused();
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
+  await expect(page.locator('#history-count')).toHaveText('1 edits');
+  await expect(page.locator('#metrics')).toContainText('40.00 kN·m');
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('beamlab:studio:3.2')).length)).toBe(8);
+  await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+});
+
 for(const value of ['6','8']) test(`numeric edit ${value} cannot remove a pressed navigation control`,async({page})=>{
   await open(page);
   await page.getByLabel('Beam length',{exact:true}).fill(value);

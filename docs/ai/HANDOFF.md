@@ -4,7 +4,7 @@
 
 **Last active account:** Account B (return audit and numeric-edit recovery on 2026-09-20)
 **Current branch:** `feature/direct-explore-learning-navigation`
-**STATUS:** return audit complete / numeric-edit history repair starting / PR remains draft
+**STATUS:** numeric-edit history repair implemented / validation pending / PR remains draft
 **Current Account B starting HEAD:** `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`
 **Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
 **Observed main HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
@@ -33,6 +33,8 @@ The recovery fix makes explicit model opening exit the temporary activity before
 **Account B return audit:** Account A's completed recovery is commit `1cf371d`; there are no later pushed changes. Fresh clean builds and Node tests pass on main (1,255 checks) and the recovery branch (1,258). Exact-head PR run 35506822163 and push run 35506820228 both finish with **84 browser checks passed / 4 failed** out of 88. All three new explicit-opening journeys pass in all four projects. The enhanced lesson/history test fails before entering Learn: successive beam-length edits followed by Tab leave Undo disabled. Reproduced through the public production UI, so this is a pre-existing numeric-edit transaction bug exposed by stronger coverage. Production HTML still matches main exactly; the protected preview was unavailable to Account B, so its CI screenshots were inspected instead. Account A's earlier validation-pending status is historical.
 
 **Next:** repair numeric edit commit/history handling without restoring the Firefox lost-click bug; preserve Account A's explicit-opening lifecycle and all numerical tolerances. Push coherent checkpoints to this existing feature branch/PR, then inspect full CI, update validation records, merge only when green and verify actual production. The user approved this scoped recovery and release after receiving the return audit. No further UX feature work is part of this repair.
+
+**Implementation checkpoint:** Tab/Shift+Tab now completes a numeric transaction after native focus movement and restores that destination after rebuilding controls. Valid pending edits enable Undo in place and suppress stale Redo; pointer focusout still preserves the pressed control until its action. Added two browser journeys (eight project checks) for separate saved edits, focus, Undo/Redo/reload and valid-then-invalid rollback. Existing lesson preservation and Firefox pressed-button checks are retained unchanged. Syntax and diff checks pass; full validation is pending at this checkpoint. Initial Account B return record was pushed as `b13ecae`.
 
 The broader user requests for mathematical notation, collision-free diagram labels and a stronger deterministic Show Why remain unimplemented by this scoped branch. Mobile lesson navigation fits, but the options below the active task still make the page long; preserve this as a follow-up UX finding, not a claim of completion.
 
