@@ -168,7 +168,8 @@ async function pdfReport(m, a, v) {
     const add = (text, size=10) => {
         // Bound long unbroken names as well as ordinary prose.
         const safe = String(text).replace(/(\S{78})(?=\S)/g,'$1 ');
-        for (const t of wrap(safe, 88)) { space(17); cmd += line(t,y,size); y -= 15; }
+        const leading = size * 1.4;
+        for (const t of wrap(safe, Math.floor(880 / size))) { space(leading + 2); cmd += line(t,y,size); y -= leading; }
     };
     cmd = line('BEAMLAB / ENGINEERING STUDY', 791, 9, true, '0.23 0.45 0.41');
     y = 761;
@@ -209,7 +210,7 @@ async function pdfReport(m, a, v) {
     heading('03  ACTIVE FACTORS & SUPPORT REACTIONS');
     add('User-defined factors, not prescribed design-code combinations.');
     add(m.cases.map(c => c.name+': '+(c.enabled?(0,common_1.fmt)(c.factor,3):'OFF')).join(' / '));
-    for (const r of a.reactions) add(`${r.label} at ${(0,common_1.fmt)(r.x,3)} m: settlement ${(0,common_1.signed)(r.settlementMm || 0,3)} mm (up +); Ry ${(0,common_1.fmt)(r.force,5)} kN upward; couple ${(0,common_1.fmt)(r.moment,5)} kN m CCW.`);
+    for (const r of a.reactions) add(`${r.label} at ${(0,common_1.fmt)(r.x,3)} m: settlement ${(0,common_1.signed)(r.settlementMm || 0,3)} mm (up +); rotation ${(0,common_1.signed)(r.rotationMrad || 0,3)} mrad (CCW +); Ry ${(0,common_1.fmt)(r.force,5)} kN upward; couple ${(0,common_1.fmt)(r.moment,5)} kN m CCW.`);
     heading('04  MODEL ACTIONS (NOMINAL INPUTS)');
     for (const i of m.items) {
         if (['pin','roller','fixed'].includes(i.kind)) continue;
@@ -219,7 +220,7 @@ async function pdfReport(m, a, v) {
     heading('05  CONSISTENCY & SCOPE');
     add(`Force residual ${a.forceResidual.toExponential(2)} kN; moment residual ${a.momentResidual.toExponential(2)} kN m; hinge residual ${a.hingeResidual.toExponential(2)} kN m.`,9);
     add(`Support residual ${a.boundaryResidual.toExponential(2)} m; element compatibility ${a.endCompatibilityResidual.toExponential(2)} m.`,9);
-    add('Euler-Bernoulli small-deflection bending with optional true piecewise section properties and optional EI-only multipliers. True stepped regions use their local E/I/A/depth/density; abrupt transition stress concentrations are not modelled. EI-only overrides do not infer local stress or section capacity. Prescribed vertical support settlement is included as a boundary condition; rotational settlement is not modelled. No axial, shear-deformation, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
+    add('Euler-Bernoulli small-deflection bending with optional true piecewise section properties and optional EI-only multipliers. True stepped regions use their local E/I/A/depth/density; abrupt transition stress concentrations are not modelled. EI-only overrides do not infer local stress or section capacity. Prescribed vertical support settlement is included as a boundary condition; fixed-support rotation is included in mrad (CCW positive). No axial, shear-deformation, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
     for (const w of a.warnings) add(w,9);
     if (m.section.catalogue || (m.sectionRegions || []).some(r=>r.section?.catalogue)) add('Catalogue geometry used in the base and/or local regions: Liberty / InfraBuild HRSSP, 9th edition, Oct 2019, Tables 9/11/15. Historical starter subset. PFC torsion excluded.',9);
     finish();

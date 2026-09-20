@@ -4,7 +4,7 @@ const { example, makeItem } = require('../model/examples');
 const { catalogue, fromCatalogue } = require('../model/catalogue');
 const { sectionProperties } = require('../model/sections');
 const { criticalSamples } = require('./diagrams');
-const RELEASE = '4.0.0';
+const RELEASE = '4.1.0';
 
 // Non-security reference ID. Canonical input is included in the evidence export.
 function canonical(value) {
@@ -15,7 +15,7 @@ function canonical(value) {
 function fingerprint(model) {
     let hash = 2166136261;
     for (const byte of new TextEncoder().encode(canonical(model))) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
-    return 'BL400-' + hash.toString(16).padStart(8, '0').toUpperCase();
+    return 'BL410-' + hash.toString(16).padStart(8, '0').toUpperCase();
 }
 // Four-point Gauss-Legendre is exact through degree 7. Supported linear loads
 // give a degree-3 moment and degree-5 displacement on each event interval.
@@ -40,7 +40,7 @@ function audit(model, analysis) {
         if (i.kind === 'point') external -= i.value * a.sample(i.x).v;
         if (i.kind === 'moment') external += i.value * a.sample(i.x).theta;
     }
-    for (const r of a.reactions || []) external += r.force * ((r.settlementMm || 0) / 1000);
+    for (const r of a.reactions || []) external += r.force * ((r.settlementMm || 0) / 1000) + r.moment * ((r.rotationMrad || 0) / 1000);
     const forceScale = Math.max(1, Math.abs(a.total), a.reactions.reduce((v, r) => v + Math.abs(r.force), 0));
     const momentScale = Math.max(1, Math.abs(a.loadMoment), Math.abs(a.peakM.M), forceScale * model.length);
     const displacementScale = Math.max(1, Math.abs(a.peakD.v));
@@ -61,7 +61,7 @@ function audit(model, analysis) {
         extrema: { shear: a.peakV, moment: a.peakM, displacement: a.peakD },
         energy: { strainEnergy_kNm: internal / 2, halfFinalLoadWork_kNm: external / 2 },
         checks, pass: checks.every(c => c.pass), warnings: a.warnings,
-        scope: 'Euler-Bernoulli with verified piecewise section properties, optional EI-only multipliers and prescribed vertical support settlement, linear elastic; true sections support local elastic stress while abrupt transition effects, dynamics, shear deformation and code checks remain outside scope.'
+        scope: 'Euler-Bernoulli with verified piecewise section properties, optional EI-only multipliers and prescribed vertical support settlement and fixed-support rotation, linear elastic; true sections support local elastic stress while abrupt transition effects, dynamics, shear deformation and code checks remain outside scope.'
     };
 }
 function criticalLocations(a, model) {

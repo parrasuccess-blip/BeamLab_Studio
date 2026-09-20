@@ -10,6 +10,8 @@ const { solveSPD } = require('./linear');
 const { validateStudy, solveStudy, clone } = require('../model/study');
 const { isSupport, isLoad } = require('../model/validation');
 const { sectionProperties } = require('../model/sections');
+const { sectionAt } = require('../model/section-regions');
+const { factorAt } = require('../model/stiffness');
 
 function prepareMoving(study) {
     validateStudy(study);
@@ -18,7 +20,7 @@ function prepareMoving(study) {
     const hinges = m.items.filter(i => i.kind === 'hinge');
     if (!supports.some(i => i.kind === 'fixed' || i.kind === 'pin')) throw new Error('A pin or fixed support is needed.');
     if (supports.length + hinges.length > 16) throw new Error('Moving-load studies support at most 16 supports and hinges together.');
-    const positions = [0,L,...supports.map(i=>i.x),...hinges.map(i=>i.x)].sort((a,b)=>a-b);
+    const positions = [0,L,...supports.map(i=>i.x),...hinges.map(i=>i.x),...(m.sectionRegions||[]).flatMap(r=>[r.x,r.end]),...(m.stiffnessRegions||[]).flatMap(r=>[r.x,r.end])].sort((a,b)=>a-b);
     const xs = positions.filter((x,i)=>!i || x-positions[i-1]>L*1e-10);
     if (xs.some((x,i)=>i && x-xs[i-1]<L*1e-6)) throw new Error('Support/hinge spacing is too small for this moving-load model.');
     const index = x => xs.findIndex(t=>Math.abs(t-x)<L*1e-9);
@@ -34,10 +36,11 @@ function prepareMoving(study) {
     supports.forEach(s=>{const n=nodes[index(s.x)];fixed.add(n.v);if(s.kind==='fixed')fixed.add(n.left);});
     const elements = xs.slice(0,-1).map((a,i)=>{
         const b=xs[i+1], l=b-a;
+        const EI=sectionProperties(sectionAt(m,(a+b)/2)).EI*factorAt(m.stiffnessRegions||[],(a+b)/2);
         const dofs=[nodes[i].v,nodes[i].right,nodes[i+1].v,nodes[i+1].left];
-        const k=[[12,6*l,-12,6*l],[6*l,4*l*l,-6*l,2*l*l],[-12,-6*l,12,-6*l],[6*l,2*l*l,-6*l,4*l*l]].map(row=>row.map(v=>v*p.EI/l**3));
+        const k=[[12,6*l,-12,6*l],[6*l,4*l*l,-6*l,2*l*l],[-12,-6*l,12,-6*l],[6*l,2*l*l,-6*l,4*l*l]].map(row=>row.map(v=>v*EI/l**3));
         dofs.forEach((r,j)=>dofs.forEach((c,h)=>{K[r][c]+=k[j][h];}));
-        return {a,b,l,dofs,k};
+        return {a,b,l,dofs,k,EI};
     });
     const free=Array.from({length:ndof},(_,i)=>i).filter(i=>!fixed.has(i));
     const Kff=free.map(i=>free.map(j=>K[i][j]));
@@ -71,12 +74,12 @@ function prepareMoving(study) {
             const e=field.find(e=>side==='left'?x>e.a+L*1e-12 && x<=e.b+L*1e-12:x>=e.a-L*1e-12 && x<e.b-L*1e-12)||(x===0?field[0]:field.at(-1));
             const t=x-e.a;
             let V=e.r[0], M=-e.r[1]+e.r[0]*t;
-            let theta=e.d[1]+(-e.r[1]*t+e.r[0]*t*t/2)/p.EI;
-            let v=e.d[0]+e.d[1]*t+(-e.r[1]*t*t/2+e.r[0]*t**3/6)/p.EI;
+            let theta=e.d[1]+(-e.r[1]*t+e.r[0]*t*t/2)/e.EI;
+            let v=e.d[0]+e.d[1]*t+(-e.r[1]*t*t/2+e.r[0]*t**3/6)/e.EI;
             for(const load of e.loads){
                 const z=t-load.t;
                 if(z>0 || (Math.abs(z)<L*1e-12 && side==='right'))V-=load.value;
-                if(z>0){M-=load.value*z;theta-=load.value*z*z/(2*p.EI);v-=load.value*z**3/(6*p.EI);}
+                if(z>0){M-=load.value*z;theta-=load.value*z*z/(2*e.EI);v-=load.value*z**3/(6*e.EI);}
             }
             return {x,V,M,v,theta};
         }
@@ -128,7 +131,7 @@ async function influenceLine(m,c,{signal,progress}={}) {
         scope:'Unit downward force only. Existing loads and self-weight excluded. Static linear-elastic response; plotted peaks are sampled. Near-event shear ordinates are one-sided samples.'};
 }
 function stationsFor(m,n=80,extra=[]){
-    const nodes=unique([0,m.length,...Array.from({length:n+1},(_,i)=>m.length*i/n),...m.items.flatMap(i=>i.end!==undefined?[i.x,i.end]:[i.x]),...extra]);
+    const nodes=unique([0,m.length,...Array.from({length:n+1},(_,i)=>m.length*i/n),...m.items.flatMap(i=>i.end!==undefined?[i.x,i.end]:[i.x]),...(m.sectionRegions||[]).flatMap(r=>[r.x,r.end]),...(m.stiffnessRegions||[]).flatMap(r=>[r.x,r.end]),...extra]);
     return nodes.flatMap(x=>x>0&&x<m.length&&m.items.some(i=>Math.abs(i.x-x)<1e-9&&(isSupport(i.kind)||i.kind==='point'||i.kind==='moment'))?[{x,side:'left'},{x,side:'right'}]:[{x,side:x===m.length?'left':'right'}]);
 }
 async function envelope(m,c,{signal,progress}={}){

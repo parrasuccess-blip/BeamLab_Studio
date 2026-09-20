@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.defaultSection = exports.materials = void 0;
 exports.sectionProperties = sectionProperties;
+exports.sectionDetails = sectionDetails;
 // Editable teaching assumptions; not catalogue grades or certified values.
 exports.materials = [
     { name: 'Steel (illustrative)', E: 200, density: 7850 },
@@ -42,9 +43,27 @@ function sectionProperties(s) {
         A = 2 * b * tf + t * (h - 2 * tf);
         I = (b * h ** 3 - (b - t) * (h - 2 * tf) ** 3) / 12;
     }
+    else if (s.shape === 'circle' || s.shape === 'tube') {
+        if (s.shape === 'tube' && 2 * t >= h)
+            throw new Error('Circular wall thickness must be less than half the outside diameter.');
+        const inner = s.shape === 'tube' ? h - 2*t : 0;
+        A = Math.PI * (h*h - inner*inner) / 4;
+        I = Math.PI * (h**4 - inner**4) / 64;
+    }
     else if (s.shape !== 'custom')
         throw new Error('Unknown section shape.');
     I *= 1e-12;
     A *= 1e-6;
     return { E: s.E * 1e6, I, A, c: h / 2000, EI: s.E * 1e6 * I, weight: s.density * A * 9.80665 / 1000 };
+}
+/** Geometric references in mm, mm², mm³, mm⁴. No member/design capacity. */
+function sectionDetails(s) {
+    const p = sectionProperties(s), A = p.A*1e6, Ix=p.I*1e12;
+    const {b,h,t,tf}=s;
+    let Iy=null, plasticX=null, torsionJ=null;
+    if(s.shape==='rectangle') {Iy=h*b**3/12;plasticX=b*h*h/4;}
+    if(s.shape==='box') {Iy=(h*b**3-(h-2*t)*(b-2*t)**3)/12;plasticX=(b*h*h-(b-2*t)*(h-2*t)**2)/4;}
+    if(s.shape==='i') {Iy=(2*tf*b**3+(h-2*tf)*t**3)/12;plasticX=(b*h*h-(b-t)*(h-2*tf)**2)/4;}
+    if(s.shape==='circle'||s.shape==='tube') {const inner=s.shape==='tube'?h-2*t:0;Iy=Ix;plasticX=(h**3-inner**3)/6;torsionJ=2*Ix;}
+    return {A,Ix,Iy,elasticX:Ix/(h/2),elasticY:Iy===null?null:Iy/((s.shape==='circle'||s.shape==='tube'?h:b)/2),plasticX,rx:Math.sqrt(Ix/A),ry:Iy===null?null:Math.sqrt(Iy/A),torsionJ,mass:p.A*s.density,source:s.catalogue?'Tabulated A/Ix; remaining listed ratios derived from those values.':s.shape==='custom'?'User-entered A/Ix and depth; other properties are not inferred.':'Dimension-derived ideal geometry; no fillets or corner radii.'};
 }

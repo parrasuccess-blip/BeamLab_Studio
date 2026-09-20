@@ -1,0 +1,52 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'dist', 'index.html'), 'utf8');
+const start = html.indexOf('const modules = {');
+const stop = html.indexOf("load('studio/app');", start);
+assert.ok(start >= 0 && stop > start, 'Expected the actual Studio production module bundle');
+const context = vm.createContext({ TextEncoder, TextDecoder, console });
+new vm.Script(html.slice(start, stop) + '; globalThis.productionLoad = load;').runInContext(context);
+const load = context.productionLoad;
+const { benchmarks, audit, fingerprint } = load('studio/verification');
+const { example, makeItem } = load('model/examples');
+const { normalise, solveStudy, parseStudy } = load('model/study');
+const { sweepPosition, nextProgress } = load('studio/presentation');
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1e-8 + 1e-7 * Math.abs(expected), `${actual} versus ${expected}`);
+for (const c of benchmarks()) test(`Production formula: ${c.name}`, () => assert.ok(c.pass, JSON.stringify(c)));
+for (let n = 0; n <= 60; n++) test(`Production moving-force field ${n}/60`, () => {
+  const m = normalise(example('simple'));
+  m.length = 6;
+  m.items = m.items.filter(i => i.kind === 'pin' || i.kind === 'roller');
+  m.items[1].x = 6;
+  const x = n / 10, b = 6 - x;
+  m.items.push({ ...makeItem('point', x, undefined, 20), caseId: 'base' });
+  const a = solveStudy(m);
+  near(a.reactions[0].force, 20 * b / 6);
+  near(a.reactions[1].force, 20 * x / 6);
+  near(a.sample(x).M, 20 * x * b / 6);
+  near(a.sample(x).v, -20 * x * x * b * b / (3 * 70000 * 6));
+  assert.ok(audit(m, a).pass);
+});
+test('Production case factors apply once without modifying nominal actions', () => {
+  const m = normalise(example('simple'));
+  m.cases[0].factor = 1.5;
+  const original = JSON.stringify(m);
+  near(solveStudy(m).reactions[0].force, 37.5);
+  assert.equal(JSON.stringify(m), original);
+});
+test('Production evidence reference is stable across a JSON round-trip', () => {
+  const m = normalise(example('simple'));
+  assert.equal(fingerprint(m), fingerprint(parseStudy(JSON.stringify(m))));
+});
+test('Production rejects invalid model before analysis', () => assert.throws(() => parseStudy('{"version":3}')));
+test('Presentation bounds and direction handoff', () => {
+  const p = nextProgress(0.9, 1, 2.4, 12);
+  near(p.progress, 0.9);
+  assert.equal(p.direction, -1);
+  near(sweepPosition(6, 0), 0.3);
+  near(sweepPosition(6, 1), 5.7);
+});

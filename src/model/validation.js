@@ -36,6 +36,8 @@ function validateModel(m) {
         }
         else if (o.settlementMm !== undefined)
             throw new Error(`${o.label}: settlement is only valid on supports.`);
+        if (o.rotationMrad !== undefined && (o.kind !== 'fixed' || !Number.isFinite(o.rotationMrad) || Math.abs(o.rotationMrad) > 100))
+            throw new Error(`${o.label}: prescribed rotation requires a fixed support and a finite value between -100 and 100 mrad.`);
         if ((0, exports.isLoad)(o.kind) && (!Number.isFinite(o.value) || Math.abs(o.value) > 100000))
             throw new Error(`${o.label}: enter a finite load between -100000 and 100000.`);
         if ((0, exports.isDistributed)(o.kind)) {
