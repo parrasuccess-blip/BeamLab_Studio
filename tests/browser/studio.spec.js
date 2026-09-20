@@ -182,7 +182,7 @@ test('review exports carry the current model and numerical evidence',async({page
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
   expect(audit.release).toBe('4.1.0');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
-  const reportPending=page.waitForEvent('download');await act(page,'export:pdf').click();
+  const reportPending=page.waitForEvent('download');await page.locator('#design-studio [data-action="export:pdf"]').click();
   const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
   expect(pdf.startsWith('%PDF-1.4')).toBe(true);
   expect(pdf).toContain('Peak moment |M| = 30.0000 kN m');
@@ -224,11 +224,14 @@ test('criteria entry keeps keyboard focus, ratios and sources across navigation 
   await expect(page.locator('.design-step-card.design-step-3')).toContainText('QA demonstration values only');
   await noOverflow(page);await page.reload();
   await flow(page,'review');await act(page,'design-open').click();
-  await page.getByRole('button',{name:'3 Ratios Demand ÷ criterion',exact:true}).click();
+  await act(page,'design-step:3').click();
   await expect(page.locator('.design-ratio').nth(0)).toContainText('0.750');
   expect(await modelCopy(page)).toBe(original);
-  await page.getByRole('button',{name:'✓ Criteria What you provide',exact:true}).click();
+  await act(page,'design-step:2').click();
   await bending.fill('-1');await expect(bending).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Serviceability criterion',{exact:true}).selectOption('ratio');
+  await page.getByLabel('Limit denominator n',{exact:true}).fill('');
   await page.getByRole('button',{name:'Continue →',exact:true}).click();
   await expect(page.locator('.design-ratio').nth(0)).toContainText('Not assessed');
+  await expect(page.locator('.design-ratio').nth(2)).toContainText('Not assessed');
 });

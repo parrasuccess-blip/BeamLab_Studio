@@ -45,7 +45,7 @@ function normaliseSettings(input) {
         momentCapacity: finitePositive(input.momentCapacity),
         shearCapacity: finitePositive(input.shearCapacity),
         deflectionMode: mode,
-        deflectionRatio: finitePositive(input.deflectionRatio) || 250,
+        deflectionRatio: input.deflectionRatio === undefined ? base.deflectionRatio : finitePositive(input.deflectionRatio),
         deflectionLimitMm: finitePositive(input.deflectionLimitMm),
         serviceSpanM: finitePositive(input.serviceSpanM),
         fyMPa: finitePositive(input.fyMPa),
@@ -91,7 +91,7 @@ function evaluate(model, analysis, rawSettings) {
     };
     const serviceSpanM = settings.serviceSpanM || model.length;
     const deflectionLimitMm = settings.deflectionMode === 'ratio'
-        ? serviceSpanM * 1000 / settings.deflectionRatio
+        ? (settings.deflectionRatio ? serviceSpanM * 1000 / settings.deflectionRatio : null)
         : settings.deflectionMode === 'direct'
             ? settings.deflectionLimitMm
             : null;

@@ -24,6 +24,17 @@ const near=(actual,expected,tol=1e-8)=>assert.ok(Number.isFinite(actual)&&Math.a
 const plain=value=>JSON.parse(JSON.stringify(value));
 const unloaded=key=>{const m=normalise(example(key));m.items=m.items.filter(i=>['pin','roller','fixed','hinge'].includes(i.kind));return m;};
 
+test('cleared or invalid span-ratio criteria remain unassessed instead of silently using L/250',()=>{
+  const design=load('studio/design'),m=normalise(example('simple')),a=solveStudy(m);
+  for(const value of [null,'',0,-1,NaN,Infinity,'invalid']) {
+    const r=design.evaluate(m,a,{deflectionMode:'ratio',deflectionRatio:value});
+    assert.equal(r.settings.deflectionRatio,null);
+    assert.equal(r.checks.find(c=>c.id==='deflection').status,'not-assessed');
+  }
+  near(design.evaluate(m,a,{deflectionMode:'ratio',deflectionRatio:400}).checks.find(c=>c.id==='deflection').limit,m.length*1000/400);
+  assert.equal(design.normaliseSettings({}).deflectionRatio,250);
+});
+
 test('fixed-ended imposed rotation matches the independent cubic Hermite solution',()=>{
   const m=unloaded('fixed');m.items[0].rotationMrad=2;
   const a=solveStudy(m),EI=sectionProperties(m.section).EI,L=m.length,theta=.002;
