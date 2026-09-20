@@ -182,6 +182,12 @@ test('review exports carry the current model and numerical evidence',async({page
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
   expect(audit.release).toBe('4.1.0');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
+  const reportPending=page.waitForEvent('download');await act(page,'export:pdf').click();
+  const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
+  expect(pdf.startsWith('%PDF-1.4')).toBe(true);
+  expect(pdf).toContain('Peak moment |M| = 30.0000 kN m');
+  expect(pdf).toContain('Not design approval');
+  expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
   await act(page,'privacy').click();await expect(page.getByRole('dialog')).toContainText('encoded, readable snapshot');
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
   await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.0/);
@@ -195,4 +201,34 @@ test('optional tutor health is honest and deterministic teaching stays available
   await act(page,'explain-here').click();
   await expect(page.getByRole('dialog')).toContainText('Why does the beam behave like this here?');
   await expect(page.getByRole('dialog')).toContainText('generated deterministically');
+});
+
+test('criteria entry keeps keyboard focus, ratios and sources across navigation and reload',async({page})=>{
+  await open(page,'all');
+  await page.getByLabel('Example library',{exact:true}).selectOption('reference');
+  const original=await modelCopy(page);
+  await flow(page,'review');await act(page,'design-open').click();
+  await page.getByRole('button',{name:'Continue →',exact:true}).click();
+  const bending=page.getByLabel('Bending design capacity |φMb|',{exact:true});
+  const shear=page.getByLabel('Shear design capacity |φVv|',{exact:true});
+  await bending.fill('40');await bending.press('Tab');await expect(shear).toBeFocused();
+  await shear.fill('20');
+  await page.getByLabel('Serviceability criterion',{exact:true}).selectOption('direct');
+  await page.getByLabel('Displacement limit',{exact:true}).fill('10');
+  await page.getByLabel('Yield stress fy',{exact:true}).fill('300');
+  await expect(page.locator('#design-elastic-reference')).toContainText('525.00');
+  await page.getByPlaceholder('Capacity source, calculation reference, clause, software run...').fill('QA demonstration values only');
+  await page.getByRole('button',{name:'Continue →',exact:true}).click();
+  await expect(page.locator('.design-ratio').nth(0)).toContainText('0.750');
+  await expect(page.locator('.design-ratio').nth(1)).toContainText('0.500');
+  await expect(page.locator('.design-step-card.design-step-3')).toContainText('QA demonstration values only');
+  await noOverflow(page);await page.reload();
+  await flow(page,'review');await act(page,'design-open').click();
+  await page.getByRole('button',{name:'3 Ratios Demand ÷ criterion',exact:true}).click();
+  await expect(page.locator('.design-ratio').nth(0)).toContainText('0.750');
+  expect(await modelCopy(page)).toBe(original);
+  await page.getByRole('button',{name:'✓ Criteria What you provide',exact:true}).click();
+  await bending.fill('-1');await expect(bending).toHaveAttribute('aria-invalid','true');
+  await page.getByRole('button',{name:'Continue →',exact:true}).click();
+  await expect(page.locator('.design-ratio').nth(0)).toContainText('Not assessed');
 });

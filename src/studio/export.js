@@ -168,7 +168,8 @@ async function pdfReport(m, a, v) {
     const add = (text, size=10) => {
         // Bound long unbroken names as well as ordinary prose.
         const safe = String(text).replace(/(\S{78})(?=\S)/g,'$1 ');
-        for (const t of wrap(safe, 88)) { space(17); cmd += line(t,y,size); y -= 15; }
+        const leading = size * 1.4;
+        for (const t of wrap(safe, Math.floor(880 / size))) { space(leading + 2); cmd += line(t,y,size); y -= leading; }
     };
     cmd = line('BEAMLAB / ENGINEERING STUDY', 791, 9, true, '0.23 0.45 0.41');
     y = 761;

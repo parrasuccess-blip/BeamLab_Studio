@@ -34,6 +34,8 @@ The browser suite checks the first-year reference, all four destinations, aligne
 
 The first browser run found a Firefox blur/click race: committing an input could replace the navigation button between pointer-down and click. Field commits now defer to the activated control's handler, with explicit pressed-control tests for both unchanged and edited values. Responsive checks also verify the phone tool panel and object-selection flow.
 
+Manual preview review also found a criteria-entry persistence/focus problem. Criteria are now saved on input without replacing the active form, and invalid numeric criteria become unassessed. A browser journey verifies keyboard progression, ratios, source notes, reload and structural-model preservation. PDF export checks include reference results and pagination; tighter text leading avoids an almost-empty continuation page for the reference beam.
+
 Do not claim public deployment until the final public HTML hash/version matches the tested artifact. No diagnostic fallback is permitted if compilation or regressions fail.
 
 ## Roadmap status / deliberately outside this release

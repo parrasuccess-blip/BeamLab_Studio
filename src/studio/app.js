@@ -365,6 +365,10 @@ function designRatioCard(check) {
     const limit = assessed ? `${(0,common_1.fmt)(check.limit,3)} ${check.unit}` : 'not entered';
     return `<article class="design-ratio ${!assessed?'unset':over?'over':''}"><div class="design-ratio-head"><div><b>${(0,common_1.esc)(check.label)}</b><small>Demand ${demand} / limit ${limit}</small></div><strong>${assessed?(0,common_1.fmt)(check.ratio,3):'—'}</strong></div><small>${assessed?(over?'Exceeds the entered screening limit.':'Below the entered screening limit.'):'Not assessed until you enter a capacity or criterion.'} ${assessed?(0,common_1.esc)(check.basis):''}</small><div class="design-ratio-track"><i style="width:${pct}%"></i></div></article>`;
 }
+function designElasticReference(r) {
+    const fy = r.elasticReference;
+    return `${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE${r.section.hasTrueSteppedSections?' / GOVERNING LOCAL SECTION':''}</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M/My = ${(0,common_1.fmt)(fy.ratio,3)}${fy.x!==null?' at x = '+(0,common_1.fmt)(fy.x,3)+' m':''}${fy.sectionLabel?' · '+(0,common_1.esc)(fy.sectionLabel):''}. This remains an elastic mechanics reference and ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}`;
+}
 function renderDesignStudio() {
     const root = $('#design-studio');
     if (!root) return;
@@ -376,7 +380,6 @@ function renderDesignStudio() {
     }
     const r = (0, design_1.evaluate)(m,a,designSettings);
     const s = r.settings, d = r.demand;
-    const fy = r.elasticReference;
     const factorRows = r.factors.map(c=>`<div class="factor-row ${c.active?'':'off'}"><b>${(0,common_1.esc)(c.name)}${c.selfWeight?' + self-weight':''}</b><span>${c.active?(0,common_1.fmt)(c.factor,3)+'×':'off'}</span><small>${c.actions} action${c.actions===1?'':'s'}</small></div>`).join('');
     const combos = (m.combinations||[]).length ? `<div class="design-combos"><span class="eyebrow">SAVED MANUAL FACTOR SETS</span>${m.combinations.map(c=>(0,common_1.button)('design-combination:'+c.id,(0,common_1.esc)(c.name),'secondary')).join('')}</div>` : '';
     const readiness = r.readiness.map(row=>`<div class="design-ready-row ${row.state}"><i>${row.state==='ready'?'✓':row.state==='missing'?'!':'·'}</i><div><b>${(0,common_1.esc)(row.label)}</b><small>${(0,common_1.esc)(row.detail)}</small></div></div>`).join('');
@@ -391,7 +394,7 @@ function renderDesignStudio() {
     root.innerHTML = `<section class="design-hero"><span class="eyebrow">BEAMLAB 4.1 / DESIGN STUDIO</span><h2>Carry verified analysis demand into a transparent design review.</h2><p>BeamLab solves the member first, then compares that deterministic demand with capacities and serviceability criteria that <b>you</b> enter from a verified source. It does not yet derive AS 4100 member capacity, classify sections or generate AS/NZS load combinations.</p><div class="design-hero-actions">${(0,common_1.button)('review-overview','← Review overview','secondary')}</div><span class="design-beta"><i></i>SCREENING REVIEW · NOT CODE APPROVAL OR STRUCTURAL DESIGN APPROVAL</span></section>
     <section class="design-workflow">${workflow}
     <div class="design-grid" data-design-step="${designStep}"><aside class="design-inputs"><section class="design-card violet design-step-card design-step-2"><span class="eyebrow">ENTERED CAPACITY BASIS</span><h3>Bring your verified capacities.</h3><p>Enter final design capacities from your own checked calculation, standard workflow or trusted design software. BeamLab only forms demand/capacity ratios.</p>${designNumberField('momentCapacity','Bending design capacity |φMb|',s.momentCapacity,'kN·m',.001,1e9,'e.g. 180')}${designNumberField('shearCapacity','Shear design capacity |φVv|',s.shearCapacity,'kN',.001,1e9,'e.g. 250')}<label class="design-field"><span>Serviceability criterion</span><select data-design-select="deflectionMode" aria-label="Serviceability criterion"><option value="unset" ${s.deflectionMode==='unset'?'selected':''}>Not set</option><option value="ratio" ${s.deflectionMode==='ratio'?'selected':''}>Span ratio L / n</option><option value="direct" ${s.deflectionMode==='direct'?'selected':''}>Direct displacement</option></select><em>criterion</em></label>${s.deflectionMode==='ratio'?designNumberField('serviceSpanM','Reference span',s.serviceSpanM ?? m.length,'m',.001,1e5,'member length')+designNumberField('deflectionRatio','Limit denominator n',s.deflectionRatio,'L/n',1,1e6,'250'):s.deflectionMode==='direct'?designNumberField('deflectionLimitMm','Displacement limit',s.deflectionLimitMm,'mm',.001,1e6,'e.g. 20'):''}<div class="design-input-note">Deflection demand uses the <b>current active load factors</b>. Apply an independently verified serviceability factor set before treating this as a serviceability review.</div></section>
-    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}${fy.unavailable?`<div class="design-empty design-unavailable"><b>Not inferred for EI-only zones.</b><p>${(0,common_1.esc)(fy.reason)}</p></div>`:fy.momentKNm?`<div class="design-reference"><span>ELASTIC FIRST-YIELD REFERENCE${r.section.hasTrueSteppedSections?' / GOVERNING LOCAL SECTION':''}</span><b>${(0,common_1.fmt)(fy.momentKNm,2)} kN·m</b><p>M/My = ${(0,common_1.fmt)(fy.ratio,3)}${fy.x!==null?' at x = '+(0,common_1.fmt)(fy.x,3)+' m':''}${fy.sectionLabel?' · '+(0,common_1.esc)(fy.sectionLabel):''}. This remains an elastic mechanics reference and ignores section classification, LTB, restraint and code capacity factors.</p></div>`:'<div class="design-empty">Enter fy only if you want this educational mechanics reference. It is not required for the manual-capacity review.</div>'}</section>
+    <section class="design-card design-step-card design-step-2"><span class="eyebrow">ELASTIC REFERENCE</span><h3>First yield, not design capacity.</h3><p>Optionally enter a yield stress to compare the elastic bending demand with the mechanics reference My = fyI/c. BeamLab deliberately keeps this separate from φMb.</p>${designNumberField('fyMPa','Yield stress fy',s.fyMPa,'MPa',.001,1e6,'e.g. 300')}<div id="design-elastic-reference">${designElasticReference(r)}</div></section>
     <section class="design-card design-step-card design-step-2"><span class="eyebrow">TRACEABILITY</span><h3>Record where the numbers came from.</h3><textarea class="design-textarea" data-design-text="capacitySource" maxlength="240" placeholder="Capacity source, calculation reference, clause, software run...">${(0,common_1.esc)(s.capacitySource)}</textarea><textarea class="design-textarea" data-design-text="notes" maxlength="1000" placeholder="Design assumptions, restraint notes, combination basis, outstanding checks...">${(0,common_1.esc)(s.notes)}</textarea><div class="design-source-note">These notes are stored locally and included in the Design Review JSON. They do not modify the structural model.</div>${(0,common_1.button)('design-reset','Reset design inputs','text-button')}</section></aside>
     <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand ${d.elasticStressMPa===null?'unavailable':''}"><span>Elastic fibre stress</span><b>${d.elasticStressMPa===null?'NOT INFERRED':(0,common_1.fmt)(d.elasticStressMPa,3)+' MPa'}</b><small>${d.elasticStressMPa===null?'EI-only zones do not define local section geometry':r.section.hasTrueSteppedSections?'governing local section · x '+(0,common_1.fmt)(d.elasticStressX,3)+' m · '+(0,common_1.esc)(d.elasticStressSection):'from current M and I/c'}</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
     <section class="design-card design-step-card design-step-3"><span class="eyebrow">ENTERED CHECKS</span><h3>Demand divided by the criteria you supplied.</h3><div class="design-ratio-list">${r.checks.map(designRatioCard).join('')}</div><div class="design-governing"><span>Governing entered-check ratio</span><b>${governing}</b></div>${sourceLine}<div class="design-warning">A ratio below 1.0 only means BeamLab demand is below the <b>entered</b> capacity/limit. It does not prove AS 4100 compliance, structural adequacy or project approval.</div></section>
@@ -413,11 +416,14 @@ function setDesignStep(step, scroll = true) {
     renderDesignStudio();
     if (scroll) $('#design-studio')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
 }
-function updateDesignInput(el) {
+function updateDesignInput(el, redraw = false) {
     const numberKey = el.dataset.designNumber, selectKey = el.dataset.designSelect, textKey = el.dataset.designText;
     if (numberKey) {
         const raw = el.value.trim(), n = Number(raw);
-        designSettings[numberKey] = raw && Number.isFinite(n) && n > 0 ? n : null;
+        const valid = raw && Number.isFinite(n) && n > 0 && el.validity.valid;
+        designSettings[numberKey] = valid ? n : null;
+        if (raw && !valid) el.setAttribute('aria-invalid', 'true');
+        else el.removeAttribute('aria-invalid');
     } else if (selectKey) {
         designSettings[selectKey] = el.value;
     } else if (textKey) {
@@ -425,7 +431,13 @@ function updateDesignInput(el) {
     } else return;
     designSettings = (0, design_1.normaliseSettings)(designSettings);
     saveDesignSettings();
-    renderDesignStudio();
+    // Save while typing; replacing the inputs on blur loses the next click or
+    // keyboard focus. Only a select changes which criteria fields are present.
+    if (redraw) renderDesignStudio();
+    else {
+        const reference = $('#design-elastic-reference');
+        if (reference && analysis) reference.innerHTML = designElasticReference((0, design_1.evaluate)(history.model, analysis, designSettings));
+    }
 }
 function render() {
     updateFocusControl();
@@ -2463,6 +2475,7 @@ function bootstrap() {
     document.addEventListener('dblclick', e => { const el = e.target, object = el.closest('[data-object]'); if (object)
         inlineEdit(object.dataset.object, e); });
     document.addEventListener('input', e => { const el = e.target;
+        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && (el.dataset.designNumber || el.dataset.designText)) { updateDesignInput(el); return; }
         if (el instanceof HTMLInputElement && (el.dataset.range === 'trace' || el.hasAttribute('data-trace-number'))) {
             const x=el.valueAsNumber; if (!Number.isFinite(x) || x<0 || x>history.model.length) {el.setAttribute('aria-invalid','true');return;}
             el.removeAttribute('aria-invalid');v.trace=x;v.pinned=true;updateTrace();return;
@@ -2485,7 +2498,7 @@ function bootstrap() {
     document.addEventListener('change', e => { const el = e.target; if(el.id==='progress-file'){void previewLearningImport(el.files?.[0]);return;} if(el instanceof HTMLInputElement && el.dataset.range==='fibre'){v.fibre=Number(el.value);$('#section-stress').innerHTML=sectionLab.render(history.model,analysis,v.trace ?? analysis?.peakM.x ?? 0,v.fibre,v.sectionSide);$('#fibre-slider')?.focus({preventScroll:true});return;} if (el instanceof HTMLSelectElement && el.dataset.select)
         selectChanged(el); if (el instanceof HTMLInputElement && el.dataset.text)
         textChanged(el); if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)
-        if (el.dataset.designNumber || el.dataset.designSelect || el.dataset.designText) updateDesignInput(el); });
+        if (el.dataset.designNumber || el.dataset.designSelect || el.dataset.designText) updateDesignInput(el, !!el.dataset.designSelect); });
     document.addEventListener('pointerdown', pointerDown);
     document.addEventListener('pointermove', pointerMove);
     document.addEventListener('pointerup', e => pointerUp(e));
