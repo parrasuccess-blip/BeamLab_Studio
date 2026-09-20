@@ -71,10 +71,13 @@ test('guided entry is optional and direct engineering entry preserves an edited 
 test('individual lessons have ordered navigation and restore model and undo history',async({page},testInfo)=>{
   await open(page);
   await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  await page.getByLabel('Beam length',{exact:true}).fill('9');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  await act(page,'undo').click();await act(page,'compare').click();
   const original=await modelCopy(page),history=await page.locator('#history-count').textContent();
   const saved=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'));
   await flow(page,'learn');await page.locator('.lesson-list button').first().click();
-  await expect(page.locator('.learning-model-notice')).toContainText('preserved');
+  await expect(page.locator('.learning-model-notice')).toContainText('Return to your model to restore');
+  await expect(page.locator('#toast')).not.toContainText('Example loaded');
   const nav=page.getByRole('navigation',{name:'Lesson navigation',exact:true});
   await expect(nav.getByRole('button',{name:'Previous',exact:true})).toBeDisabled();
   await nav.getByRole('button',{name:'Next',exact:true}).click();await expect(nav).toContainText('2 of');
@@ -86,7 +89,12 @@ test('individual lessons have ordered navigation and restore model and undo hist
   await page.locator('.lesson-list button').first().click();
   await flow(page,'build');expect(await modelCopy(page)).toBe(original);
   await expect(page.locator('#history-count')).toHaveText(history);
+  await expect(page.getByRole('button',{name:'Clear comparison',exact:true}).first()).toBeVisible();
+  await expect(act(page,'redo')).toBeEnabled();
+  await act(page,'redo').click();await showTools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
+  await act(page,'undo').click();expect(await modelCopy(page)).toBe(original);
   await act(page,'undo').click();await showTools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
 });
 
 test('challenge examples do not overwrite the browser model and reload preserves learning evidence',async({page})=>{
@@ -100,7 +108,35 @@ test('challenge examples do not overwrite the browser model and reload preserves
   const evidence=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2:learning-evidence'));
   expect(JSON.parse(evidence).some(e=>e.event==='reveal')).toBe(true);
   await page.reload();expect(await modelCopy(page)).toBe(original);
+  await expect(act(page,'undo')).toBeDisabled();await expect(act(page,'redo')).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Freeze comparison',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2:learning-evidence'))).toBe(evidence);
+});
+
+for(const method of ['saved','snapshot','json']) test(`opening a ${method} study during a lesson retains the opened model and undo returns to the original`,async({page})=>{
+  await open(page);
+  await page.getByLabel('Beam length',{exact:true}).fill('9');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const replacement=await modelCopy(page);
+  const replacementJson=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'));
+  if(method==='saved') {await act(page,'library').first().click();await act(page,'save-named').click();await act(page,'dialog-close').click();}
+  await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
+  const original=await modelCopy(page);
+  await flow(page,'learn');await page.locator('.lesson-list button').first().click();
+  if(method==='saved') {await act(page,'library').first().click();await act(page,'open-named:0').click();}
+  if(method==='snapshot') {await act(page,'share').first().click();await page.getByLabel('Paste model snapshot').fill(replacement);await act(page,'open-snapshot').click();}
+  if(method==='json') {
+    await page.locator('#model-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{invalid')});
+    await expect(page.locator('.learning-model-notice')).toBeVisible();
+    await expect(page.locator('#toast')).toContainText('File not opened');
+    await page.locator('#model-file').setInputFiles({name:'replacement.json',mimeType:'application/json',buffer:Buffer.from(replacementJson)});
+  }
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Build / Explore');
+  await expect(page.locator('.learning-model-notice')).toHaveCount(0);
+  expect(await modelCopy(page)).toBe(replacement);
+  await flow(page,'analyse');await flow(page,'build');expect(await modelCopy(page)).toBe(replacement);
+  await act(page,'undo').click();expect(await modelCopy(page)).toBe(original);
+  await act(page,'redo').click();expect(await modelCopy(page)).toBe(replacement);
+  await page.reload();expect(await modelCopy(page)).toBe(replacement);
 });
 
 test('starting full practice from a standalone lesson still restores the original engineering model',async({page})=>{

@@ -117,3 +117,22 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Discovered that standalone tasks previously replaced/autosaved over the working model, unlike full sessions. Preserve the original model, undo/redo, comparison and view while standalone examples are open; restore on return/navigation. Browser reload retains the original persisted model.
 - Engineering engine, numerical tolerances, question grading, adaptive planning and bounded learning-evidence algorithms are unchanged.
 - Numerical and browser regression additions are being validated. This checkpoint is not a production-release claim; append final results and deployment verification below before handoff.
+
+---
+
+## 2026-09-20 — Account A — Recovery takeover and targeted fixes
+
+**STATUS: audit complete / fixes implemented / validation pending**
+
+- Objective: recover Account B's interrupted update from GitHub, audit it, and fix confirmed faults on its existing feature branch without modifying main.
+- Starting implementation: `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`; main observed at `08cf047d819c6b3563de95727ceea3e9b86fd7e3`. No newer Account B commits. Draft PR #16 open/unmerged. Fetched all 17 branch refs; inspected recent PRs and actual source/test/doc diff.
+- Read all five shared AI documents completely. The handoff was truthful about being incomplete but lacked the completed CI results and the crash-safe procedure now required by the user. Uncommitted stale Account A work in the older local checkout was left isolated and was not incorporated; the recovery uses a clean worktree at Account B's exact commit.
+- Fresh baseline commands: `npm ci`, `npm run build`, `npm test` — passed, **1,258 tests**, none failed/skipped. Candidate HTML SHA-256 `4740778170f27e9939f41554bddec872d76aa9cacafd3b07b76a43243d20078d`, 723,331 bytes.
+- Read exact-head CI logs: PR run 35499219786 and push run 35499186533 succeeded. PR browser job 106047871847 ran `npm run test:browser`: **76 passed (2.5m)**, four browser/viewport projects, retries disabled. Downloaded artifact 10601013685 and reviewed mobile/direct-entry/focused-lesson screenshots. Browser automation is run through GitHub CI; hosted manual inspection uses the supported browser runtime.
+- Hosted preview confirms direct entry without a level modal, full tools, optional Learn, Previous/Next/catalogue navigation, original 8 m model restoration, working Undo/Redo and comparison restoration. Reload restores the saved beam and keeps independent learning evidence.
+- Confirmed faults: notice incorrectly promised history through reload; explicit saved-study opening inside a lesson reverted to the original beam when leaving Learn. Source shows the same lifecycle problem for shared-snapshot and JSON import routes.
+- Fixes: central explicit-study-opening lifecycle after successful parse; restore the engineering origin before replacement, leave the temporary activity and allow Undo to the original. Invalid files do not discard an activity. Full active/review sessions retain their navigation guard. Correct reload notice; suppress transient example toasts during standalone lessons/challenges. Add browser coverage for all three opening paths and strengthen undo/redo/comparison assertions.
+- Files changed by recovery: `src/studio/app.js`, `src/studio/panels.js`, `tests/browser/studio.spec.js`, shared AI documentation. No solver, sign, tolerance, grading or adaptive/evidence algorithm changes.
+- Production independently verified unchanged at 4.1.0 / 716,078-byte HTML / `40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72`; public homepage still says Open BeamLab, not Build / Explore.
+- Audit recommendation for Account B's original checkpoint: **B — fix the branch before merge**. The broader notation/diagram-label/Show Why work remains separate and unfinished. Phone lesson pages still have extensive secondary settings beneath the task.
+- Crash-safe practice: PR status updated during audit; coherent implementation and this record must be pushed before new long-running browser validation. Append actual outcomes after checks finish. Do not infer a credits warning will arrive.

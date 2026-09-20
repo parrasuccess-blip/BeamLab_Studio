@@ -2,15 +2,36 @@
 
 ## Current state
 
-**Last active account:** Account B  
-**Current branch:** `feature/direct-explore-learning-navigation` (implementation / validation in progress)  
-**Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`  
-**Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`  
-**Repository version at baseline:** 4.1.0  
-**Production URL:** https://beam-lab-studio.vercel.app/  
+**Last active account:** Account A (recovery takeover on 2026-09-20)
+**Current branch:** `feature/direct-explore-learning-navigation`
+**STATUS:** Account B audit complete / confirmed fixes implemented / validation pending
+**Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
+**Observed main HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
+**Draft PR:** https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16
+**Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
+**Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`
+**Repository version at baseline:** 4.1.0
+**Production URL:** https://beam-lab-studio.vercel.app/
 **Production deployment state:** Must be verified before claiming the public site matches repository HEAD.
 
 This handoff system was bootstrapped on 2026-09-20 so Account A and Account B can safely alternate work.
+
+## Recovery checkpoint — read before continuing
+
+Account A fetched all branch refs and audited Account B's actual diff before making these fixes. Account B added no commit after `799fae5`; PR #16 was still a draft and unmerged. Main only adds the shared AI docs to the 4.1 code release. All 16 non-main branches were inspected; the other 15 are historical squash-merged work.
+
+At the exact Account B checkpoint, fresh local `npm ci`, `npm run build` and `npm test` passed: **1,258 checks**, zero failed/skipped. CI run **35499219786** confirms **76 browser journeys passed**, zero retries, across desktop Chromium/Firefox and mobile WebKit/360px Chromium. Push run **35499186533** also passed. Browser screenshots were downloaded and reviewed. Manual hosted-preview checks covered optional learning, ordered navigation, return to the catalogue, beam/undo/redo/comparison restoration and reload. Production was separately fetched: version **4.1.0**, HTML **716,078 bytes**, SHA-256 **40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72**. It does not contain Account B's navigation changes.
+
+Audit classification: **B — mostly complete, but needs fixes**. The ordinary standalone lifecycle protects the saved engineering model and learning evidence. Two faults were confirmed:
+
+1. The notice falsely promised undo history through reload. Reload keeps the saved beam/evidence, but undo/redo and comparison are session-only, as already stated in Edit history.
+2. Opening a named study, shared snapshot or model JSON while a standalone activity is open remains inside that activity; returning to Build then silently restores the old model. Reproduced with a saved 9 m study reverting to the original 8 m beam.
+
+The recovery fix makes explicit model opening exit the temporary activity before committing the replacement; Undo goes back to the original engineering beam. Invalid imports leave the activity/original intact. The notice now states reload behaviour accurately. Redundant example-loaded toasts are suppressed during standalone activities, avoiding a toast over mobile lesson content. New browser checks cover all three opening paths, invalid input, undo/redo, reload and comparison restoration. No engine, tolerances, grading or adaptive algorithms changed.
+
+**Next:** run and inspect the new browser CI plus numerical suite at this checkpoint; verify the hosted fix, update this validation record. Keep PR #16 draft until those checks are complete. Do not merge main as part of an unfinished recovery audit.
+
+The broader user requests for mathematical notation, collision-free diagram labels and a stronger deterministic Show Why remain unimplemented by this scoped branch. Mobile lesson navigation fits, but the options below the active task still make the page long; preserve this as a follow-up UX finding, not a claim of completion.
 
 ## Account checkpoints
 
@@ -105,3 +126,7 @@ Particular areas to inspect:
 Whichever account works next must update this file before handing over. It should also append a detailed entry to `SESSION_LOG.md`, add durable decisions to `DECISIONS.md`, and update `TESTING.md` if the validation process changes.
 
 Do not leave the next account with a vague note such as “worked on UI”. The next account must be able to reconstruct the session without seeing the other account's ChatGPT conversation.
+
+## Crash-safe workflow (permanent)
+
+Assume a session may end after any tool call; there is no reliable credit-warning signal. For every substantial update, use a dedicated feature branch, record active account/objective/starting commit/status immediately, create a draft PR early, and push coherent checkpoints before long-running validation. Update this handoff and the append-only session log during work. Record validation states progressively; only merge after adequate validation and only claim production after checking its actual artifact and behaviour.

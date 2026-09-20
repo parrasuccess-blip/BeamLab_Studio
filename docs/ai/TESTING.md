@@ -170,3 +170,13 @@ At the end of a development session, record in `HANDOFF.md` and `SESSION_LOG.md`
 - deployment state if checked.
 
 If the testing process itself changes, update this file.
+
+## Recovery baseline — 2026-09-20
+
+Account B checkpoint `799fae5`: freshly verified **1,258 numerical/behaviour checks** locally and **76 browser journeys** in CI run 35499219786. The browser command runs in GitHub CI with the configured four projects and zero retries. Inspect logs and screenshots in `browser-evidence`; do not claim a local browser run when CI supplied the execution.
+
+Account A recovery adds checks for named-study, shared-snapshot and model-JSON opening during a standalone lesson, invalid input preserving the activity, navigation/reload keeping the explicitly opened study, undo returning to the original beam, and redo/comparison preservation. Current counts and results must be recorded after the new suite runs.
+
+Before long validation, push the coherent source and a status checkpoint. Update HANDOFF and SESSION_LOG during work. No reliable advance credit-limit warning exists.
+
+Correction: all three generated release files are inside `dist/`: `dist/index.html`, `dist/SHA256.txt`, `dist/release.json`.

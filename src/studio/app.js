@@ -576,6 +576,24 @@ function endStandaloneLearning() {
     v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     return true;
 }
+function openUserStudy(model, label) {
+    if (v.session?.active || v.session?.review) {
+        toast('Finish or close the learning session before opening another study.');
+        return false;
+    }
+    finishField();
+    if (endStandaloneLearning()) {
+        // An explicit import replaces the original engineering study, not the
+        // temporary exercise. Undo therefore returns to that original study.
+        v.workspaceMode = 'analysis';
+        v.tab = 'build';
+        v.practice = false;
+        v.controls = !matchMedia('(max-width:780px)').matches;
+    }
+    v.zoom = 1; v.pan = 0;
+    commit(model, label, false);
+    return true;
+}
 function focusLearningActivity() {
     if (sessionLoading) return;
     const activity = $('#controls .activity-navigation') || $('#controls .lesson-active') || $('#controls .challenge-active');
@@ -1302,7 +1320,7 @@ function trajectoryTopicDialog(topic) {
     openDialog(d.topic + ' · trajectory evidence', `<section class="topic-drilldown"><header class="topic-drill-head ${(0,common_1.esc)(d.current.status)}"><div><span class="eyebrow">RECENT TRAJECTORY / LOCAL EVIDENCE</span><h3>${(0,common_1.esc)(d.current.label)}</h3><p>${(0,common_1.esc)(d.current.explanation)}</p></div><strong>${d.current.masteryScore === null ? 'NO AGGREGATE SCORE' : (0,common_1.esc)(d.current.masteryScore + '% mastery heuristic')}</strong></header><div class="topic-drill-grid"><section><div class="topic-section-head"><span>EVENTS BEHIND THIS STATE</span><small>Newest retained evidence is at the bottom.</small></div><div class="topic-events">${eventRows || '<p class="muted">No retained events.</p>'}</div></section><aside><div class="topic-section-head"><span>AVAILABLE TASKS AT THIS LEVEL</span><small>These are the lesson/challenge records BeamLab can link to this topic.</small></div><div class="topic-tasks">${taskRows || '<p class="muted">No mapped tasks at this level.</p>'}</div></aside></div>${next}<p class="topic-boundary">${(0,common_1.esc)(d.boundary)}</p></section>`);
 }
 function referenceExample() { const m = (0, study_1.normalise)((0, examples_1.example)('simple')); m.name = 'Centre load / 6 metre study'; m.length = 6; m.items = m.items.filter(i => (0, validation_1.isSupport)(i.kind)); m.items[1].x = 6; const o = { ...(0, examples_1.makeItem)('point', 3, undefined, 20), label: 'P1', colour: '#f19b82', caseId: m.cases[0].id }; m.items.push(o); return m; }
-function loadExample(key) { v.zoom = 1; v.pan = 0; commit(key === 'reference' ? referenceExample() : (0, study_1.normalise)((0, examples_1.example)(key)), 'Load example', false); if (!sessionLoading) toast('Example loaded. Undo restores your previous model.'); }
+function loadExample(key) { v.zoom = 1; v.pan = 0; commit(key === 'reference' ? referenceExample() : (0, study_1.normalise)((0, examples_1.example)(key)), 'Load example', false); if (!sessionLoading && !standaloneOrigin) toast('Example loaded. Undo restores your previous model.'); }
 function openLibrary() {
     let records = [];
     try {
@@ -1815,10 +1833,8 @@ async function action(key, el) {
     if (name === 'open-snapshot') {
         try {
             const m = (0, export_1.fromSnapshot)($('#paste-snapshot').value);
+            if (!openUserStudy(m, 'Open shared snapshot')) return;
             closeDialog();
-            v.zoom = 1;
-            v.pan = 0;
-            commit(m, 'Open shared snapshot', false);
             toast('Snapshot opened. Undo restores your previous model.');
         }
         catch (e) {
@@ -1856,10 +1872,8 @@ async function action(key, el) {
                 const r = records[Number(id)];
                 if (r) {
                     const m = (0, study_1.parseStudy)(JSON.stringify(r.model));
+                    if (!openUserStudy(m, 'Open saved study')) return;
                     closeDialog();
-                    v.zoom = 1;
-                    v.pan = 0;
-                    commit(m, 'Open saved study', false);
                 }
             }
             else {
@@ -2669,9 +2683,7 @@ function bootstrap() {
         if (f.size > 150000)
             throw new Error('Model exceeds 150 kB.');
         const m = (0, study_1.parseStudy)(await f.text());
-        v.zoom = 1;
-        v.pan = 0;
-        commit(m, 'Import model JSON', false);
+        if (!openUserStudy(m, 'Import model JSON')) return;
         toast('Model imported. Undo restores your previous study.');
     }
     catch (e) {
