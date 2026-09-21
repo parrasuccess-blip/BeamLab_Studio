@@ -2,9 +2,10 @@
 
 ## Current state
 
-**Last active account:** Account B (return audit and numeric-edit recovery on 2026-09-20)
+**Last active account:** Account A (validation recovery on 2026-09-21)
 **Current branch:** `feature/direct-explore-learning-navigation`
-**STATUS:** numeric-edit history repair implemented / validation pending / PR remains draft
+**STATUS:** Account B repair audited / 95 of 96 browser checks pass / Firefox Shift+Tab focus under investigation / PR remains draft
+**Current Account A starting HEAD:** `282fda3385b10aede173be09a5f2aab555edfe46`
 **Current Account B starting HEAD:** `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`
 **Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
 **Observed main HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
@@ -18,6 +19,8 @@
 This handoff system was bootstrapped on 2026-09-20 so Account A and Account B can safely alternate work.
 
 ## Recovery checkpoint — read before continuing
+
+Latest return: Account A re-fetched all branch refs on 2026-09-21. Main is still `08cf047`; PR #16 remains open, draft and unmerged. Account B added the starting record `b13ecae` and numeric-edit repair `282fda3` after `1cf371d`. Exact-head PR run **35512885378** and push run **35512883719** completed with failure. The PR numerical job passed; browser results are **95 passed / 1 failed**. The former four lesson/history failures now pass. The remaining Firefox check expects Studies to retain focus after Shift+Tab from Beam length. Investigate its trace and native focus destination before changing source or assertions. Preserve all model-opening fixes and pointer-click regressions. No production release is claimed. Objective: finish this scoped recovery, validate, merge and verify production.
 
 Account A fetched all branch refs and audited Account B's actual diff before making these fixes. Account B added no commit after `799fae5`; PR #16 was still a draft and unmerged. Main only adds the shared AI docs to the 4.1 code release. All 16 non-main branches were inspected; the other 15 are historical squash-merged work.
 

@@ -157,3 +157,13 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Updated existing Undo/Redo buttons in place during input: a first valid pending edit enables Undo, and a pending change disables stale Redo. Invalid/unchanged drafts do not create edits. The ordinary finish path still restores the committed model after invalid input.
 - Added two focused browser journeys covering keyboard focus, two independently saved edits, Undo/Redo/reload, immediate first-edit Undo, and valid-then-invalid Tab rollback. Preserved the original four failing checks and both pressed-navigation regressions without weakening assertions. Expected suite size is now 96 project checks; actual results still pending.
 - `git diff --check` and JavaScript syntax checks passed. This implementation and record are checkpointed before the full numerical/build/browser validation. No solver, units, signs, tolerances or Account A model-opening lifecycle changes.
+
+---
+
+## 2026-09-21 — Account A — Complete numeric-edit validation and scoped release
+
+**STATUS: resumed audit complete / Firefox focus investigation / not merged or deployed**
+
+- Starting commit `282fda3385b10aede173be09a5f2aab555edfe46`; working branch `feature/direct-explore-learning-navigation`; draft PR #16. Main remains `08cf047d819c6b3563de95727ceea3e9b86fd7e3` after fetching every branch ref. Account B added `b13ecae` and `282fda3` after Account A's prior checkpoint. Read all shared records and actual code/test diffs.
+- Exact-head PR CI run 35512885378 and push run 35512883719 failed. PR regression job succeeds; browser job 106083830211 reports 95 passed and 1 failed out of 96. All previous lesson/history failures, explicit-study openings and Firefox pressed-control regressions pass. The remaining check concerns Shift+Tab focus in Firefox, after successful independent edit persistence and Undo/Redo checks.
+- Objective: diagnose the trace, repair the focused issue without weakening assertions or numerical tolerances, inspect desktop/mobile evidence, merge the validated scoped update and verify production independently. This starting record is pushed before long tests; stale local work remains isolated.
