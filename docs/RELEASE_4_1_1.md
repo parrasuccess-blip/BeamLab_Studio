@@ -1,6 +1,6 @@
 # BeamLab Studio 4.1.1 — Direct engineering and optional learning
 
-Status: release candidate; validation and production verification pending.
+Status: validated release candidate; merge and production verification pending.
 
 ## Changes
 
@@ -16,7 +16,9 @@ Status: release candidate; validation and production verification pending.
 - Account B source checkpoint: `282fda3385b10aede173be09a5f2aab555edfe46`.
 - Fresh local installation/build/regression at that source: 1,258 checks passed, none failed/skipped.
 - Exact-source PR run 35512885378: 95/96 browser checks passed. The remaining assertion incorrectly assumed Chromium's backward tab order in Firefox. Trace/screenshot showed the scrollable tools panel correctly focused. The corrected test explicitly verifies that panel and the following Studies button, retaining all history/persistence checks and zero retries.
-- Current candidate: 96 browser checks across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium. Final results and public hash must be appended after validation.
+- Final implementation `c785fae2244144874aa0093ef854232ca29d8c08`: fresh local build/test **1,258 passed**, no failures/skips. [PR CI run 35554612907](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35554612907) passed **96 browser checks (2.4m)** across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium, with zero retries.
+- Desktop and mobile screenshots inspected; hosted-preview checks confirmed direct entry, independent edits/Undo/Redo, lesson navigation, original beam/comparison restoration, reload safety and invalid rollback. Review reports six consistency checks passed on the restored 9 m reference model.
+- Tested artifact: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**. Production remains separately unverified for 4.1.1 until deployment.
 
 ## Scope and remaining work
 

@@ -182,3 +182,7 @@ Account A recovery adds checks for named-study, shared-snapshot and model-JSON o
 Before long validation, push the coherent source and a status checkpoint. Update HANDOFF and SESSION_LOG during work. No reliable advance credit-limit warning exists.
 
 Correction: all three generated release files are inside `dist/`: `dist/index.html`, `dist/SHA256.txt`, `dist/release.json`.
+
+## 4.1.1 validated candidate — 2026-09-21
+
+Implementation `c785fae`: fresh local installation/build/test **1,258 passed**; exact-head PR run **35554612907** runs `npm run test:browser` in CI with **96 passed**, zero retries. Retain the Firefox-specific focus assertion: Shift+Tab from the first numeric field reaches its scrollable tools container, then Studies. Do not remove the container from native keyboard navigation to match another browser's order. Both pressed-pointer regression cases remain required. Version/title/issue-report expectations now identify 4.1.1; `BL410-` model references remain compatible.
