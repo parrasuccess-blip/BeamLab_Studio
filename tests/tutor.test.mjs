@@ -52,7 +52,7 @@ test('health reports configuration without exposing provider credentials', async
   try {
     delete process.env.OPENAI_API_KEY;
     const off=mock('GET');await handler(off.req,off.res);
-    assert.deepEqual(off.result().payload,{message:'Success',release:'4.1.0',configured:false});
+    assert.deepEqual(off.result().payload,{message:'Success',release:'4.1.1',configured:false});
     process.env.OPENAI_API_KEY='test-only-not-a-secret';
     const on=mock('GET');await handler(on.req,on.res);
     assert.equal(on.result().payload.configured,true);

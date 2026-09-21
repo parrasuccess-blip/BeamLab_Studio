@@ -123,3 +123,19 @@ Features such as verified code design, general FEM, concrete design, TrussLab, F
 
 **Reason:**  
 These require independent engineering implementation and validation.
+
+---
+
+## D-011 — Crash-safe checkpoints are required throughout development
+
+**Status:** Accepted — explicit user instruction, 2026-09-20
+
+Every substantial update uses a dedicated feature branch and an early draft PR. Record active account, starting commit, objective and status immediately. Push coherent milestones before long-running tests and update HANDOFF/SESSION_LOG progressively. Never wait for a credit-limit warning: none is dependable. Merge only coherent validated work; verify production separately.
+
+## D-012 — Temporary learning and explicit model opening have separate lifecycles
+
+**Status:** Accepted
+
+Standalone lessons/challenges preserve the engineering model, undo/redo, comparison and view in memory and do not autosave example beams over the original. Reload retains the saved model and independent learning evidence; undo/redo and comparison remain session-only. Say this accurately.
+
+When a user explicitly opens a valid saved study, shared snapshot or model JSON during a standalone activity, first restore the engineering origin, then commit the opened model and leave the temporary activity. Undo returns to the engineering origin. Failed/cancelled imports must leave both the activity and preserved original intact. Active/review learning sessions retain their existing guard.

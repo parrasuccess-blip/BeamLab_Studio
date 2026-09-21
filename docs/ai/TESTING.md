@@ -125,6 +125,8 @@ When changing the interface, manually or through browser tests inspect:
 - error states;
 - undo after invalid/unstable edits.
 
+Numeric editing must also preserve the browser interaction lifecycle: Tab and Shift+Tab commit independent edits without losing their focus destination; a first valid pending edit makes Undo available; invalid edits restore the committed beam without adding history. Assert persistence immediately after Tab, before any unrelated action can accidentally finish the transaction. Retain the pointer-down/pointer-up checks that catch Firefox losing a pressed navigation control during redraw.
+
 ## Learning checks
 
 When changing Learn behaviour, verify:
@@ -170,3 +172,17 @@ At the end of a development session, record in `HANDOFF.md` and `SESSION_LOG.md`
 - deployment state if checked.
 
 If the testing process itself changes, update this file.
+
+## Recovery baseline — 2026-09-20
+
+Account B checkpoint `799fae5`: freshly verified **1,258 numerical/behaviour checks** locally and **76 browser journeys** in CI run 35499219786. The browser command runs in GitHub CI with the configured four projects and zero retries. Inspect logs and screenshots in `browser-evidence`; do not claim a local browser run when CI supplied the execution.
+
+Account A recovery adds checks for named-study, shared-snapshot and model-JSON opening during a standalone lesson, invalid input preserving the activity, navigation/reload keeping the explicitly opened study, undo returning to the original beam, and redo/comparison preservation. Current counts and results must be recorded after the new suite runs.
+
+Before long validation, push the coherent source and a status checkpoint. Update HANDOFF and SESSION_LOG during work. No reliable advance credit-limit warning exists.
+
+Correction: all three generated release files are inside `dist/`: `dist/index.html`, `dist/SHA256.txt`, `dist/release.json`.
+
+## 4.1.1 validated candidate — 2026-09-21
+
+Implementation `c785fae`: fresh local installation/build/test **1,258 passed**; exact-head PR run **35554612907** runs `npm run test:browser` in CI with **96 passed**, zero retries. Retain the Firefox-specific focus assertion: Shift+Tab from the first numeric field reaches its scrollable tools container, then Studies. Do not remove the container from native keyboard navigation to match another browser's order. Both pressed-pointer regression cases remain required. Version/title/issue-report expectations now identify 4.1.1; `BL410-` model references remain compatible.

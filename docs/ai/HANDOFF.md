@@ -2,14 +2,55 @@
 
 ## Current state
 
-**Last active account:** Account A  
-**Current branch:** `main`  
-**Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`  
-**Repository version at baseline:** 4.1.0  
-**Production URL:** https://beam-lab-studio.vercel.app/  
+**Last active account:** Account A (validation recovery on 2026-09-21)
+**Current branch:** `feature/direct-explore-learning-navigation`
+**STATUS:** 4.1.1 implementation and visual review passed / ready for merge / production verification pending
+**Validated implementation HEAD:** `c785fae2244144874aa0093ef854232ca29d8c08`
+**Current Account A starting HEAD:** `282fda3385b10aede173be09a5f2aab555edfe46`
+**Current Account B starting HEAD:** `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`
+**Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
+**Observed main HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
+**Draft PR:** https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16
+**Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
+**Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`
+**Repository version at baseline:** 4.1.0; current release candidate 4.1.1
+**Production URL:** https://beam-lab-studio.vercel.app/
 **Production deployment state:** Must be verified before claiming the public site matches repository HEAD.
 
 This handoff system was bootstrapped on 2026-09-20 so Account A and Account B can safely alternate work.
+
+## Recovery checkpoint — read before continuing
+
+### Current validation — 2026-09-21
+
+Fresh local `npm ci`, `npm run build`, `npm test` passed: **1,258/1,258**, zero failed/skipped. PR CI run **35554612907** passed the numerical job and **96/96 browser checks** (2.4 minutes, zero retries), including Firefox native backward focus, pending Undo, invalid rollback, original-model restoration and all twelve explicit-study-opening checks. Artifact **10619947656** retains browser evidence. Current HTML: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**, release **4.1.1**.
+
+Hosted 4.1.1 preview was accessible to Account A. Manually verified direct entry with no modal, successive 8/9 m edits and independent history, Undo/Redo, optional lessons, Previous/Next/catalogue, restoration of the 8 m model and comparison, reload during a lesson restoring the saved 9 m beam with session history reset, and invalid value rollback. Review reports 6/6 consistency checks on that restored beam. Desktop and both phone screenshot layouts were inspected. No engine/model/grading/adaptive algorithms or numerical tolerances changed.
+
+Before merge, production was independently fetched and still matched **4.1.0** / 716,078 bytes / `40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72`. Merge the validated scoped update, then compare the actual public HTML hash, release metadata and interaction flows. A green preview is not a production claim. The chronological notes below describe earlier recovery stages and are superseded by this validation.
+
+Latest return: Account A re-fetched all branch refs on 2026-09-21. Main is still `08cf047`; PR #16 remains open, draft and unmerged. Account B added the starting record `b13ecae` and numeric-edit repair `282fda3` after `1cf371d`. Exact-head PR run **35512885378** and push run **35512883719** completed with failure. The PR numerical job passed; browser results are **95 passed / 1 failed**. The former four lesson/history failures now pass. The remaining Firefox check expects Studies to retain focus after Shift+Tab from Beam length. Investigate its trace and native focus destination before changing source or assertions. Preserve all model-opening fixes and pointer-click regressions. No production release is claimed. Objective: finish this scoped recovery, validate, merge and verify production.
+
+Resolution: the failure screenshot shows Firefox correctly focusing the scrollable `#controls` panel (native keyboard scroll access). Its tab order differs from Chromium/WebKit; Account B's focus restoration is working. Correct the browser-specific expectation and additionally require the next Shift+Tab to focus Studies. Keep all history/persistence assertions and zero retries. Fresh local `npm ci`, `npm run build`, `npm test` pass at `282fda3` source: **1,258 checks**, zero failed/skipped; HTML SHA-256 `42f866b1f4fc2b251dec8f179880b1ceff893f2d131b23f7237fc1608f4f5e09`. No runtime source change is needed for this remaining test failure.
+
+Account A fetched all branch refs and audited Account B's actual diff before making these fixes. Account B added no commit after `799fae5`; PR #16 was still a draft and unmerged. Main only adds the shared AI docs to the 4.1 code release. All 16 non-main branches were inspected; the other 15 are historical squash-merged work.
+
+At the exact Account B checkpoint, fresh local `npm ci`, `npm run build` and `npm test` passed: **1,258 checks**, zero failed/skipped. CI run **35499219786** confirms **76 browser journeys passed**, zero retries, across desktop Chromium/Firefox and mobile WebKit/360px Chromium. Push run **35499186533** also passed. Browser screenshots were downloaded and reviewed. Manual hosted-preview checks covered optional learning, ordered navigation, return to the catalogue, beam/undo/redo/comparison restoration and reload. Production was separately fetched: version **4.1.0**, HTML **716,078 bytes**, SHA-256 **40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72**. It does not contain Account B's navigation changes.
+
+Audit classification: **B — mostly complete, but needs fixes**. The ordinary standalone lifecycle protects the saved engineering model and learning evidence. Two faults were confirmed:
+
+1. The notice falsely promised undo history through reload. Reload keeps the saved beam/evidence, but undo/redo and comparison are session-only, as already stated in Edit history.
+2. Opening a named study, shared snapshot or model JSON while a standalone activity is open remains inside that activity; returning to Build then silently restores the old model. Reproduced with a saved 9 m study reverting to the original 8 m beam.
+
+The recovery fix makes explicit model opening exit the temporary activity before committing the replacement; Undo goes back to the original engineering beam. Invalid imports leave the activity/original intact. The notice now states reload behaviour accurately. Redundant example-loaded toasts are suppressed during standalone activities, avoiding a toast over mobile lesson content. New browser checks cover all three opening paths, invalid input, undo/redo, reload and comparison restoration. No engine, tolerances, grading or adaptive algorithms changed.
+
+**Account B return audit:** Account A's completed recovery is commit `1cf371d`; there are no later pushed changes. Fresh clean builds and Node tests pass on main (1,255 checks) and the recovery branch (1,258). Exact-head PR run 35506822163 and push run 35506820228 both finish with **84 browser checks passed / 4 failed** out of 88. All three new explicit-opening journeys pass in all four projects. The enhanced lesson/history test fails before entering Learn: successive beam-length edits followed by Tab leave Undo disabled. Reproduced through the public production UI, so this is a pre-existing numeric-edit transaction bug exposed by stronger coverage. Production HTML still matches main exactly; the protected preview was unavailable to Account B, so its CI screenshots were inspected instead. Account A's earlier validation-pending status is historical.
+
+**Recovery objective (now implemented and validated):** repair numeric edit commit/history handling without restoring the Firefox lost-click bug; preserve Account A's explicit-opening lifecycle and all numerical tolerances. The user approved this scoped recovery and release after receiving the return audit. No further UX feature work is part of this repair.
+
+**Implementation checkpoint:** Tab/Shift+Tab now completes a numeric transaction after native focus movement and restores that destination after rebuilding controls. Valid pending edits enable Undo in place and suppress stale Redo; pointer focusout still preserves the pressed control until its action. Added two browser journeys (eight project checks) for separate saved edits, focus, Undo/Redo/reload and valid-then-invalid rollback. Existing lesson preservation and Firefox pressed-button checks are retained unchanged. Syntax and diff checks pass; full validation is pending at this checkpoint. Initial Account B return record was pushed as `b13ecae`.
+
+The broader user requests for mathematical notation, collision-free diagram labels and a stronger deterministic Show Why remain unimplemented by this scoped branch. Mobile lesson navigation fits, but the options below the active task still make the page long; preserve this as a follow-up UX finding, not a claim of completion.
 
 ## Account checkpoints
 
@@ -23,7 +64,7 @@ This is the BeamLab Studio 4.1 release commit.
 
 ### Account B
 
-No development checkpoint has been established yet.
+Recovery audit completed: there were no engineering commits after the AI-documentation setup commit. The initial handoff accurately described repository state. Account B has begun the user-approved direct-entry / learning-navigation update on the feature branch above; see the appended session log. Do not treat this work-in-progress checkpoint as deployed.
 
 When Account B first takes over, it should treat the current repository HEAD as its initial observed checkpoint after reading all files in `docs/ai/`.
 
@@ -104,3 +145,7 @@ Particular areas to inspect:
 Whichever account works next must update this file before handing over. It should also append a detailed entry to `SESSION_LOG.md`, add durable decisions to `DECISIONS.md`, and update `TESTING.md` if the validation process changes.
 
 Do not leave the next account with a vague note such as “worked on UI”. The next account must be able to reconstruct the session without seeing the other account's ChatGPT conversation.
+
+## Crash-safe workflow (permanent)
+
+Assume a session may end after any tool call; there is no reliable credit-warning signal. For every substantial update, use a dedicated feature branch, record active account/objective/starting commit/status immediately, create a draft PR early, and push coherent checkpoints before long-running validation. Update this handoff and the append-only session log during work. Record validation states progressively; only merge after adequate validation and only claim production after checking its actual artifact and behaviour.
