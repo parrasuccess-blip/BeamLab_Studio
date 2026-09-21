@@ -2,15 +2,16 @@
 
 ## Current state
 
-**Last active account:** Account A (validation recovery on 2026-09-21)
-**Current branch:** `feature/direct-explore-learning-navigation`
-**STATUS:** 4.1.1 implementation and visual review passed / ready for merge / production verification pending
+**Last active account:** Account B (post-merge verification on 2026-09-21)
+**Current branch:** `docs/release-4-1-1-verification` (documentation only, based on current main)
+**STATUS:** 4.1.1 merged by Account A / main CI green / Account B verifying production
+**Account B verification starting HEAD:** `9cf86ef570ecb4895ec071c2a497b80ecb636d6a`
 **Validated implementation HEAD:** `c785fae2244144874aa0093ef854232ca29d8c08`
 **Current Account A starting HEAD:** `282fda3385b10aede173be09a5f2aab555edfe46`
 **Current Account B starting HEAD:** `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`
 **Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
-**Observed main HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
-**Draft PR:** https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16
+**Observed main HEAD:** `9cf86ef570ecb4895ec071c2a497b80ecb636d6a`
+**Release PR (merged):** https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16
 **Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
 **Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`
 **Repository version at baseline:** 4.1.0; current release candidate 4.1.1
@@ -20,6 +21,12 @@
 This handoff system was bootstrapped on 2026-09-20 so Account A and Account B can safely alternate work.
 
 ## Recovery checkpoint — read before continuing
+
+### Post-merge verification in progress — 2026-09-21
+
+Account A merged PR #16 at 02:47:29 UTC, squashing feature HEAD `f99d393` into main `9cf86ef`. Exact final PR CI 35555016024 and push CI 35555013620 succeeded; main CI 35555337390 also succeeded. Account B fetched and inspected all four commits after `282fda3`: recovery status, the Firefox-specific native focus expectation and 4.1.1 identity, final release assertions, and validation documentation. The numeric-edit runtime repair is preserved. No further feature changes are authorised by this verification checkpoint. Verify the actual public artifact and interactions, then replace the stale pre-merge snapshot below and append the final evidence to SESSION_LOG.
+
+The remaining sections currently preserve the earlier recovery record; pre-merge statuses there are historical and superseded by the current state above.
 
 ### Current validation — 2026-09-21
 

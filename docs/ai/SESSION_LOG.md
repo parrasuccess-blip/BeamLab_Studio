@@ -182,3 +182,14 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Hosted 4.1.1 preview: direct entry with full tools and no gate; 6→8→9 m independent Tab edits; Undo to 8; lesson Previous/Next/catalogue; restoration of beam, Redo and comparison; Redo to 9; reload during a temporary lesson restores saved 9 m with Undo reset; invalid 0 m input rolls back to 9; Review shows 6/6 consistency checks. Inspected desktop and mobile layouts. No wider UI-completion claim.
 - Candidate HTML: 725,972 bytes, SHA-256 `6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40`; package/audit/tutor identity 4.1.1. Diff against main confirms engine, model, lesson/challenge algorithms and numerical tolerances unchanged.
 - Production re-fetched separately before merge: still 4.1.0 / 716,078 bytes / `40e454353cf8eb8d93169304426aff65212078f8468bd8af35c3aa47d49eda72`, matching public metadata. Next: merge this scoped validated release and verify the actual public artifact and journeys before claiming it is live.
+
+---
+
+## 2026-09-21 — Account B — Reconcile Account A's release and verify production
+
+**STATUS: merged release confirmed / production verification in progress**
+
+- Starting main: `9cf86ef570ecb4895ec071c2a497b80ecb636d6a`. Dedicated documentation branch: `docs/release-4-1-1-verification`. The user supplied Account A's intervening work and Account B re-fetched GitHub before continuing; no old branch/source was restored.
+- Since Account B implementation `282fda3`, Account A committed `58f0a36` (recovery status), `819fdc3` (Firefox native scroll-container focus expectation and 4.1.1 identity), `c785fae` (remaining release assertions) and `f99d393` (validation record). Inspected their source/test/documentation diffs. Native Firefox focus is legitimate; the additional Shift+Tab-to-Studies assertion preserves keyboard coverage. The 1,258 numerical checks and existing numerical tolerances are unchanged.
+- PR #16 was merged by Account A at 02:47:29 UTC into `9cf86ef`. Its final head `f99d393` has successful PR run 35555016024 and push run 35555013620. Main run 35555337390 succeeded. Vercel's commit status reports success at deployment `8etk39bNeFJ5jt3LhQ3GyYTnuhs7`; actual public artifact and interactions are being verified separately.
+- Existing HANDOFF and release notes still describe a candidate awaiting merge. This checkpoint corrects the known merge state immediately; final public evidence and the next scoped recommendation will follow. No application source changes are part of this documentation update.
