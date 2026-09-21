@@ -360,7 +360,7 @@ test('review exports carry the current model and numerical evidence',async({page
   expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
   await act(page,'privacy').click();await expect(page.getByRole('dialog')).toContainText('encoded, readable snapshot');
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
-  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.0/);
+  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.1/);
 });
 
 test('optional tutor health is honest and deterministic teaching stays available',async({page,request})=>{
