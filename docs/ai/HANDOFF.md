@@ -1,11 +1,12 @@
 # BeamLab AI Handoff
 
-## Active update — Account B, 2026-09-21
+## Active update — Account A takeover, 2026-09-21
 
 - **Task:** prevent overlapping diagram annotations on desktop and narrow/mobile layouts.
 - **Starting main:** `1c74ef4576d014a93ce203affa67826d89243ca6` (4.1.1 release plus completed production handoff).
-- **Branch:** `feature/diagram-annotation-layout`; dedicated draft PR to be opened with this checkpoint.
-- **Status:** source investigation starting; no application changes yet. Production remains the verified 4.1.1 release below.
+- **Branch:** `feature/diagram-annotation-layout`; [draft PR #18](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/18).
+- **Takeover checkpoint:** `adf45cec45b3cdec450c61be2d20c54406365af3`. Account B pushed the investigation record only; the actual diff against main contains no application changes. Account A fetched current refs and read all shared records before continuing.
+- **Status:** source investigation / baseline validation starting; no application changes yet. Production remains the verified 4.1.1 release below.
 - **Scope:** critical-value/inspection labels and crowded structure labels; preserve numerical values, native interaction, temporary-learning model protection and existing solver/tolerances. Inspect actual failures before choosing the layout change.
 - **Validation:** previous release baseline is 1,258 Node checks and 96 browser checks; current update results are pending. Push checkpoints before extended validation and append findings/results to SESSION_LOG.
 

@@ -215,3 +215,15 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Dedicated branch: `feature/diagram-annotation-layout`, starting at that exact main commit in a clean worktree. This initial handoff/session checkpoint precedes implementation and long validation; a draft PR will serve as the live record.
 - Objective: investigate overlapping critical-value/inspection annotations and crowded structural labels, then make a bounded desktop/mobile layout repair. Preserve the single solver, numerical tolerances, displayed engineering values, Undo/Redo, native Firefox interaction and model preservation through learning.
 - Starting release evidence: 1,258 numerical/behaviour checks and 96 browser checks passed; public 4.1.1 was verified in the preceding session. Current-update validation is pending. Broader mathematical presentation, mobile lesson layout and deeper deterministic Show Why remain separate tasks.
+
+---
+
+## 2026-09-21 — Account A — Continue scoped diagram readability update
+
+**STATUS: recovery inspection complete / baseline validation and collision investigation / not deployed**
+
+- Fetched current GitHub state and inspected actual diffs. Main is `1c74ef4576d014a93ce203affa67826d89243ca6`; Account B's branch is `feature/diagram-annotation-layout` at `adf45cec45b3cdec450c61be2d20c54406365af3`, with open draft PR #18. The branch contains HANDOFF/SESSION_LOG changes only, not a published rendering implementation. Stale local work remains isolated.
+- Read PROJECT_CONTEXT, HANDOFF, SESSION_LOG, DECISIONS and TESTING completely. Account B completed the 4.1.1 release verification; the former navigation branch is merged history. Exact starting-head PR CI 35564542665 and push CI 35564338368 report success; fresh local baseline and detailed browser evidence are next.
+- Implementation checklist: shared collision-aware diagram annotations, dedicated inspection-value placement, crowded structure-label spacing, unchanged engineering values and direct manipulation. Keep mathematical presentation, broader lesson layout and deeper Show Why out of this scoped repair.
+- Validation checklist: install/build/current regressions first; add deterministic layout and browser overlap checks; inspect actual desktop/mobile diagrams and export behaviour; checkpoint before long tests; merge only after adequate validation and verify production separately.
+- This takeover record is pushed before implementation/long validation. No solver, numerical tolerance, sign, unit, model lifecycle or production change.
