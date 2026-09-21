@@ -1,6 +1,6 @@
 # BeamLab Studio 4.1.1 — Direct engineering and optional learning
 
-Status: validated release candidate; merge and production verification pending.
+Status: released and production verified on 2026-09-21. Account A merged [PR #16](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16) as `9cf86ef570ecb4895ec071c2a497b80ecb636d6a`; Account B independently verified the public artifact and interactions. [PR #17](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/17) records that verification in the shared documentation.
 
 ## Changes
 
@@ -18,7 +18,14 @@ Status: validated release candidate; merge and production verification pending.
 - Exact-source PR run 35512885378: 95/96 browser checks passed. The remaining assertion incorrectly assumed Chromium's backward tab order in Firefox. Trace/screenshot showed the scrollable tools panel correctly focused. The corrected test explicitly verifies that panel and the following Studies button, retaining all history/persistence checks and zero retries.
 - Final implementation `c785fae2244144874aa0093ef854232ca29d8c08`: fresh local build/test **1,258 passed**, no failures/skips. [PR CI run 35554612907](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35554612907) passed **96 browser checks (2.4m)** across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium, with zero retries.
 - Desktop and mobile screenshots inspected; hosted-preview checks confirmed direct entry, independent edits/Undo/Redo, lesson navigation, original beam/comparison restoration, reload safety and invalid rollback. Review reports six consistency checks passed on the restored 9 m reference model.
-- Tested artifact: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**. Production remains separately unverified for 4.1.1 until deployment.
+- Tested artifact: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**.
+
+## Production verification
+
+- Final feature CI runs 35555016024 and 35555013620 passed at `f99d393`. Release main [run 35555337390](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35555337390) also passed, including **96 browser checks (3.5m)** across all four configured projects with zero retries.
+- Account B freshly ran `npm ci`, `npm run build` and `npm test` on the merged source: **1,258 numerical/behaviour checks passed**, zero failed/skipped. Browser-suite execution was verified in GitHub CI; it was not claimed as a local browser-suite run.
+- Vercel reports deployment `8etk39bNeFJ5jt3LhQ3GyYTnuhs7` succeeded for the release commit. Downloaded public HTML, `release.json` and `SHA256.txt` match the tested artifact exactly. The UI and tutor health response identify 4.1.1; the optional tutor reports `configured:false`.
+- Real public checks passed: direct Build / Explore, independently saved numeric edits, Undo/Redo, Previous/Next lessons, original model/history/comparison restoration, safe reload during a temporary example, invalid-input rollback and Review's 6/6 consistency checks. Desktop and 360px mobile screenshots from the release CI were also reviewed.
 
 ## Scope and remaining work
 

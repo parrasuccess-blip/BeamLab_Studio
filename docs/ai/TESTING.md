@@ -28,11 +28,11 @@ npm run build
 
 The current build script runs `node scripts/build.cjs`.
 
-At the 4.1 baseline, the deterministic build creates:
+The deterministic build creates:
 
 - `dist/index.html`
-- `SHA256.txt`
-- `release.json`
+- `dist/SHA256.txt`
+- `dist/release.json`
 
 Do not add a catch-and-publish fallback that releases an artifact after compilation or regressions fail.
 
@@ -186,3 +186,13 @@ Correction: all three generated release files are inside `dist/`: `dist/index.ht
 ## 4.1.1 validated candidate — 2026-09-21
 
 Implementation `c785fae`: fresh local installation/build/test **1,258 passed**; exact-head PR run **35554612907** runs `npm run test:browser` in CI with **96 passed**, zero retries. Retain the Firefox-specific focus assertion: Shift+Tab from the first numeric field reaches its scrollable tools container, then Studies. Do not remove the container from native keyboard navigation to match another browser's order. Both pressed-pointer regression cases remain required. Version/title/issue-report expectations now identify 4.1.1; `BL410-` model references remain compatible.
+
+## 4.1.1 released baseline — 2026-09-21
+
+- Released source: `9cf86ef570ecb4895ec071c2a497b80ecb636d6a` (PR #16). Account B freshly ran `npm ci`, `npm run build` and `npm test`: **1,258 numerical/behaviour checks passed**, zero failed/skipped.
+- Main [CI run 35555337390](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35555337390) passed. Browser job 106197820962 records **96 passed (3.5m)**, with zero retries across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium. Browser evidence artifact: 10620013758; release artifact: 10620140121. Browser execution was in CI; hosted interaction was inspected separately using the supported browser runtime.
+- Built HTML: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**. The public HTML and release/hash metadata were independently fetched and matched exactly. Vercel's commit status reports a successful production deployment.
+- Public interaction checks passed for direct entry, separate Tab edits, first-edit Undo availability, Undo/Redo, lesson navigation and original beam/history/comparison restoration. Reload inside a temporary example retained the saved engineering model and reset page-session history/comparison as documented. Invalid 0 m input restored the committed beam without adding history. Review showed 6/6 consistency checks.
+- `/api/tutor` identifies 4.1.1 and reports `configured:false`; offline functionality is expected. No provider connection is claimed.
+
+These are observed release results, not future fixed test counts. Re-establish the current baseline after fetching newer work.
