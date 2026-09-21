@@ -1159,7 +1159,8 @@ function renderExtras(skipReview = false) {
 }
 function updateTrace() {
     const a = analysis, m = history.model, x = v.trace;
-    const { xp } = (0, diagrams_1.coordinates)(m, diagramView());
+    const { xp, span } = (0, diagrams_1.coordinates)(m, diagramView());
+    const traceVisible = x !== null && x >= v.pan - 1e-8 && x <= v.pan + span + 1e-8;
     const practice = shown('practice'), pstep = v.practiceStep || 0;
     if (x !== null) { const slider=$('[data-range=trace]'), number=$('[data-trace-number]'); if(slider && slider!==document.activeElement) slider.value=String(x); if(number && number!==document.activeElement) number.value=String(Math.round(x*10000)/10000); }
     $('#trace-readout').innerHTML = x === null ? `<span>${(0, common_1.icon)('help', 12)} Hover a diagram. Click to pin.</span><small>${practice ? 'Practice mode hides unrevealed responses. ' : ''}Reactions up + / loads down + / sagging moment +</small>` : (() => {
@@ -1174,17 +1175,25 @@ function updateTrace() {
         const def = practice && pstep < 4 ? (shown('deformation') ? '<span>v hidden / predict first</span>' : '') : shown('deformation') && r ? `<span>v ${(0, common_1.signed)(r.v * 1000)} mm${cr ? ` <em>A ${(0, common_1.signed)(cr.v * 1000)} / Δ ${(0, common_1.signed)((r.v-cr.v)*1000)}</em>` : ''}</span>` : '';
         return `<b>x ${(0, common_1.fmt)(x)} m ${v.pinned ? '[pinned]' : ''}</b><span>${pair('V', 'kN', 2)}</span><span>${pair('M', 'kN·m', 3)}</span>${def}${v.pinned ? (0, common_1.button)('unpin', (0, common_1.icon)('close', 13), 'icon-button', false, 'Unpin cursor') : ''}`;
     })();
-    $('#graphs').querySelectorAll('.trace-group').forEach(g => { g.style.display = x === null ? 'none' : ''; if (x !== null) g.querySelectorAll('line').forEach(line => { line.setAttribute('x1', String(xp(x))); line.setAttribute('x2', String(xp(x))); }); });
+    $('#graphs').querySelectorAll('.trace-group').forEach(g => { g.style.display = traceVisible ? '' : 'none'; if (traceVisible) g.querySelectorAll('line').forEach(line => { line.setAttribute('x1', String(xp(x))); line.setAttribute('x2', String(xp(x))); }); });
     $('#graphs').querySelectorAll('.diagram-block[data-kind]').forEach(block => {
         const marker = block.querySelector('.trace-marker'), text = block.querySelector('.trace-label');
         if (!marker || !text) return;
         const k = block.dataset.kind, stage = k === 'V' ? 2 : k === 'M' ? 3 : 4, hidden = practice && pstep < stage;
-        marker.style.display = text.style.display = x === null || !a || hidden ? 'none' : '';
+        const active = x !== null && a && !hidden;
+        text.style.display = active ? '' : 'none';
+        marker.style.display = active && traceVisible ? '' : 'none';
+        const placeholder = block.querySelector('.trace-placeholder');
+        if (placeholder) placeholder.hidden = !!active;
         if (x !== null && a && !hidden) {
             const sample = a.sample(x), value = k === 'v' ? sample.v * 1000 : k === 'stress' ? -sample.M * (sample.c ?? a.properties.c) / (sample.I ?? a.properties.I) / 1000 : sample[k];
             const y = Number(block.dataset.base) - value / Number(block.dataset.max) * Number(block.dataset.amp);
             marker.setAttribute('cx', String(xp(x))); marker.setAttribute('cy', String(y));
-            text.setAttribute('x', String((0, common_1.clamp)(xp(x) + 9, 60, width - 85))); text.setAttribute('y', String((0, common_1.clamp)(y + 18, 25, 198))); text.textContent = (0, common_1.signed)(value, 3);
+            const left = a.sample(x, 'left');
+            const leftValue = k === 'v' ? left.v * 1000 : k === 'stress' ? -left.M * (left.c ?? a.properties.c) / (left.I ?? a.properties.I) / 1000 : left[k];
+            const name = k === 'stress' ? 'σ' : k;
+            const values = Math.abs(leftValue-value)>1e-5 ? `${name}⁻ ${(0,common_1.signed)(leftValue,3)} / ${name}⁺ ${(0,common_1.signed)(value,3)}` : `${name} ${(0,common_1.signed)(value,3)}`;
+            text.textContent = `x = ${(0,common_1.fmt)(x)} m · ${values} ${block.dataset.units}${traceVisible ? '' : ' · outside zoomed view'}`;
         }
     });
     if (shown('teaching')) $('#teaching').innerHTML = (0, diagrams_1.teaching)(m, a, x ?? a?.peakM.x ?? 0, v.level);
@@ -2225,7 +2234,7 @@ function pointerDown(e) {
         }
         const part = el.closest('[data-part]')?.dataset.part || 'body';
         const rect = svg.getBoundingClientRect();
-        layout = (0, diagrams_1.layoutModel)(history.model, width);
+        layout = (0, diagrams_1.layoutModel)(history.model, width, v);
         drag = { kind: 'object', base: (0, study_1.clone)(history.model), ids: [...v.selected], item: (0, study_1.clone)(o), part, startX: eventX(e.clientX, rect), startY: e.clientY, clientX: e.clientX, clientY: e.clientY, rect, moved: false, pointer: e.pointerId };
         renderStage();
         $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(history.model, analysis, v);

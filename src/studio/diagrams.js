@@ -13,19 +13,41 @@ const validation_1 = require("../model/validation");
 const section_regions_1 = require("../model/section-regions");
 const study_1 = require("../model/study");
 const common_1 = require("./common");
-function layoutModel(m, width) {
-    const laneEnds = [], lanes = new Map();
-    const scale = (width - 108) / m.length;
-    [...m.items.filter(i => (0, validation_1.isLoad)(i.kind))].sort((a, b) => a.x - b.x).forEach(i => {
-        const start = i.x * scale - 55, end = ((0, validation_1.isDistributed)(i.kind) ? i.end : i.x) * scale + 55;
-        let lane = laneEnds.findIndex(x => x < start);
-        if (lane < 0)
-            lane = laneEnds.length;
-        laneEnds[lane] = end;
-        lanes.set(i.id, lane);
-    });
+const labels_1 = require("./annotation-layout");
+function loadLabel(i, width, factor) {
+    const distributed = (0,validation_1.isDistributed)(i.kind);
+    const text = distributed ? `${i.label}  ${(0, common_1.fmt)(i.value, 1)}${i.kind === 'variable' ? ' to ' + (0, common_1.fmt)(i.endValue, 1) : ''} kN/m${i.locked ? ' [L]' : ''}`
+        : `${i.label} ${(0, common_1.signed)(i.value, 1)} ${i.kind === 'point' ? 'kN' : 'kN·m'}${i.locked ? ' [L]' : ''}`;
+    const box = (0,labels_1.labelBox)([{text,colour:i.colour}], Math.min(240,width-24), i.kind === 'point' ? 11 : 10);
+    const base = distributed ? -70 : -18;
+    const top = distributed ? Math.min(base, base-i.value*factor, base-(i.kind==='variable'?i.endValue:i.value)*factor)
+        : i.kind==='point' ? base-33-Math.min(43,Math.sqrt(Math.abs(i.value))*4) : base-62;
+    return {...box,top:top-box.height-8};
+}
+function layoutModel(m, width, view = {}) {
+    const {xp, span} = coordinates(m, {width, zoom: view.zoom || 1, pan: view.pan || 0});
+    const pan = view.pan || 0, rows = [], lanes = new Map(), labels = new Map();
     const maxW = Math.max(16, ...m.items.filter(i => (0, validation_1.isDistributed)(i.kind)).flatMap(i => [Math.abs(i.value), Math.abs(i.endValue || i.value)]));
-    return { lanes, height: 380 + Math.max(0, laneEnds.length - 1) * 108, factor: 64 / maxW };
+    const factor = 64 / maxW;
+    [...m.items.filter(i => (0, validation_1.isLoad)(i.kind))].sort((a, b) => a.x - b.x).forEach(i => {
+        const distributed = (0, validation_1.isDistributed)(i.kind);
+        if ((distributed ? i.end : i.x) < pan - 1e-8 || i.x > pan + span + 1e-8) return;
+        const box = loadLabel(i,width,factor);
+        const x = xp(i.x), x2 = distributed ? xp(i.end) : x;
+        const cx = (0, common_1.clamp)((x + x2) / 2, box.width / 2 + 12, width - box.width / 2 - 12);
+        const base = distributed ? -70 : -18;
+        const labelTop = box.top;
+        const bottom = distributed ? Math.max(base, base - i.value * factor, base - (i.kind === 'variable' ? i.endValue : i.value) * factor) + 8 : base + 10;
+        const start = Math.min(x - 30, cx - box.width / 2), end = Math.max(x2 + 30, cx + box.width / 2);
+        let lane = rows.findIndex(row => row.end + 12 < start);
+        if (lane < 0) { lane = rows.length; rows.push({end, top:labelTop, bottom}); }
+        else { rows[lane].end = end; rows[lane].top = Math.min(rows[lane].top, labelTop); rows[lane].bottom = Math.max(rows[lane].bottom, bottom); }
+        lanes.set(i.id, lane); labels.set(i.id, {...box, cx, top:labelTop});
+    });
+    const offsets = rows.map(() => 0);
+    for (let n = 1; n < rows.length; n++) offsets[n] = offsets[n-1] - rows[n-1].top + rows[n].bottom + 16;
+    const beamY = Math.max(200, ...rows.map((row, n) => 24 - row.top + offsets[n]));
+    return {lanes, labels, offsets, beamY, height:beamY + 160, factor};
 }
 function coordinates(m, v) {
     const left = v.width < 550 ? 45 : 58, right = v.width - left;
@@ -33,6 +55,9 @@ function coordinates(m, v) {
     return { left, right, span, xp: (x) => left + (x - v.pan) / span * (right - left) };
 }
 const svgText = (x, y, text, colour = '#a1b1bb', anchor = 'middle', size = 11, extra = '') => `<text x="${(0, common_1.fmt)(x, 3)}" y="${(0, common_1.fmt)(y, 3)}" text-anchor="${anchor}" fill="${colour}" font-size="${size}" ${extra}>${(0, common_1.esc)(text)}</text>`;
+function labelSvg(box, attrs = '') {
+    return `<g ${attrs} font-family="ui-monospace,monospace"><rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="5" fill="#101a20" fill-opacity=".96"/>${box.lines.map((line, n) => svgText(box.x + 8, box.y + 17 + n * 15, line.text, line.colour || '#a1b1bb', 'start', line.size, line.bold ? 'font-weight="600"' : '')).join('')}</g>`;
+}
 function arrow(x, y1, y2, c, weight = 1.7) {
     if (Math.abs(y2 - y1) < 0.01)
         return '';
@@ -66,7 +91,22 @@ function renderDiagrams(m, a, v) {
         return `<line x1="${px}" x2="${px}" y1="12" y2="${H - 28}" stroke="#8ca9b3" opacity=".07"/>${svgText(px, H - 9, (0, common_1.fmt)(x, span < 5 ? 2 : 1), '#738991', 'middle', 9)}`;
     }).join('');
     const tracer = (H) => `<g class="trace-group" style="display:${v.trace === null ? 'none' : ''};pointer-events:none"><line class="trace-line" x1="${xp(v.trace || 0)}" x2="${xp(v.trace || 0)}" y1="15" y2="${H - 28}" stroke="#cae9e2" opacity=".6" stroke-dasharray="3 4"/></g>`;
-    const layout = v.layout || layoutModel(m, W), beamY = layout.height - 160;
+    const layout = v.layout || layoutModel(m, W, v), beamY = layout.beamY;
+    const notes = [];
+    const note = (id, x, lines, colour, objectId) => notes.push({id, px:xp(x), colour, objectId, ...(0, labels_1.labelBox)(lines, Math.min(210, W - 24))});
+    for (const i of m.items.filter(i => (0, validation_1.isSupport)(i.kind) && visible(i.x))) {
+        const r = a?.reactions.find(r => r.id === i.id);
+        const lines = [{text:`${i.label}${i.locked ? ' [L]' : ''} / ${(0,common_1.fmt)(i.x,2)} m`, colour:'#bbcdc9'}];
+        if (Math.abs(i.settlementMm || 0) > 1e-12) lines.push({text:`Δ ${(0,common_1.signed)(i.settlementMm,2)} mm`, colour:'#efcb72'});
+        if (i.kind === 'fixed' && Math.abs(i.rotationMrad || 0) > 1e-12) lines.push({text:`θ ${(0,common_1.signed)(i.rotationMrad,2)} mrad`, colour:'#efcb72'});
+        if (r && (!v.practice || v.practiceStep >= 1)) {
+            lines.push({text:`R ${(0,common_1.signed)(r.force)} kN`, colour:'#82d8c1'});
+            if (r.fixed) lines.push({text:`M ${(0,common_1.signed)(r.moment)} kN·m`, colour:'#bc9aff'});
+        } else if (r) lines.push({text:'reaction ?', colour:'#82d8c1'});
+        note(i.id, i.x, lines, '#bbcdc9', i.id);
+    }
+    for (const i of m.items.filter(i => i.kind === 'hinge' && visible(i.x)))
+        note(i.id, i.x, [{text:`${i.label} / M=0`, colour:'#bc9aff'}, {text:`x=${(0,common_1.fmt)(i.x)} m`, size:9}], '#bc9aff', i.id);
     const sectionSegments = (0, section_regions_1.sectionSegments)(m);
     const baseDepth = Math.max(1, Number(m.section?.h) || 1);
     const sectionBands = sectionSegments.map(seg => {
@@ -76,29 +116,29 @@ function renderDiagrams(m, a, v) {
         const explicit=!!seg.regionId;
         const col=explicit?'#a9d8cf':'url(#beam-metal)';
         const boundary=explicit?`<line x1="${x1}" x2="${x1}" y1="${beamY-13}" y2="${beamY+13}" stroke="#b4d9d1" opacity=".55"/><line x1="${x2}" x2="${x2}" y1="${beamY-13}" y2="${beamY+13}" stroke="#b4d9d1" opacity=".55"/>`:'';
-        const label=explicit && annotationOn && visible((seg.a+seg.b)/2)
-            ? svgText((0,common_1.clamp)(mid,65,W-65),beamY+27,`${seg.regionLabel} / ${seg.label}`,'#a9cfc7','middle',8)
-            : '';
-        return `<g class="section-region-band" aria-label="${(0,common_1.esc)(seg.regionLabel)} ${(0,common_1.esc)(seg.label)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="${stroke}" stroke-linecap="butt"/>${boundary}${label}</g>`;
+        if (explicit && annotationOn && visible((seg.a+seg.b)/2)) note(`section-${seg.regionId}`, (seg.a+seg.b)/2, [{text:`${seg.regionLabel} / ${seg.label}`,colour:'#a9cfc7',size:9}], '#a9cfc7');
+        return `<g class="section-region-band" aria-label="${(0,common_1.esc)(seg.regionLabel)} ${(0,common_1.esc)(seg.label)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="${stroke}" stroke-linecap="butt"/>${boundary}</g>`;
     }).join('');
     const stiffnessBands = (m.stiffnessRegions || []).map(r => {
         const x1 = xp(r.x), x2 = xp(r.end), mid = (x1 + x2) / 2;
         const col = r.factor >= 1 ? '#83dcc5' : '#efcb72';
-        const label = annotationOn && visible((r.x+r.end)/2) ? svgText((0,common_1.clamp)(mid,55,W-55), beamY - 16, `${r.label} / EI ×${(0,common_1.fmt)(r.factor,2)}`, col, 'middle', 8) : '';
-        return `<g class="stiffness-band" aria-label="${(0,common_1.esc)(r.label)} EI multiplier ${(0,common_1.fmt)(r.factor,2)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="21" opacity=".12"/><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="2" opacity=".9"/>${label}</g>`;
+        if (annotationOn && visible((r.x+r.end)/2)) note(`stiffness-${r.id}`, (r.x+r.end)/2, [{text:`${r.label} / EI ×${(0,common_1.fmt)(r.factor,2)}`,colour:col,size:9}], col);
+        return `<g class="stiffness-band" aria-label="${(0,common_1.esc)(r.label)} EI multiplier ${(0,common_1.fmt)(r.factor,2)}"><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="21" opacity=".12"/><line x1="${x1}" x2="${x2}" y1="${beamY}" y2="${beamY}" stroke="${col}" stroke-width="2" opacity=".9"/></g>`;
     }).join('');
-    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${layout.height}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${layout.height}"/></clipPath></defs>${grid(layout.height)}<g clip-path="url(#model-clip)">${sectionBands}${stiffnessBands}`;
+    const structureLabels = (0,labels_1.stackLabels)(notes, W, beamY + 96);
+    const dimensionY = Math.max(beamY + 120, ...structureLabels.map(b => b.y + b.height + 22));
+    const modelHeight = dimensionY + 38;
+    let model = `<svg class="model-svg" data-model="1" data-beam-y="${beamY}" viewBox="0 0 ${W} ${modelHeight}" role="img" aria-label="Structure and loads" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam-metal" gradientUnits="userSpaceOnUse" x1="${left}" x2="${right}" y1="0" y2="0"><stop stop-color="#739e96"/><stop offset=".5" stop-color="#e0ede9"/><stop offset="1" stop-color="#78928f"/></linearGradient><clipPath id="model-clip"><rect x="0" y="0" width="${W}" height="${modelHeight}"/></clipPath></defs>${grid(modelHeight)}<g clip-path="url(#model-clip)">${sectionBands}${stiffnessBands}`;
     for (const i of m.items.filter(i => (0, validation_1.isLoad)(i.kind))) {
+        if (!layout.lanes.has(i.id)) continue;
         const x = xp(i.x), lane = layout.lanes.get(i.id) || 0;
-        const base = beamY - ((0, validation_1.isDistributed)(i.kind) ? 70 : 18) - lane * 108;
+        const offset = layout.offsets[lane] || 0, base = beamY - ((0, validation_1.isDistributed)(i.kind) ? 70 : 18) - offset;
         const c = i.colour, factor = (0, study_1.caseFactor)(m, i.caseId), inactive = factor === 0;
         const objectAttrs = `data-object="${(0, common_1.esc)(i.id)}" class="canvas-object ${i.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Select ${(0, common_1.esc)(i.label)}"`;
         model += `<g ${objectAttrs} opacity="${inactive ? '.3' : '1'}">`;
-        const labelX = (px, half = 70) => (0, common_1.clamp)(px, half + 4, W - half - 4);
         if ((0, validation_1.isDistributed)(i.kind)) {
             const x2 = xp(i.end), w0 = i.value, w1 = i.kind === 'variable' ? i.endValue : w0;
             const y0 = base - w0 * layout.factor, y1 = base - w1 * layout.factor;
-            const ly = Math.min(base, y0, y1) - 16;
             const n = Math.min(60, Math.max(2, Math.ceil((x2 - x) / 25)));
             model += `<rect x="${x - 10}" y="${Math.min(y0, y1, base) - 33}" width="${Math.max(10, x2 - x + 20)}" height="${Math.max(y0, y1, base) - Math.min(y0, y1, base) + 48}" rx="9" fill="${v.selected.has(i.id) ? c + '10' : 'transparent'}" stroke="${v.selected.has(i.id) ? c : 'none'}" stroke-dasharray="3 5"/>`;
             model += `<line x1="${x}" x2="${x2}" y1="${y0}" y2="${y1}" stroke="${c}" stroke-width="1.8"/>`;
@@ -110,65 +150,58 @@ function renderDiagrams(m, a, v) {
             if (i.kind === 'variable')
                 for (const [px, yy, part] of [[x, y0, 'w0'], [x2, y1, 'w1']])
                     model += `<g data-part="${part}"><circle cx="${px}" cy="${yy}" r="11" fill="transparent"/><rect x="${px - 4}" y="${yy - 4}" width="8" height="8" transform="rotate(45 ${px} ${yy})" fill="${c}"/></g>`;
-            const text = `${i.label}  ${(0, common_1.fmt)(w0, 1)}${i.kind === 'variable' ? ' to ' + (0, common_1.fmt)(w1, 1) : ''} kN/m${i.locked ? ' [L]' : ''}`;
-            const lw = Math.min(W - 20, text.length * 6.1 + 14), lx = labelX((x + x2) / 2, lw / 2);
-            model += `<g data-inline="value"><rect x="${lx - lw / 2}" y="${ly - 12}" width="${lw}" height="22" rx="6" fill="#111b20" stroke="${c}50"/>${svgText(lx, ly + 3, text, c, 'middle', 10)}</g>`;
         }
         else if (i.kind === 'point') {
             const h = 33 + Math.min(43, Math.sqrt(Math.abs(i.value)) * 4), top = base - h;
             model += `<rect x="${x - 23}" y="${top - 24}" width="46" height="${h + 34}" rx="9" fill="${v.selected.has(i.id) ? c + '10' : 'transparent'}" stroke="${v.selected.has(i.id) ? c : 'none'}" stroke-dasharray="3 4"/>`;
             if (i.value !== 0)
                 model += arrow(x, i.value >= 0 ? top : base, i.value >= 0 ? base : top, c, 2);
-            const txt = `${i.label} ${(0, common_1.signed)(i.value, 1)} kN${i.locked ? ' [L]' : ''}`;
-            model += `<g data-inline="value">${svgText(labelX(x, 56), top - 12, txt, c, 'middle', 11)}</g><line x1="${x}" x2="${x}" y1="${base}" y2="${beamY - 5}" stroke="${c}" stroke-dasharray="2 4" opacity=".35"/>`;
+            model += `<line x1="${x}" x2="${x}" y1="${base}" y2="${beamY - 5}" stroke="${c}" stroke-dasharray="2 4" opacity=".35"/>`;
         }
         else {
             const cy = base - 26, r = 20, ccw = i.value >= 0;
             model += `<circle cx="${x}" cy="${cy}" r="30" fill="${v.selected.has(i.id) ? c + '10' : 'transparent'}" stroke="${v.selected.has(i.id) ? c : 'none'}"/><path d="M${x + r} ${cy} A${r} ${r} 0 1 ${ccw ? 0 : 1} ${x} ${cy + (ccw ? r : -r)}" fill="none" stroke="${c}" stroke-width="1.9"/><path d="M${x - 6} ${cy + (ccw ? r : -r) - 5}l8 5-8 5" fill="${c}"/>`;
-            model += `<g data-inline="value">${svgText(labelX(x, 74), cy - 36, `${i.label} ${(0, common_1.signed)(i.value, 1)} kN m`, c, 'middle', 10)}</g><line x1="${x}" x2="${x}" y1="${base}" y2="${beamY - 5}" stroke="${c}" stroke-dasharray="2 4" opacity=".35"/>`;
+            model += `<line x1="${x}" x2="${x}" y1="${base}" y2="${beamY - 5}" stroke="${c}" stroke-dasharray="2 4" opacity=".35"/>`;
         }
+        const box = loadLabel(i,W,layout.factor);
+        // Keep frozen drag lanes, but anchor the editable label to the moving object.
+        const mid = (0,validation_1.isDistributed)(i.kind) ? (x + xp(i.end)) / 2 : x;
+        model += labelSvg({...box, x:(0,common_1.clamp)(mid - box.width / 2,12,W-12-box.width), y:beamY + box.top - offset}, 'data-inline="value" data-annotation="load"');
         model += '</g>';
     }
-    for (const i of m.items.filter(i => (0, validation_1.isSupport)(i.kind))) {
-        const x = xp(i.x), r = a?.reactions.find(r => r.id === i.id), col = '#bbcdc9', labelX = (0, common_1.clamp)(x, 52, W - 52);
+    for (const i of m.items.filter(i => (0, validation_1.isSupport)(i.kind) && visible(i.x))) {
+        const x = xp(i.x), r = a?.reactions.find(r => r.id === i.id), col = '#bbcdc9';
         model += `<g data-object="${(0, common_1.esc)(i.id)}" class="canvas-object ${i.locked ? 'locked' : ''}" tabindex="0" role="button" aria-label="Select ${(0, common_1.esc)(i.label)}"><rect x="${x - 24}" y="${beamY - 8}" width="48" height="65" rx="8" fill="${v.selected.has(i.id) ? '#82d8c110' : 'transparent'}" stroke="${v.selected.has(i.id) ? '#82d8c1' : 'none'}" stroke-dasharray="3 4"/>`;
         if (i.kind === 'fixed')
             model += `<rect x="${x - 5}" y="${beamY - 24}" width="10" height="50" fill="${col}"/><path d="M${x - 15} ${beamY - 17}l10-10m-10 23 10-10m-10 23 10-10m-10 23 10-10" stroke="${col}"/>`;
         else
             model += `<path d="M${x} ${beamY + 5}l-11 20h22Z" fill="${col}"/>${i.kind === 'roller' ? `<circle cx="${x - 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/><circle cx="${x + 6}" cy="${beamY + 31}" r="3.5" stroke="${col}" fill="none"/>` : `<line x1="${x - 15}" x2="${x + 15}" y1="${beamY + 29}" y2="${beamY + 29}" stroke="${col}"/>`}`;
-        model += svgText(labelX, beamY + 49, `${i.label}${i.locked ? ' [L]' : ''} / ${(0, common_1.fmt)(i.x, 2)} m`, col, 'middle', 9);
-        if (i.kind==='fixed' && Math.abs(i.rotationMrad || 0)>1e-12)
-            model += svgText(labelX, beamY + 73, `θ ${(0,common_1.signed)(i.rotationMrad,2)} mrad`, '#efcb72', 'middle', 8);
-        if (Math.abs(i.settlementMm || 0) > 1e-12)
-            model += svgText(labelX, beamY + 59, `Δ ${(0,common_1.signed)(i.settlementMm,2)} mm`, '#efcb72', 'middle', 8);
         if (r && (!v.practice || v.practiceStep >= 1)) {
-            model += arrow(x, r.force >= 0 ? beamY + 100 : beamY + 63, r.force >= 0 ? beamY + 63 : beamY + 100, '#82d8c1', 1.7);
-            model += svgText((0, common_1.clamp)(x + 12, 58, W - 72), beamY + 80, `${(0, common_1.signed)(r.force)} kN`, '#82d8c1', x > W - 90 ? 'end' : 'start', 9);
-            if (r.fixed)
-                model += svgText(labelX, beamY + 115, `M ${(0, common_1.signed)(r.moment)} kN m`, '#bc9aff', 'middle', 9);
+            model += arrow(x, r.force >= 0 ? beamY + 83 : beamY + 48, r.force >= 0 ? beamY + 48 : beamY + 83, '#82d8c1', 1.7);
         }
-        else if (r && v.practice)
-            model += svgText(labelX, beamY + 78, 'reaction ?', '#82d8c1', 'middle', 9);
         model += '</g>';
     }
-    for (const i of m.items.filter(i => i.kind === 'hinge'))
-        model += `<g data-object="${(0, common_1.esc)(i.id)}" tabindex="0" role="button" aria-label="Select ${(0, common_1.esc)(i.label)}" class="canvas-object"><circle cx="${xp(i.x)}" cy="${beamY}" r="17" fill="transparent"/><circle cx="${xp(i.x)}" cy="${beamY}" r="6" fill="#0b1418" stroke="#bc9aff" stroke-width="2"/>${svgText(xp(i.x), beamY + 23, `${i.label} / M=0`, '#bc9aff', 'middle', 10)}</g>`;
-    // Dimension chain has its own band, above loads' supports. Labels omitted only
+    for (const i of m.items.filter(i => i.kind === 'hinge' && visible(i.x)))
+        model += `<g data-object="${(0, common_1.esc)(i.id)}" tabindex="0" role="button" aria-label="Select ${(0, common_1.esc)(i.label)}" class="canvas-object"><circle cx="${xp(i.x)}" cy="${beamY}" r="17" fill="transparent"/><circle cx="${xp(i.x)}" cy="${beamY}" r="6" fill="#0b1418" stroke="#bc9aff" stroke-width="2"/></g>`;
+    // Draw leaders first so no connector can obscure a later row's text.
+    model += structureLabels.map(b => `<path d="M${b.px} ${beamY+40} L${b.x+b.width/2} ${b.y}" stroke="${b.colour}" opacity=".25" fill="none" pointer-events="none"/>`).join('');
+    model += structureLabels.map(b => labelSvg(b, `data-annotation="structure"${b.objectId ? ` data-object="${(0,common_1.esc)(b.objectId)}" class="canvas-object"` : ''}`)).join('');
+    // Dimension chain has its own band below all notes. Labels omitted only
     // when too close to read; full positions remain in the inspector and table.
     if (annotationOn) {
-        if (annotationMode === 'guided') model += dimension(xp(0), xp(m.length), beamY + 132, (0, common_1.fmt)(m.length) + ' m');
+        if (annotationMode === 'guided' && v.zoom === 1) model += dimension(xp(0), xp(m.length), dimensionY, (0, common_1.fmt)(m.length) + ' m');
         else {
             const xs = [...new Set([0, m.length, ...m.items.flatMap(i => (0, validation_1.isDistributed)(i.kind) ? [i.x, i.end] : [i.x])])].sort((a, b) => a - b);
             for (let k = 1; k < xs.length; k++)
                 if (visible(xs[k]) && visible(xs[k - 1]) && xp(xs[k]) - xp(xs[k - 1]) > 66)
-                    model += dimension(xp(xs[k - 1]), xp(xs[k]), beamY + 132, (0, common_1.fmt)(xs[k] - xs[k - 1]) + ' m');
+                    model += dimension(xp(xs[k - 1]), xp(xs[k]), dimensionY, (0, common_1.fmt)(xs[k] - xs[k - 1]) + ' m');
         }
     }
-    model += tracer(layout.height) + `</g></svg>`;
+    model += tracer(beamY + 45) + `</g></svg>`;
     let html = `<section class="diagram-block" id="structure-block">${diagramHeader('01', 'Structure', 'm / kN', `${(0, common_1.fmt)(m.length)} m member`)}${model}<div class="diagram-caption"><span>Load labels are nominal. Active case factors are applied to the results.${m.selfWeight ? ' Additional self-weight acts over the full beam.' : ''}${m.items.some(i => (0,validation_1.isSupport)(i.kind) && Math.abs(i.settlementMm || 0)>1e-12) ? ' Support settlement is prescribed displacement (up +).' : ''}</span><span>Double-click a label to edit</span></div></section>`;
     const val = (s, k, a) => k === 'stress' ? -s.M * (s.c ?? a.properties.c) / (s.I ?? a.properties.I) / 1000 : k === 'v' ? s.v * 1000 : s[k];
     const chart = (kind, num, title, units, colour) => {
-        const H = 230, base = 108, amp = 66;
+        const base = 108, amp = 66;
         const critical = a ? criticalSamples(a, kind) : [];
         const other = v.compare ? criticalSamples(v.compare, kind) : [];
         const max = Math.max(1e-8, v.scaleLimits?.[kind] || 0, ...critical.map(s => Math.abs(val(s, kind, a))), ...other.map(s => Math.abs(val(s, kind, v.compare))));
@@ -176,7 +209,24 @@ function renderDiagrams(m, a, v) {
         const path = (aa) => aa.points.map((s, k) => `${k ? 'L' : 'M'}${(0, common_1.fmt)(xp(s.x), 3)} ${(0, common_1.fmt)(yp(val(s, kind, aa)), 3)}`).join(' ');
         const revealStage = kind === 'V' ? 2 : kind === 'M' ? 3 : 4;
         const revealed = !v.practice || v.practiceStep >= revealStage;
+        const wanted = [];
+        if (a && revealed && annotationOn) {
+            const accepted = [];
+            for (const s of [...critical].sort((s,t) => Math.abs(val(t,kind,a)) - Math.abs(val(s,kind,a)))) {
+                const value = val(s,kind,a);
+                if (!visible(s.x) || Math.abs(value) < 1e-7 || accepted.some(t => Math.abs(t.s.x-s.x)<1e-7 && Math.abs(t.value-value)<1e-6)) continue;
+                accepted.push({s,value});
+                wanted.push({px:xp(s.x), py:yp(value), xValue:s.x, value, above:value>=0,
+                    ...(0,labels_1.labelBox)([{text:(0,common_1.signed)(value), colour:value>=0?colour:'#f1a6ad',size:11,bold:true},{text:`x=${(0,common_1.fmt)(s.x)} m`,colour:'#80969c',size:9}],right-left)});
+                if (accepted.length >= criticalLimit) break;
+            }
+            if (kind === 'M') for (const hinge of m.items.filter(i => i.kind === 'hinge' && visible(i.x)))
+                wanted.push({px:xp(hinge.x),py:base,xValue:hinge.x,value:0,above:true,...(0,labels_1.labelBox)([{text:`${hinge.label} / M=0`,colour:'#c4b1fa',size:9},{text:`x=${(0,common_1.fmt)(hinge.x)} m`,size:9}],right-left)});
+        }
+        const callouts = (0,labels_1.placeCallouts)(wanted,{left,right,top:5,bottom:201});
+        const H = Math.max(230,...callouts.filter(b => b.y > 201).map(b => b.y+b.height+38));
         let svg = `<svg data-chart="${kind}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="${kind}-bounds"><rect x="${left}" y="20" width="${right - left}" height="176"/></clipPath><clipPath id="${kind}-positive"><rect x="${left}" y="10" width="${right - left}" height="${base - 10}"/></clipPath><clipPath id="${kind}-negative"><rect x="${left}" y="${base}" width="${right - left}" height="95"/></clipPath></defs>${grid(H)}<line x1="${left}" x2="${right}" y1="${base}" y2="${base}" stroke="#8da09f" stroke-width=".7" stroke-dasharray="3 4"/>${svgText(left - 8, base + 3, '0', '#839e9a', 'end', 9)}<text x="15" y="${base}" text-anchor="middle" fill="${colour}" font-size="10" transform="rotate(-90 15 ${base})">${(0, common_1.esc)(kind === 'v' ? 'v / mm (up +)' : kind === 'stress' ? 'top fibre / MPa' : kind + ' / ' + units)}</text>`;
+        svg += tracer(230);
         if (a && revealed) {
             const d = path(a), area = `${d} L${xp(m.length)} ${base}L${xp(0)} ${base}Z`;
             svg += `<path d="${area}" fill="${colour}" opacity=".25" clip-path="url(#${kind}-positive)"/><path d="${area}" fill="${kind === 'v' ? '#a586e4' : '#ee8c91'}" opacity=".23" clip-path="url(#${kind}-negative)"/><g clip-path="url(#${kind}-bounds)"><path d="${d}" fill="none" stroke="${colour}" stroke-width="2" stroke-linejoin="round"/>`;
@@ -193,39 +243,17 @@ function renderDiagrams(m, a, v) {
             for (const hinge of m.items.filter(i => i.kind === 'hinge'))
                 svg += `<line x1="${xp(hinge.x)}" x2="${xp(hinge.x)}" y1="25" y2="192" stroke="#bc9aff" opacity=".3" stroke-dasharray="2 5"/>${kind === 'M' ? `<circle cx="${xp(hinge.x)}" cy="${base}" r="4" fill="#11151c" stroke="#bc9aff"/>` : ''}`;
             svg += '</g>';
-            if (annotationOn) {
-                const priority = [...critical].sort((s, t) => Math.abs(val(t, kind, a)) - Math.abs(val(s, kind, a)));
-                const boxes = [];
-                const accepted = [];
-                for (const s of priority) {
-                    if (!visible(s.x))
-                        continue;
-                    const value = val(s, kind, a);
-                    if (Math.abs(value) < 1e-7)
-                        continue;
-                    if (accepted.some(t => Math.abs(t.s.x - s.x) < 1e-7 && Math.abs(t.value - value) < 1e-6))
-                        continue;
-                    const tx = (0, common_1.clamp)(xp(s.x), left + 35, right - 35), ty = yp(value) + (value >= 0 ? -12 : 20), tw = 70;
-                    if (boxes.some(b => Math.abs(b.x - tx) < (tw + b.w) / 2 + 8 && Math.abs(b.y - ty) < 26))
-                        continue;
-                    boxes.push({ x: tx, y: ty, w: tw });
-                    accepted.push({ s, value });
-                    svg += `<circle cx="${xp(s.x)}" cy="${yp(value)}" r="3.5" fill="${colour}"/>${svgText(tx, ty, (0, common_1.signed)(value), value >= 0 ? colour : '#f1a6ad', 'middle', 11, `font-weight="600"`)}${svgText(tx, ty + (value >= 0 ? -13 : 13), `x=${(0, common_1.fmt)(s.x)} m`, '#80969c', 'middle', 8)}`;
-                    if (accepted.length >= criticalLimit)
-                        break;
-                }
-                for (const hinge of m.items.filter(i => i.kind === 'hinge' && visible(i.x)))
-                    if (kind === 'M')
-                        svg += svgText((0, common_1.clamp)(xp(hinge.x), left + 24, right - 24), base - 10, `${hinge.label} 0`, '#c4b1fa', 'middle', 9);
-            }
+            svg += callouts.map(b => `<path d="M${b.px} ${b.py} L${(0,common_1.clamp)(b.px,b.x,b.x+b.width)} ${(0,common_1.clamp)(b.py,b.y,b.y+b.height)}" stroke="${colour}" opacity=".45" fill="none" pointer-events="none"/>`).join('');
+            svg += callouts.map(b => labelSvg(b, `data-annotation="critical" data-x="${b.xValue}" data-value="${b.value}" pointer-events="none"`)).join('');
+            svg += callouts.map(b => `<circle cx="${b.px}" cy="${b.py}" r="3.5" fill="${colour}" pointer-events="none"/>`).join('');
         }
         else if (a && !revealed)
             svg += `<rect x="${left + 15}" y="45" width="${right - left - 30}" height="126" rx="12" fill="#0f191d" stroke="#33454a" stroke-dasharray="4 5"/>${svgText(W / 2, 91, 'PREDICT BEFORE REVEAL', '#82d8c1', 'middle', 9, 'letter-spacing="1.5"')}${svgText(W / 2, 116, kind === 'V' ? 'Sketch the shear-force diagram.' : kind === 'M' ? 'Use the SFD to sketch the bending-moment diagram.' : kind === 'v' ? 'Predict the elastic curve.' : 'Predict tension and compression.', '#c5d5d1', 'middle', 11)}${svgText(W / 2, 138, 'Use Learn → Practice mode when you are ready to reveal the next stage.', '#80969c', 'middle', 8)}`;
         else
             svg += svgText(W / 2, base, 'Complete a stable model to view this response.', '#8ea5ad', 'middle', 11);
-        svg += tracer(H) + `<circle class="trace-marker" r="4" fill="#0b1418" stroke="${colour}" stroke-width="2" style="display:none"/><text class="trace-label" fill="${colour}" font-size="10" style="display:none"></text></svg>`;
+        svg += `<circle class="trace-marker" r="4" fill="#0b1418" stroke="${colour}" stroke-width="2" style="display:none" pointer-events="none"/></svg>`;
         let hint = !revealed ? 'Practice mode / response hidden until reveal' : kind === 'v' ? 'Shape exaggerated. Downward = negative.' : kind === 'stress' ? 'Top fibre: tension + / compression -' : 'Signed values / critical positions';
-        return `<section class="diagram-block" data-kind="${kind}" data-max="${max}" data-base="${base}" data-amp="${amp}">${diagramHeader(num, title, units, hint)}${svg}</section>`;
+        return `<section class="diagram-block" data-kind="${kind}" data-units="${units}" data-max="${max}" data-base="${base}" data-amp="${amp}">${diagramHeader(num, title, units, hint)}${svg}<div class="diagram-inspection"><span class="trace-placeholder">${!revealed ? 'Predict first; this response is hidden.' : 'Inspect or pin a position for its exact value.'}</span><output class="trace-label" style="display:none;color:${colour}"></output></div></section>`;
     };
     html += chart('V', '02', 'Shear force diagram', 'kN', '#82d8b0');
     html += chart('M', '03', 'Bending moment diagram', 'kN\u00b7m', '#efcb72');

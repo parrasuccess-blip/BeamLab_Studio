@@ -86,6 +86,8 @@ body.focus-mode #workspace{padding-top:106px}
 .case-summary{padding:10px 20px;font-size:11px}.case-summary b{font-size:11px}
 .trace-readout{min-height:45px;padding:11px 20px;font-size:11px;flex-wrap:wrap}.trace-readout small{font-size:10px}
 .diagram-heading{padding:16px 20px 8px}.diagram-heading h3{font-size:15px}.diagram-heading small{font-size:10px}
+.diagram-inspection{min-height:42px;padding:9px 18px 12px;border-top:1px solid #21303a55;font:10px/1.6 ui-monospace,monospace;overflow-wrap:anywhere;color:#8298a3}
+.diagram-inspection output{display:block;font-variant-numeric:tabular-nums}
 .diagram-caption{font-size:10px;line-height:1.6;padding:4px 20px 13px}
 .stage-footer{gap:12px;padding:12px 18px;flex-wrap:wrap}.stage-footer button,.stage-footer label{font-size:11px;min-height:36px}
 .inspector.has-selection{position:fixed;top:100px;right:max(24px,calc((100vw - 1580px)/2));width:310px;max-height:calc(100dvh - 130px);z-index:55;padding:22px;box-shadow:0 25px 80px #0009;border:1px solid #52635f;border-radius:16px;background:#111c22}
