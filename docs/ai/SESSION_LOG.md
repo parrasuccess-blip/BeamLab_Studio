@@ -204,3 +204,14 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Replaced the stale HANDOFF snapshot with released-state evidence, accurate architecture safeguards and exact next-task guidance; retained every earlier SESSION_LOG entry. Updated RELEASE_4_1_1 and TESTING to distinguish historical candidate results from released-main/public verification. PROJECT_CONTEXT and durable DECISIONS need no changes.
 - Outcome: Account A's recovery is merged and production is independently verified. No application implementation was restored from stale Account B work, and no numerical tolerances or Firefox safeguards were weakened. PR #17 tracks final documentation CI and merge; its merge may advance main beyond the release-code SHA without changing the artifact.
 - Next recommended update: a dedicated, scoped investigation/fix for overlapping critical-value and inspection labels in diagrams, with crowded-support/load fixtures and desktop/mobile visual coverage. Mathematical presentation, shorter mobile lesson pages and deeper deterministic Show Why remain separate follow-ups.
+
+---
+
+## 2026-09-21 — Account B — Diagram annotation readability
+
+**STATUS: investigation starting / no application changes / not deployed**
+
+- User authorised the next scoped update after the 4.1.1 recovery and production verification. Account B fetched GitHub again: main remains `1c74ef4576d014a93ce203affa67826d89243ca6`, no open PRs or newer feature work. Old feature branches are historical; no interrupted local work is restored.
+- Dedicated branch: `feature/diagram-annotation-layout`, starting at that exact main commit in a clean worktree. This initial handoff/session checkpoint precedes implementation and long validation; a draft PR will serve as the live record.
+- Objective: investigate overlapping critical-value/inspection annotations and crowded structural labels, then make a bounded desktop/mobile layout repair. Preserve the single solver, numerical tolerances, displayed engineering values, Undo/Redo, native Firefox interaction and model preservation through learning.
+- Starting release evidence: 1,258 numerical/behaviour checks and 96 browser checks passed; public 4.1.1 was verified in the preceding session. Current-update validation is pending. Broader mathematical presentation, mobile lesson layout and deeper deterministic Show Why remain separate tasks.
