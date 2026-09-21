@@ -2,7 +2,7 @@
 
 All nine test files originate from the authoritative 3.8.6 handoff. Numerical reference values and tolerances are retained.
 
-Adaptations: source and artifact paths now match this repository; expected release identity is 4.1.0 / BL410; the unloaded finite-field check names every numeric sample field, because stepped-section samples also carry string/null metadata. No numerical assertion or supported case was removed.
+Adaptations: source and artifact paths now match this repository; expected release identity is 4.1.1 / BL410; the unloaded finite-field check names every numeric sample field, because stepped-section samples also carry string/null metadata. No numerical assertion or supported case was removed.
 
 Original file SHA-256 values:
 

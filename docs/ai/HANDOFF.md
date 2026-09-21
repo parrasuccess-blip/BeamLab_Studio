@@ -4,7 +4,7 @@
 
 **Last active account:** Account A (validation recovery on 2026-09-21)
 **Current branch:** `feature/direct-explore-learning-navigation`
-**STATUS:** Account B repair audited / 95 of 96 browser checks pass / Firefox Shift+Tab focus under investigation / PR remains draft
+**STATUS:** Account B repair audited / Firefox native tab-order assertion corrected / full validation pending / PR remains draft
 **Current Account A starting HEAD:** `282fda3385b10aede173be09a5f2aab555edfe46`
 **Current Account B starting HEAD:** `1cf371d0bf17a72d42c45a031d4fecf1c72b9923`
 **Account A recovery starting HEAD:** `799fae5f4564ff0f4fd3efb47b00e58f47c9e48c`
@@ -12,7 +12,7 @@
 **Draft PR:** https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16
 **Account B starting HEAD:** `08cf047d819c6b3563de95727ceea3e9b86fd7e3`
 **Baseline code commit before AI-handoff setup:** `f83e3af32e233f2c5cbd1d16d6bac8bf064cf9a3`
-**Repository version at baseline:** 4.1.0
+**Repository version at baseline:** 4.1.0; current release candidate 4.1.1
 **Production URL:** https://beam-lab-studio.vercel.app/
 **Production deployment state:** Must be verified before claiming the public site matches repository HEAD.
 
@@ -21,6 +21,8 @@ This handoff system was bootstrapped on 2026-09-20 so Account A and Account B ca
 ## Recovery checkpoint — read before continuing
 
 Latest return: Account A re-fetched all branch refs on 2026-09-21. Main is still `08cf047`; PR #16 remains open, draft and unmerged. Account B added the starting record `b13ecae` and numeric-edit repair `282fda3` after `1cf371d`. Exact-head PR run **35512885378** and push run **35512883719** completed with failure. The PR numerical job passed; browser results are **95 passed / 1 failed**. The former four lesson/history failures now pass. The remaining Firefox check expects Studies to retain focus after Shift+Tab from Beam length. Investigate its trace and native focus destination before changing source or assertions. Preserve all model-opening fixes and pointer-click regressions. No production release is claimed. Objective: finish this scoped recovery, validate, merge and verify production.
+
+Resolution: the failure screenshot shows Firefox correctly focusing the scrollable `#controls` panel (native keyboard scroll access). Its tab order differs from Chromium/WebKit; Account B's focus restoration is working. Correct the browser-specific expectation and additionally require the next Shift+Tab to focus Studies. Keep all history/persistence assertions and zero retries. Fresh local `npm ci`, `npm run build`, `npm test` pass at `282fda3` source: **1,258 checks**, zero failed/skipped; HTML SHA-256 `42f866b1f4fc2b251dec8f179880b1ceff893f2d131b23f7237fc1608f4f5e09`. No runtime source change is needed for this remaining test failure.
 
 Account A fetched all branch refs and audited Account B's actual diff before making these fixes. Account B added no commit after `799fae5`; PR #16 was still a draft and unmerged. Main only adds the shared AI docs to the 4.1 code release. All 16 non-main branches were inspected; the other 15 are historical squash-merged work.
 

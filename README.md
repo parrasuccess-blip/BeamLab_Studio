@@ -1,4 +1,4 @@
-# BeamLab Studio 4.1 — Guided Engineering Studio
+# BeamLab Studio 4.1.1 — Engineering and Learning Studio
 
 Interactive beam analysis and learning, built from readable source. Educational/static-analysis research preview; **not structural design approval or code certification**.
 
@@ -6,12 +6,16 @@ Public site: https://beam-lab-studio.vercel.app/
 
 ## Four connected destinations
 
-- **Build:** drag supports and loads, edit geometry, assign sections and load cases.
+- **Build / Explore:** drag supports and loads, edit geometry, assign sections and load cases.
 - **Analyse:** aligned Structure → SFD → BMD, deformation, local stress, moving-load studies and deterministic explanations.
-- **Learn:** diagram prediction and sketching, numerical challenges, adaptive practice, exams and resumable guided study blocks. Progress can be exported independently of the model.
+- **Learn (optional):** diagram prediction and sketching, numerical challenges, adaptive practice, exams and resumable guided study blocks. Progress can be exported independently of the model.
 - **Review:** numerical consistency checks, model/data/report exports, and optional user-entered criteria. Demand/capacity screening is not a code design calculation.
 
 One deterministic Euler–Bernoulli model powers every learning level. Changing level never replaces a genuinely edited beam. Existing advanced features remain active even when lower levels hide their editing controls.
+
+Direct engineering use never requires a lesson or learning-level choice. Standalone lessons/challenges temporarily load examples without overwriting your saved beam. Return to your model restores Undo/Redo and comparison within the page session; reload retains the saved beam and learning progress.
+
+See `docs/RELEASE_4_1_1.md` for this update and its validation record.
 
 ## Build and verify
 
@@ -26,7 +30,7 @@ npm run test:browser
 
 `npm test` builds and tests the production module bundle as well as the restored historical numerical suites. It does not require a browser or network. Browser tests serve the built artifact with an offline tutor endpoint and exercise desktop Chromium/Firefox plus mobile WebKit/Chromium. CI retains the artifact, screenshots and failure traces.
 
-`npm run build` creates `dist/index.html`, `SHA256.txt` and `release.json`. The build is deterministic: no timestamps, historical HTML patch chain, or catch-and-publish fallback. The app remains usable as standalone HTML without the optional tutor.
+`npm run build` creates `dist/index.html`, `dist/SHA256.txt` and `dist/release.json`. The build is deterministic: no timestamps, historical HTML patch chain, or catch-and-publish fallback. The app remains usable as standalone HTML without the optional tutor.
 
 ## Source map
 
