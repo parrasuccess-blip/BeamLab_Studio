@@ -1,8 +1,10 @@
 # BeamLab AI Handoff
 
-## Active audit — Account A, 2026-09-22
+## Active audit — Account B recovery, 2026-09-22
 
 **STATUS: audit and plan only / public UX faults reproduced / no application changes.** Starting main `3498b5c`; documentation branch `docs/workspace-ux-audit-plan`, draft PR [#20](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/20). Read [the current audit and plan](UX_AUDIT_AND_PLAN_2026_09_22.md) before implementation. The user requests a full plan first. Build result masking and ordinary-inspector obstruction are confirmed broader UX issues, distinct from the released direct-label editing fix. Existing release evidence below remains valid for its tested scope.
+
+Account B resumed from Account A's committed audit checkpoint `e82d59a2a223e19b9e5d861b690644429b145cf9` after fetching current refs and inspecting PRs #18–20. The handover narrative describes a finished detailed plan, but GitHub currently contains only the checkpoint findings. Account B will complete and publish that plan, verify the additional exam/Show Why findings, and retain the released source. The older Account B PR #18 recovery is superseded by merged 4.1.2; do not resume it.
 
 ## Current verified release — Account A, 2026-09-22
 
