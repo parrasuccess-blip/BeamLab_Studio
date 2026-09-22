@@ -367,20 +367,21 @@ test('session navigation is guarded and exiting restores the edited beam',async(
   expect(await modelCopy(page)).toBe(original);
 });
 
-test('review exports carry the current model and numerical evidence',async({page})=>{
+test('review exports carry the current model and numerical evidence',async({page},testInfo)=>{
   await open(page);await flow(page,'review');
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
   expect(audit.release).toBe('4.1.2');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
   const reportPending=page.waitForEvent('download');await page.locator('#design-studio [data-action="export:pdf"]').click();
   const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
+  await report.saveAs(testInfo.outputPath('reference-report.pdf'));
   expect(pdf.startsWith('%PDF-1.4')).toBe(true);
   expect(pdf).toContain('Peak moment |M| = 30.0000 kN m');
   expect(pdf).toContain('Not design approval');
   expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
   await act(page,'privacy').click();await expect(page.getByRole('dialog')).toContainText('encoded, readable snapshot');
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
-  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.1/);
+  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.2/);
 });
 
 test('optional tutor health is honest and deterministic teaching stays available',async({page,request})=>{

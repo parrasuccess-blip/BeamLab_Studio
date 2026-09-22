@@ -1,91 +1,65 @@
 # BeamLab AI Handoff
 
-## Active update — Account A completion, 2026-09-22
+## Current recovery — Account A, 2026-09-22
 
-- **Task:** prevent overlapping diagram annotations on desktop and narrow/mobile layouts.
-- **Starting main:** `1c74ef4576d014a93ce203affa67826d89243ca6` (4.1.1 release plus completed production handoff).
-- **Branch:** `feature/diagram-annotation-layout`; [draft PR #18](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/18).
-- **Takeover checkpoint:** Account A resumed Account B's `b8f5a1a47aeb82cae6a728188deeedef1a459e48`, following recovery record `43a8045`. Its changes are retained. Account A then pushed `5ce1e0f` (current-state record) and `2a8d052` (mobile double-tap obstruction fix).
-- **Status:** Account A resumed at `b8f5a1a47aeb82cae6a728188deeedef1a459e48`; Account B's implementation retained. Exact-head push run `35676434764` passes regression and reports **110/112 browser checks passed**. Both failures are mobile reopening of a label editor after Undo. PDF pagination and delayed-Tab checks pass. Investigate before merge; production remains 4.1.1.
-- **Scope:** critical-value/inspection labels and crowded structure labels; preserve numerical values, native interaction, temporary-learning model protection and existing solver/tolerances. Inspect actual failures before choosing the layout change.
-- **Validation:** Account A's implementation adds 14 Node checks (1,272 reported passing). Exact-head PR CI `35622848288` has a successful regression job and **99 browser checks passed / 9 failed**: four incorrect endpoint jump-marker expectations, four PDF page-count failures (3 pages rather than 2), and one desktop lesson/history failure (second Undo disabled). Crowded-label inline editing/Undo and hinge/export checks pass in all four projects. Account B is investigating the history failure and Account A's reported manual Undo finding; no numerical tolerance changes are warranted.
-- **Recovery implementation checkpoint:** Account B reproduced the manual pointer obstruction on public 4.1.1: the floating inspector covers Undo at laptop width; keyboard Undo and pointer Undo after Deselect work. This was not evidence of the solver or History class restoring a value. Direct label editing now replaces the floating inspector with its compact editor, and Undo/Redo close stale inline fields. A separate same-field Tab race is addressed by committing a tabbed transaction before the next input, retaining the existing Firefox pointer safeguards. A paused-clock browser regression exercises the race; the lesson test now explicitly checks the first Undo restores 8 m.
-- **PDF/endpoint repairs:** use the actual page figure height/width budget so the reference diagrams fit together; preserve annotation font sizes after box layout. Retain the existing two-page report assertion. Correct the fixed-end test to expect one continuous `M` value, not an invented `M⁺` jump.
-- **Checkpoint validation:** fresh Account A installation/build/Node suite passes **1,272 checks**. Account B's push browser job `106583877079` records **110 passed / 2 failed**. Failure traces show the first label tap reopens the inspector over the second tap target; Account A now keeps it closed for editable labels while retaining object-body selection. Unchanged 112 browser checks are next. The earlier 99/108 outcome above is historical. No merge or production claim yet.
-- **Current candidate:** 4.1.2 with critical-point clearance added after reviewing mobile screenshots. Browser geometry checks now also reject point dots covering labels. Mobile-fix PR run `35677161432` passes all **112** browser checks. Final-candidate local suite passes **1,272** Node checks; HTML **735,456 bytes**, SHA-256 `d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04`. Final candidate CI/visual/public verification remains pending; production is still 4.1.1.
+- **Objective:** release the diagram readability and editing update in PR #18.
+- **Canonical repository:** `parrasuccess-blip/BeamLab_Studio`; production branch `main`.
+- **Starting/current main:** `1c74ef4576d014a93ce203affa67826d89243ca6` (4.1.1 code plus verified release handoff).
+- **Working branch:** `feature/diagram-annotation-layout`; [PR #18](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/18), draft and unmerged.
+- **Starting Account B commit:** `b8f5a1a47aeb82cae6a728188deeedef1a459e48`. Its implementation is retained.
+- **Current application candidate:** `78c17263c6dada897ce039f0b71f66376b63dd3c`, release **4.1.2**. The next checkpoint changes a stale release assertion and retains PDF evidence; application bytes are unchanged.
+- **STATUS: implementation complete / final test-identity correction and export visual validation running.**
+- **Production:** https://beam-lab-studio.vercel.app/ — still verified **4.1.1**. Do not claim 4.1.2 is live.
 
-## Current state
+Fetch current refs and inspect the PR before continuing. Older local worktrees contain interrupted edits and are not canonical. The navigation PR #16 and release-verification PR #17 are merged history.
 
-- **Last active account:** Account B — production verification completed on 2026-09-21.
-- **Canonical branch:** `main`.
-- **Released code / observed main:** `9cf86ef570ecb4895ec071c2a497b80ecb636d6a`.
-- **Release:** **4.1.1 — direct engineering and optional learning**.
-- **Release PR:** [#16](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/16), merged by Account A at 2026-09-21 02:47:29 UTC. Final feature head: `f99d393afd7f30d2ea1e9ba3fe4148aeb31c1923`.
-- **Account B verification branch / record:** `docs/release-4-1-1-verification`, [PR #17](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/17). Documentation only; its final merge may make main newer than the release code commit above.
-- **Status:** release merged; production artifact and public interactions verified. No unfinished application implementation remains in this recovery.
-- **Production:** https://beam-lab-studio.vercel.app/
+## What this update does
 
-GitHub is canonical. Fetch current main and inspect open PRs before new work. The former `feature/direct-explore-learning-navigation` branch is historical merged work, not the next development base. Older local checkouts may contain interrupted edits; do not restore them over current main.
+- Separates live inspection values from the plot into a wrapping readout, preserving left/right discontinuity values and exact cursor coordinates.
+- Allocates bounded critical labels and explicit overflow rows, with leaders and clearance around exact critical-point dots.
+- Wraps load names/values and stacks support, reaction, prescribed-movement, hinge and section-region notes. Structure → SFD → BMD remains aligned.
+- Replaces the competing full inspector with a compact direct label editor. Undo/Redo close obsolete inline fields. Editable labels do not open a panel over the second mobile tap; ordinary object-body selection and locked-object inspection remain available.
+- Commits a previous tabbed numeric edit before processing the next edit, avoiding merged history entries while preserving native Firefox focus and pressed-control safeguards.
+- Groups PDF diagrams using the actual available page area and keeps measured annotation font sizes. The two-page reference-report assertion remains.
 
-## What shipped and why
+Important files: `src/studio/annotation-layout.js`, `diagrams.js`, `app.js`, `export.js`, `src/workspace.css`, `module-order.json`, `tests/diagram-layout.test.cjs`, `tests/support/diagram-fixtures.cjs`, and the two browser spec files. Version metadata and assertions consistently identify 4.1.2.
 
-The old entry flow foregrounded learning levels and made direct engineering use feel gated. Build / Explore now opens directly with all tools and the simple 6 m / 20 kN reference for a new user. Saved preferences/models are retained. Learn is optional, and Analyse leads directly to Review.
+No structural solver, sign convention, unit, model schema, numerical tolerance, grading or adaptive-learning algorithm changes.
 
-Individual lessons/challenges previously left the full catalogue above the task and could replace/autosave over a user's beam. The focused task now has Previous/Next, activity position and return-to-catalogue controls. Temporary examples preserve the engineering model, Undo/Redo, comparison and view in memory. Returning restores them; reload preserves the saved beam and independent learning progress, while page-session history/comparison reset.
+## Current validation evidence
 
-Account A repaired explicit model opening during those activities: a successfully parsed saved study, shared snapshot or JSON file ends the temporary activity, restores the engineering origin and commits the chosen replacement. Undo returns to that origin. Invalid imports preserve the activity; full active/review sessions retain their navigation guard. The notice accurately describes reload and redundant example toasts are suppressed.
+- Fresh `npm ci`, `npm run build`, `npm test`: **1,272 Node checks passed**, zero failed/skipped.
+- Account B's starting head `b8f5a1`: **110/112 browser checks passed**. Failure traces showed the first mobile tap opening the inspector over the second tap target.
+- Account A mobile fix `2a8d052`: exact PR run **35677161432**, browser job **106586018776**, **112 passed**, zero retries.
+- Candidate `78c1726`: exact PR run **35677895924** has successful numerical checks and **108/112 browser checks passed**. All diagram, marker-clearance, editing and PDF checks pass. The four failures are the same issue-report assertion still expecting escaped `4\.1\.1`; actual output correctly says 4.1.2. This checkpoint corrects only that release assertion and saves the already-tested PDF for visual inspection.
+- Candidate browser evidence artifact **10672899257**; release artifact **10673872515**.
+- Candidate HTML **735,456 bytes**, SHA-256 **d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04**.
+- Hosted preview identifies 4.1.2 and correctly displays the independent fixed-end reference: 10 m, 5 kN/m → end moment −41.667 kN·m and midspan +20.833 kN·m. Repeated compact label edits and pending-edit Undo/Redo were exercised. The cloud download bridge timed out despite the app reporting PDF creation; CI successfully downloads/checks the report, so the next run retains its PDF for direct visual review.
+- Final corrected-commit browser CI, desktop/mobile screenshot inspection, PDF inspection and production verification remain required.
 
-Account B repaired numeric editing: Tab/Shift+Tab completes and saves each edit independently, restores its native focus destination and enables Undo for the first valid pending edit. Invalid drafts restore the committed model. Existing pointer focusout deferral prevents Firefox losing a pressed control. Account A corrected the regression test to respect Firefox's native scroll-container focus stop before Studies; it did not change the working runtime to imitate Chromium.
+Earlier failed runs and investigation details are chronological history in SESSION_LOG. Do not erase them or treat them as current status.
 
-Important files: `src/studio/app.js`, `src/studio/workspace.js`, `src/studio/panels.js`, `src/workspace.css`, `tests/browser/studio.spec.js`, `tests/guided-studio.test.cjs`, release-identity files and `docs/RELEASE_4_1_1.md`. Consult PR #16 for exact paths/diffs.
+## Released baseline: 4.1.1
 
-## Recovery checkpoints
+Released code `9cf86ef570ecb4895ec071c2a497b80ecb636d6a` / PR #16. Account B completed public verification in PR #17, merged as `1c74ef4`. That baseline passed 1,258 Node checks and 96 browser checks. Public HTML is 725,972 bytes, SHA-256 `6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40`.
 
-| Checkpoint | Result |
-| --- | --- |
-| `799fae5` — Account B direct entry/navigation | 1,258 Node checks and 76 browser checks passed; unmerged at interruption. |
-| `1cf371d` — Account A explicit-opening recovery | 1,258 Node checks passed; 84/88 browser checks passed. Four failures exposed the existing numeric-edit history bug before lessons started. |
-| `b13ecae`, `282fda3` — Account B checkpoint and numeric repair | 1,258 Node checks passed; 95/96 browser checks passed. Runtime history bug fixed; one Firefox tab-order assertion remained incorrect. |
-| `58f0a36`, `819fdc3`, `c785fae` — Account A completion | Native Firefox focus expectation corrected; release identity advanced to 4.1.1. A missed old-title assertion was corrected without changing any numerical expectation. All 1,258 Node and 96 browser checks passed. |
-| `f99d393`, merged as `9cf86ef` — Account A release | Final documentation checkpoint and both final CI runs passed; PR #16 merged. |
-| Account B / PR #17 | Reconciled Account A's work, freshly built/tested merged source, verified actual production and completed this snapshot. |
-
-Older pending/failure entries in SESSION_LOG are chronological history, superseded by the verified results below. Do not erase them.
-
-## Validation and production evidence
-
-- Fresh Account B commands on the merged 4.1.1 source: `npm ci`, `npm run build`, `npm test` — all passed; **1,258 numerical/behaviour checks**, zero failed/skipped.
-- Final feature PR CI **35555016024** and push CI **35555013620** succeeded at `f99d393`.
-- Exact release main [CI run 35555337390](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35555337390) succeeded. Browser job **106197820962** records **96 passed (3.5m)** across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium; zero retries. Browser execution was in GitHub CI, not a local browser-suite run.
-- Main browser artifact **10620013758** and release artifact **10620140121** retain evidence. Account B reviewed the current focused-lesson screenshots on desktop and 360px mobile; Account A also reviewed both phone layouts and the hosted preview.
-- Deterministic HTML: **725,972 bytes**, SHA-256 **6dbd2d3e2ac5d20baf8f749c205b8cce7bf99ba89b8575d8abce26913fa9de40**.
-- Downloaded public HTML, `release.json` and `SHA256.txt` match that artifact. The public UI identifies 4.1.1. Vercel reports the release commit deployed successfully: `8etk39bNeFJ5jt3LhQ3GyYTnuhs7`.
-- Public `/api/tutor` returns release 4.1.1 and `configured:false`; no provider credentials are needed or claimed.
-
-Account B verified real public interaction: direct Build / Explore with All Tools and no gate; first pending edit enables Undo; 6 → 8 → 9 m Tab edits create independent history; Undo restores 8 m; lesson Previous/Next and catalogue restore that beam, Redo and comparison; Redo restores 9 m; reload during a different fixed-ended learning example restores the saved 9 m centre-load model with history/comparison reset; invalid 0 m rolls back to 9 m without adding history; Review reports 6/6 consistency checks. Returned the temporary verification model to its starting 6 m state. A screenshot of the verified public workspace was captured.
+Direct Build / Explore opens without a learning gate. Learn is optional; lessons/challenges have Previous/Next and catalogue controls. Temporary teaching examples preserve the engineering model, session history/comparison and independent learning evidence. Reload keeps the saved beam/progress, but page-session Undo/Redo and comparison reset. Explicit study/snapshot/JSON openings follow D-012; invalid imports preserve the activity.
 
 ## Preserve these behaviours
 
-- One deterministic engineering authority. No solver, signs, units, schema, tolerances, grading or adaptive algorithms changed in 4.1.1.
-- `BL410-` model fingerprints intentionally remain compatible while release metadata is 4.1.1.
-- Advanced model properties remain active when a learning level hides their controls.
-- Model storage and learning progress are separate. Temporary examples must not overwrite the engineering beam.
-- Explicit model opening follows D-012, including invalid-import protection and session guards.
-- Preserve native keyboard focus, including Firefox's scrollable tools panel, and both pressed-pointer regression tests. Do not replace the clicked target during focusout.
-- Undo/Redo and comparison remain page-session state; never promise they survive reload.
-- Moving-load envelopes remain sampled static analysis; EI-only multipliers do not invent stress; manual criteria are not code certification.
-- The optional tutor remains explanatory and is currently unconfigured in production.
+- One deterministic engineering authority; never create separate learning physics.
+- `BL410-` model fingerprints remain compatible with 4.1.2 metadata.
+- Hidden advanced controls must not remove active model properties.
+- Temporary examples must not overwrite structural-model storage.
+- Native keyboard focus and Firefox pressed-pointer safeguards remain required.
+- Undo/Redo and comparison are page-session state; never promise reload persistence.
+- Moving envelopes are sampled static analysis. EI-only multipliers do not invent stresses. Manual review criteria are not design-code certification.
+- The optional online tutor is explanatory and currently unconfigured in production.
 
-## Remaining work and next recommendation
+## Next action and remaining scope
 
-Known follow-ups remain: overlapping critical/trace diagram labels, mathematical presentation, long mobile lesson pages with secondary settings, and deeper deterministic Show Why reasoning. This release does not claim to complete those broader priorities.
+Finish the current exact-commit CI and inspect its desktop/mobile screenshots and reference PDF. Merge PR #18 only after coherent validation; then compare the actual public HTML, release.json and SHA256.txt with the tested artifact and exercise live interaction. Update this snapshot with the actual release outcome, not just “ready for merge”.
 
-**Next scoped update:** investigate and fix collisions between critical-value and inspection labels in the structural diagrams, including crowded supports/loads and narrow viewports. Inspect the current diagram renderer and representative fixtures first; preserve the underlying engineering values and add targeted desktop/mobile visual coverage. Keep deeper Show Why and broader lesson-layout changes as separate increments.
+Later scoped priorities: consistent mathematical notation, long mobile lesson layouts and deeper deterministic Show Why explanations. This update does not claim completion of the broader roadmap.
 
-No unresolved blocker was found in the released recovery scope. Do not begin speculative numerical features or a solver rewrite.
-
-## Continuing safely
-
-Follow D-011: start from freshly fetched main on a dedicated branch, record account/task/start commit/status immediately, open a draft PR early, and push coherent checkpoints before long validation. Update HANDOFF and append to SESSION_LOG progressively; credits can end without warning. Only merge coherent validated work and verify the actual deployed artifact separately.
-
-In this environment read-only Git fetch works but shell push has no GitHub authentication. The connected GitHub Git-object API was used with an existing base tree/parent and non-forced fast-forward ref updates. Never copy credentials into files or force-push shared work. PROJECT_CONTEXT and existing DECISIONS remain authoritative and were not rewritten for this release.
+Follow D-011: dedicated branches, early draft PRs, progressive HANDOFF/SESSION_LOG records, and pushed checkpoints before long tests. There is no reliable warning before credits end. Shell Git fetch works; connected GitHub Git-object API writes use an existing base tree/parent and non-forced fast-forward updates. Never force-push shared work or put credentials in files.
