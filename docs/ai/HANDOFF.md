@@ -1,17 +1,17 @@
 # BeamLab AI Handoff
 
-## Active update — Account B recovery, 2026-09-22
+## Active update — Account A completion, 2026-09-22
 
 - **Task:** prevent overlapping diagram annotations on desktop and narrow/mobile layouts.
 - **Starting main:** `1c74ef4576d014a93ce203affa67826d89243ca6` (4.1.1 release plus completed production handoff).
 - **Branch:** `feature/diagram-annotation-layout`; [draft PR #18](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/18).
 - **Takeover checkpoint:** `e155a9182e0ede0994f56183e7b3baa3f3c1f44b`. Account A added `b957c09` (takeover record) and `e155a91` (layout implementation/tests) after Account B's `adf45ce` investigation record. Account B fetched current refs and inspected the actual changes before continuing; no newer committed fixes exist.
-- **Status:** implementation retained / failed browser checks under investigation / draft PR not merged. Production remains the verified 4.1.1 release below.
+- **Status:** Account A resumed at `b8f5a1a47aeb82cae6a728188deeedef1a459e48`; Account B's implementation retained. Exact-head push run `35676434764` passes regression and reports **110/112 browser checks passed**. Both failures are mobile reopening of a label editor after Undo. PDF pagination and delayed-Tab checks pass. Investigate before merge; production remains 4.1.1.
 - **Scope:** critical-value/inspection labels and crowded structure labels; preserve numerical values, native interaction, temporary-learning model protection and existing solver/tolerances. Inspect actual failures before choosing the layout change.
 - **Validation:** Account A's implementation adds 14 Node checks (1,272 reported passing). Exact-head PR CI `35622848288` has a successful regression job and **99 browser checks passed / 9 failed**: four incorrect endpoint jump-marker expectations, four PDF page-count failures (3 pages rather than 2), and one desktop lesson/history failure (second Undo disabled). Crowded-label inline editing/Undo and hinge/export checks pass in all four projects. Account B is investigating the history failure and Account A's reported manual Undo finding; no numerical tolerance changes are warranted.
 - **Recovery implementation checkpoint:** Account B reproduced the manual pointer obstruction on public 4.1.1: the floating inspector covers Undo at laptop width; keyboard Undo and pointer Undo after Deselect work. This was not evidence of the solver or History class restoring a value. Direct label editing now replaces the floating inspector with its compact editor, and Undo/Redo close stale inline fields. A separate same-field Tab race is addressed by committing a tabbed transaction before the next input, retaining the existing Firefox pointer safeguards. A paused-clock browser regression exercises the race; the lesson test now explicitly checks the first Undo restores 8 m.
 - **PDF/endpoint repairs:** use the actual page figure height/width budget so the reference diagrams fit together; preserve annotation font sizes after box layout. Retain the existing two-page report assertion. Correct the fixed-end test to expect one continuous `M` value, not an invented `M⁺` jump.
-- **Checkpoint validation:** fresh `npm ci` and `npm test` on the inherited implementation passed all **1,272** Node checks. Recovery JavaScript syntax and diff checks pass; full recovery validation is pending. Browser suite now defines **112** checks. No merge or production claim yet.
+- **Checkpoint validation:** Account B's exact-head regression job passes; its push browser job `106583877079` records **110 passed / 2 failed**. Account A is repeating the current local baseline and inspecting retained failure traces. The earlier 99/108 outcome above is historical. No merge or production claim yet.
 
 ## Current state
 

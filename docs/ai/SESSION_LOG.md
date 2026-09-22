@@ -258,3 +258,14 @@ The separate intermittent lesson/history failure can arise when a second input r
 Corrected the endpoint expectation from `M⁺` to `M`, preserving the analytical -41.667 kN·m value and solver. PDF grouping now uses the actual 511 × 655 point figure budget including top padding, rather than the arbitrary old 990 SVG-unit cutoff. Annotation text keeps its measured font size during PDF export. The existing two-page reference-report assertion remains intact.
 
 Syntax and whitespace checks pass. This coherent checkpoint is being published before full validation. Expected browser suite size is 112; passing results are not yet claimed. Production remains 4.1.1; PR #18 remains draft.
+
+---
+
+## 2026-09-22 — Account A — Complete Account B's annotation recovery
+
+**STATUS: current-source audit / two mobile editing failures / draft, not deployed**
+
+- Starting head `b8f5a1a47aeb82cae6a728188deeedef1a459e48`; branch `feature/diagram-annotation-layout`, draft PR #18. Main remains `1c74ef4576d014a93ce203affa67826d89243ca6`. Explicitly refreshed remote branch refs and created a clean worktree; previous unpushed experiments remain isolated.
+- Inspected Account B's actual commits `43a8045` and `b8f5a1a`: compact editor replaces competing inspector; Undo/Redo close stale fields; already-tabbed same-field edits commit separately; PDF grouping uses real page budget and retains annotation font sizes. The solver, numerical tolerances and model lifecycle remain unchanged.
+- Exact-head push run `35676434764` has a successful numerical job and **110 passed / 2 failed** browser checks. Both failures time out opening the inline magnitude field for a second edit after Undo on mobile WebKit and 360px Chromium. PDF, independent endpoint and delayed-Tab checks pass. The exact-head PR run is still running at takeover.
+- Implementation checklist: identify the mobile event sequence, fix the confirmed cause while retaining Account B's changes, keep label/direct-manipulation semantics and save coherent checkpoints. Validation checklist: fresh install/build/Node baseline, unchanged browser checks plus any focused regressions, desktop/mobile visual evidence, final exact-commit CI and independent public artifact verification. No merge until adequately validated.
