@@ -226,14 +226,9 @@ test('Tab commits each numeric edit, keeps keyboard focus and saves before any a
   await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
   await page.getByLabel('Beam length',{exact:true}).fill('10');
   await page.getByLabel('Beam length',{exact:true}).press('Shift+Tab');
-  // Firefox includes the scrollable tools panel in its native tab order.
-  // Preserve that destination, then verify keyboard navigation continues.
-  const previousControl=page.getByRole('button',{name:isMobile?'Done with tools':'Studies',exact:true});
-  await expect(browserName==='firefox'?page.locator('#controls'):previousControl).toBeFocused();
-  if(browserName==='firefox') {
-    await page.keyboard.press('Shift+Tab');
-    await expect(previousControl).toBeFocused();
-  }
+  // Build now exposes section/case tabs at every saved learning level.
+  // The Section tab is the native predecessor of the first model field.
+  await expect(page.getByRole('tab',{name:'Section',exact:true})).toBeFocused();
   await expect(page.locator('#history-count')).toHaveText('3 edits');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('beamlab:studio:3.2')).length)).toBe(10);
   await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
@@ -338,7 +333,8 @@ test('fixed-support rotation is editable, auditable and preserved at a lower lev
   await flow(page,'build');
   await showTools(page);
   await page.locator('#controls').getByRole('button',{name:'Select A',exact:true}).click();
-  await expect(page.locator('#inspector')).toContainText('Prescribed rotation active');
+  await expect(page.getByLabel('Prescribed rotation',{exact:true})).toHaveValue('2');
+  await expect(page.getByLabel('Prescribed rotation',{exact:true})).toBeEditable();
 });
 
 test('progress export, invalid import and confirmed restore leave the model unchanged',async({page})=>{
@@ -363,7 +359,11 @@ test('session navigation is guarded and exiting restores the edited beam',async(
   await act(page,'session-start:practice').click();
   await flow(page,'build');
   await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Learn');
-  await act(page,'session-exit').click();await act(page,'session-exit-confirm').click();
+  await expect(page.getByRole('dialog')).toContainText('Exit this learning session?');
+  await page.getByRole('button',{name:'Stay in Learn',exact:true}).click();
+  await expect(page.locator('.session-shell')).toBeVisible();
+  await flow(page,'build');await act(page,'session-exit-confirm').click();
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Build / Explore');
   expect(await modelCopy(page)).toBe(original);
 });
 

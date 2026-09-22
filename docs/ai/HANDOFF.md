@@ -1,8 +1,16 @@
+## Account A implementation checkpoint — 2026-09-23
+
+Draft PR #21: `feature/unrestricted-engineering-learning-safety`. Baseline installation, build and **1,272/1,272** tests passed before application changes.
+
+Implemented, not yet validated: `activity-policy.js` separates effective engineering tool access from saved learning level, confines masking to Learn and guards answer surfaces; active/review session models reject numeric preview, commit, drag and history mutation. Navigation offers the existing session-exit decision. Legacy saved practice no longer masks reload. Shared `explanation.js` reads solved one-sided fields and local distributed intensity, composing force/couple events. Selected-object editing now reserves the controls column instead of floating over Undo; compact label editing is preserved. Added policy/explanation regressions and four browser journeys; updated two older assertions whose expected navigation/edit permissions intentionally changed.
+
+Next recovery action: run `npm test`; inspect/fix any failures without changing numerical tolerances. Exact-head CI must run all browser projects and rendered desktop/mobile evidence must be reviewed before any release. Application version remains 4.1.2 at this checkpoint. Production is unchanged by this feature branch. Broader two-mode shell, focused mobile Learn and comprehensive math presentation remain subsequent approved increments.
+
 # BeamLab AI Handoff
 
 ## Active implementation — Account A, 2026-09-23
 
-**STATUS: implementation starting / baseline validation running.** The user approved the complete plan and requested implementation. Approved audit PR #20 is merged. Starting main: `d4c0479399e6e50582e7ed682c35912ac45f83dc`. Working branch: `feature/unrestricted-engineering-learning-safety`.
+**STATUS: first implementation checkpoint / numerical and browser validation pending.** The user approved the complete plan and requested implementation. Approved audit PR #20 is merged. Starting main: `d4c0479399e6e50582e7ed682c35912ac45f83dc`. Working branch: `feature/unrestricted-engineering-learning-safety`.
 
 First increment: unrestricted engineering destinations, learning-only answer masking, fixed-question mutation protection, consistent navigation/legacy preferences, coincident-action Show Why correction, and an inspector that cannot cover edit controls. Preserve the single solver, numerical tolerances, model origin/history restoration and 4.1.2 editing/annotation fixes. Full workspace redesign and richer lesson/math presentation remain subsequent scoped increments in the approved plan.
 

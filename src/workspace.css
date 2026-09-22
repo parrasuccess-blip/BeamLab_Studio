@@ -90,7 +90,10 @@ body.focus-mode #workspace{padding-top:106px}
 .diagram-inspection output{display:block;font-variant-numeric:tabular-nums}
 .diagram-caption{font-size:10px;line-height:1.6;padding:4px 20px 13px}
 .stage-footer{gap:12px;padding:12px 18px;flex-wrap:wrap}.stage-footer button,.stage-footer label{font-size:11px;min-height:36px}
-.inspector.has-selection{position:fixed;top:100px;right:max(24px,calc((100vw - 1580px)/2));width:310px;max-height:calc(100dvh - 130px);z-index:55;padding:22px;box-shadow:0 25px 80px #0009;border:1px solid #52635f;border-radius:16px;background:#111c22}
+.inspector.has-selection{position:sticky;top:100px;grid-column:1;grid-row:1;width:auto;max-height:calc(100dvh - 120px);overflow:auto;z-index:2;padding:20px;border:1px solid #52635f;border-radius:14px;background:#111c22;box-shadow:none}
+.workspace-grid.editing-object>.centre{grid-column:2;grid-row:1}
+.inspector-head{gap:8px}.inspector-head .icon-button{min-width:44px;min-height:44px}.explanation-detail p{font-size:13px;line-height:1.7}.teaching>h3{font-size:18px;line-height:1.4}.teaching>.formula{white-space:normal;overflow-wrap:anywhere}
+.answer-policy-note,.activity-changed{padding:14px;border:1px solid #516052;border-radius:10px;font-size:12px;line-height:1.6;color:#c3d4c9;background:#14221e}.activity-changed{margin-bottom:16px}.level-options>.hint{grid-column:1/-1;margin:0}
 .inspector fieldset{display:block}.inspector .hint{font-size:12px;line-height:1.6}.inspector h3{font-size:18px}
 .inspector .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.inspector .action-grid button{font-size:12px;min-height:42px}
 .workspace-grid[data-phase=learn] .controls{max-height:none;position:static}
@@ -128,8 +131,8 @@ body.focus-mode #workspace{padding-top:106px}
  .workflow-context{display:block;padding:4px 4px 20px}.workflow-context p{font-size:12px}.workflow-context h2{font-size:20px}.workflow-context-actions{margin-top:13px}.workflow-context-actions button{flex:1}
  .workspace-grid,.workspace-grid.inspector-hidden,.workspace-grid.controls-hidden,.workspace-grid.controls-hidden.inspector-hidden,.workspace-grid[data-phase=learn]{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
  .controls,.workspace-grid[data-phase=learn] .centre{position:static;max-height:none}.controls{overflow:visible}.control-body{padding:18px}.control-tabs{position:static}.object-list{max-height:148px!important}
- .inspector.has-selection{top:auto;bottom:12px;left:12px;right:12px;width:auto;max-height:64dvh;padding:18px 18px 55px;overscroll-behavior:contain}.inspector fieldset{display:grid;grid-template-columns:1fr 1fr;gap:10px}.inspector .field{min-width:0}.inspector fieldset>.hint{grid-column:1/-1}.inspector .field input{width:100%;min-width:0}
- .mobile-done{bottom:22px;right:24px;z-index:56;min-height:40px;font-size:12px}.toolbar{padding:14px;gap:12px}.toolbar-buttons{margin-left:0;flex:1;justify-content:flex-end}.toolbar .icon-button{width:32px;height:36px}.stage-title{flex:1 1 145px}
+ .inspector.has-selection{position:static;top:auto;bottom:auto;left:auto;right:auto;width:auto;max-height:none;padding:18px;grid-column:1;grid-row:1;overflow:visible}.workspace-grid.editing-object>.centre{grid-column:1;grid-row:2}.inspector fieldset{display:grid;grid-template-columns:1fr 1fr;gap:10px}.inspector .field{min-width:0}.inspector fieldset>.hint{grid-column:1/-1}.inspector .field input{width:100%;min-width:0}
+ .mobile-done{bottom:22px;right:24px;z-index:56;min-height:40px;font-size:12px}.toolbar{padding:14px;gap:12px}.toolbar-buttons{margin-left:0;flex:1;justify-content:flex-end}.toolbar .icon-button{width:40px;height:44px}.stage-title{flex:1 1 145px}
  .metric{flex-basis:45%;padding:13px 15px}.metric strong{font-size:21px}.diagram-heading{padding:14px 14px 6px}.diagram-heading h3{font-size:13px}.trace-readout{padding:10px 14px}.case-summary{padding:10px 14px}.stage-footer{padding:10px 14px;gap:8px}.view-controls{gap:8px;flex-wrap:wrap}
  .learning-bar{padding:7px 5px;gap:4px}.level-switch{gap:2px}.level-switch button{min-width:0;padding:8px 5px}.level-switch button span{font-size:10px}.level-help{display:none}
  .design-hero{padding:16px}.design-hero h2{font-size:20px}.design-standards{grid-template-columns:1fr}.design-card{padding:16px}.design-readiness{grid-template-columns:1fr}.design-section-grid{grid-template-columns:1fr 1fr}

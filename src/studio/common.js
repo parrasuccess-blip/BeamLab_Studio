@@ -15,7 +15,7 @@ const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 exports.clamp = clamp;
 const unit = (s) => s.replace('kN m', 'kN\u00b7m').replace('mm4', 'mm\u2074').replace('mm2', 'mm\u00b2');
 exports.unit = unit;
-function button(action, label, cls = '', disabled = false, title = '') { return `<button type="button" data-action="${(0, exports.esc)(action)}" class="${cls}" ${disabled ? 'disabled' : ''} ${title ? `title="${(0, exports.esc)(title)}"` : ''}>${label}</button>`; }
+function button(action, label, cls = '', disabled = false, title = '') { return `<button type="button" data-action="${(0, exports.esc)(action)}" class="${cls}" ${disabled ? 'disabled' : ''} ${title ? `title="${(0, exports.esc)(title)}" aria-label="${(0, exports.esc)(title)}"` : ''}>${label}</button>`; }
 function field(key, label, value, units = '', min = -100000, max = 100000, step = 'any') {
     return `<label class="field"><span>${(0, exports.esc)(label)}</span><div><input data-field="${key}" aria-label="${(0, exports.esc)(label)}" type="number" min="${min}" max="${max}" step="${step}" value="${value === null ? '' : Number(value.toPrecision(10))}"><small>${(0, exports.esc)(units)}</small></div><em class="field-error"></em></label>`;
 }

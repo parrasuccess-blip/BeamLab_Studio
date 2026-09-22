@@ -1,6 +1,7 @@
 'use strict';
 const {esc} = require('./common');
 const {allowedTabs} = require('./levels');
+const {toolLevel} = require('./activity-policy');
 
 const steps = [
     {id:'build', title:'Build / Explore', detail:'Geometry, supports & loads', heading:'Make the model yours.', help:'Drag a support or load on the beam. Select it for precise values. All tools are available without completing lessons.', next:'analyse', nextLabel:'Explore the results'},
@@ -13,7 +14,7 @@ function phaseFor(view) {
 }
 function tabsFor(view) {
     const phase = phaseFor(view);
-    return allowedTabs(view.level).filter(tab => phase === 'learn' ? tab === 'learn' : phase === 'analyse' ? tab === 'layers' : ['build','section','cases'].includes(tab));
+    return allowedTabs(toolLevel(view)).filter(tab => phase === 'learn' ? tab === 'learn' : phase === 'analyse' ? tab === 'layers' : ['build','section','cases'].includes(tab));
 }
 function transition(view, target) {
     if (!steps.some(s => s.id === target)) return null;
@@ -26,7 +27,7 @@ function renderNavigation(view) {
 }
 function renderContext(view, valid) {
     const step = steps.find(s => s.id === phaseFor(view));
-    return `<div class="workflow-context"><div><span class="eyebrow">${esc(step.detail)}</span><h2>${step.heading}</h2><p>${step.help}</p></div><div class="workflow-context-actions">${step.id==='review'?'<button type="button" class="secondary" data-action="audit" '+(!valid?'disabled':'')+'>Numerical checks</button>':''}<button type="button" class="secondary" data-action="workflow:${step.next}" ${view.session?.active||view.session?.review?'disabled':''}>${step.nextLabel} <span aria-hidden="true">→</span></button></div></div>`;
+    return `<div class="workflow-context"><div><span class="eyebrow">${esc(step.detail)}</span><h2>${step.heading}</h2><p>${step.help}</p></div><div class="workflow-context-actions">${step.id==='review'?'<button type="button" class="secondary" data-action="audit" '+(!valid?'disabled':'')+'>Numerical checks</button>':''}<button type="button" class="secondary" data-action="workflow:${step.next}" >${step.nextLabel} <span aria-hidden="true">→</span></button></div></div>`;
 }
 function activityPosition(list, id) {
     const index = list.findIndex(task => task.id === id);

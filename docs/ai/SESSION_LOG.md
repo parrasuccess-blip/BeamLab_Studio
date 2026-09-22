@@ -344,3 +344,10 @@ Added Account B's further live finding: Undo can replace the question model duri
 STATUS: implementation starting / baseline validation running. User explicitly approved proceeding with the completed plan. Refreshed GitHub: main 3498b5c, only open PR #20 at 45322e7. Exact-head audit CI 35764732666 is successful. Merged approved documentation PR #20 as d4c0479399e6e50582e7ed682c35912ac45f83dc; no application changes. Created dedicated feature/unrestricted-engineering-learning-safety from that new main and a clean local worktree.
 
 Objective: implement the first correctness/state increment, plus the confirmed selected-inspector obstruction; preserve one deterministic solver, all numerical tolerances, edited model/history restoration, direct-label/mobile and Firefox focus fixes. Establish a fresh baseline, add behaviour/explanation regressions, checkpoint before the full browser run, inspect desktop/mobile evidence and actual preview, then merge only validated work and verify public artifact/version. Broader navigation, learning layout and full mathematical presentation follow the approved plan in later increments.
+
+### 2026-09-23 — Account A, first repair implementation checkpoint
+
+- Draft PR #21 saved before implementation; fresh baseline passed 1,272 checks.
+- Implemented activity policy, effective tool level, legacy practice migration, output restrictions, session mutation guards/navigation exit, question fingerprints and changed-standalone notice. Preserved solver/grading/model schemas/tolerances and original model restoration.
+- Shared deterministic explanation fixes coincident actions and self-weight. Inspector occupies reserved space; label editor remains compact and mutually exclusive.
+- Added production-bundle policy/reference tests and four end-to-end browser journeys. Validation pending at this checkpoint; no merge or production release authorized by passing evidence yet.

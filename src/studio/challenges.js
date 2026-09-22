@@ -218,28 +218,6 @@ function intensity(item,x){
  return (item.value||0)+((item.endValue ?? item.value ?? 0)-(item.value||0))*(x-item.x)/L;
 }
 function fmt(n,d=3){if(!Number.isFinite(n))return '--'; const z=Math.abs(n)<.5*10**(-d)?0:n; return z.toFixed(d);}
-function explainAt(m,a,x,level='year1'){
- if(!a||!m)throw new Error('A solved model is required.');
- x=Math.max(0,Math.min(m.length,Number(x)||0));
- const actual=effective(m), s=a.sample(x), tol=Math.max(1e-5,m.length*1e-5);
- const nearby=actual.items.filter(i=>Math.abs(i.x-x)<=tol||i.end!==undefined&&Math.abs(i.end-x)<=tol);
- const hinge=nearby.find(i=>i.kind==='hinge'), point=nearby.find(i=>i.kind==='point'), couple=nearby.find(i=>i.kind==='moment'), support=nearby.find(i=>['pin','roller','fixed'].includes(i.kind));
- const w=actual.items.reduce((sum,i)=>sum+intensity(i,x),0);
- let title='Read the response at this position.';
- const lines=[];
- if(hinge){title='The internal hinge releases bending moment.';lines.push('At the hinge, the model enforces M = 0 while vertical displacement remains continuous.');}
- else if(point){title='The concentrated force creates a shear jump.';lines.push(`Crossing ${point.label||'the point load'} changes shear instantaneously; bending moment itself remains continuous.`);}
- else if(couple){title='The applied couple creates a moment jump.';lines.push('A pure couple changes bending moment instantly but does not create a shear jump.');}
- else if(support){title='The support reaction changes the shear field.';lines.push('The vertical reaction enters the free-body balance here and appears as a shear jump.');}
- else if(Math.abs(w)>1e-8){title='Distributed loading controls the shear slope here.';lines.push(`The effective downward load intensity is ${fmt(w,3)} kN/m at this position.`);}
- else if(Math.abs(s.V)>1e-8){title='Shear controls how moment changes here.';lines.push(`${s.V>0?'Positive':'Negative'} shear means the moment diagram is ${s.V>0?'rising':'falling'} as x increases.`);}
- else {title='Moment is locally stationary here.';lines.push('Shear is approximately zero, so the bending-moment diagram has a local stationary point.');}
- lines.push(`V = ${fmt(s.V,3)} kN and M = ${fmt(s.M,3)} kN·m at x = ${fmt(x,3)} m.`);
- let formula='Load changes shear; shear changes moment.';
- if(level!=='year1'){
-   formula='dV/dx = -w(x)    ·    dM/dx = V(x)';
-   lines.push(`Elastic displacement here is ${fmt(s.v*1000,3)} mm (upward positive) and rotation is ${fmt(s.theta,6)} rad.`);
- }
- if(level==='year3'||level==='all') lines.push('This explanation describes the current linear-elastic model; it is not a capacity or code-compliance statement.');
- return {x,title,lines,formula};
+function explainAt(m,a,x,level='year1') {
+ return require('./explanation').explainAt(m,a,x,level);
 }
