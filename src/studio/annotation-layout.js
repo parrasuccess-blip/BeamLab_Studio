@@ -49,6 +49,8 @@ function placeCallouts(labels, bounds) {
         for (const x of xs) for (const y of ys) {
             const box = {x, y, width, height};
             if (y < bounds.top || y + height > bounds.bottom || placed.some(b => overlaps(box, b))) continue;
+            // Keep exact critical-point dots (including hinge zeros) off all text.
+            if (labels.some(p => overlaps(box,{x:p.px-5,y:p.py-5,width:10,height:10},0))) continue;
             const cost = Math.abs(x + width / 2 - label.px) + 1.4 * Math.abs(y - preferredY);
             choices.push({...box, cost});
         }

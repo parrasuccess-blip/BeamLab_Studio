@@ -18,7 +18,7 @@ for(const width of [280,360,550,1100]) test(`annotation allocation is bounded, d
     const bounds={left:45,right:width-45,top:5,bottom:201};
     const boxes=placeCallouts(wanted,bounds);
     assert.equal(boxes.length,wanted.length);assert.equal(JSON.stringify(boxes),JSON.stringify(placeCallouts(wanted,bounds)));
-    boxes.forEach((b,n)=>{assert.equal(b.id,n);assert.ok(b.x>=45 && b.x+b.width<=width-45+1e-9);assert.ok(b.y>=5);for(const other of boxes.slice(n+1)) assert.equal(overlaps(b,other,0),false);});
+    boxes.forEach((b,n)=>{assert.equal(b.id,n);assert.ok(b.x>=45 && b.x+b.width<=width-45+1e-9);assert.ok(b.y>=5);for(const other of boxes.slice(n+1)) assert.equal(overlaps(b,other,0),false);for(const point of wanted)assert.equal(overlaps(b,{x:point.px-5,y:point.py-5,width:10,height:10},0),false);});
     const notes=stackLabels(wanted,width,300);
     notes.forEach((b,n)=>{assert.ok(b.x>=12&&b.x+b.width<=width-12+1e-9);for(const other of notes.slice(n+1))assert.equal(overlaps(b,other,0),false);});
 });

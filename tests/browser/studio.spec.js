@@ -371,7 +371,7 @@ test('review exports carry the current model and numerical evidence',async({page
   await open(page);await flow(page,'review');
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
-  expect(audit.release).toBe('4.1.1');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
+  expect(audit.release).toBe('4.1.2');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
   const reportPending=page.waitForEvent('download');await page.locator('#design-studio [data-action="export:pdf"]').click();
   const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
   expect(pdf.startsWith('%PDF-1.4')).toBe(true);
@@ -384,7 +384,7 @@ test('review exports carry the current model and numerical evidence',async({page
 });
 
 test('optional tutor health is honest and deterministic teaching stays available',async({page,request})=>{
-  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.1',configured:false});
+  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.2',configured:false});
   await open(page);await act(page,'ai-open').click();
   await expect(page.getByRole('dialog')).toContainText('Online tutor is not connected');
   await expect(act(page,'ai-send')).toBeDisabled();

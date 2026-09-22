@@ -29,6 +29,10 @@ async function checkLabels(page) {
           if(r.x<b.x-1||r.y<b.y-1||r.x+r.width>b.x+b.width+1||r.y+r.height>b.y+b.height+1)problems.push(`text escaped box: ${t.textContent}`);
         }
         for(const {g:other,b:c} of labels.slice(n+1))if(b.x<c.x+c.width&&b.x+b.width>c.x&&b.y<c.y+c.height&&b.y+b.height>c.y)problems.push(`overlap: ${g.textContent} / ${other.textContent}`);
+        for(const dot of svg.querySelectorAll('.critical-marker')) {
+          const c=dot.getBBox();
+          if(b.x<c.x+c.width&&b.x+b.width>c.x&&b.y<c.y+c.height&&b.y+b.height>c.y)problems.push(`marker covers label: ${g.textContent}`);
+        }
       }
     }
     return problems;

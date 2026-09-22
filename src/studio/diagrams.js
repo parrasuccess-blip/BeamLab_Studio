@@ -245,7 +245,7 @@ function renderDiagrams(m, a, v) {
             svg += '</g>';
             svg += callouts.map(b => `<path d="M${b.px} ${b.py} L${(0,common_1.clamp)(b.px,b.x,b.x+b.width)} ${(0,common_1.clamp)(b.py,b.y,b.y+b.height)}" stroke="${colour}" opacity=".45" fill="none" pointer-events="none"/>`).join('');
             svg += callouts.map(b => labelSvg(b, `data-annotation="critical" data-x="${b.xValue}" data-value="${b.value}" pointer-events="none"`)).join('');
-            svg += callouts.map(b => `<circle cx="${b.px}" cy="${b.py}" r="3.5" fill="${colour}" pointer-events="none"/>`).join('');
+            svg += callouts.map(b => `<circle class="critical-marker" cx="${b.px}" cy="${b.py}" r="3.5" fill="${colour}" pointer-events="none"/>`).join('');
         }
         else if (a && !revealed)
             svg += `<rect x="${left + 15}" y="45" width="${right - left - 30}" height="126" rx="12" fill="#0f191d" stroke="#33454a" stroke-dasharray="4 5"/>${svgText(W / 2, 91, 'PREDICT BEFORE REVEAL', '#82d8c1', 'middle', 9, 'letter-spacing="1.5"')}${svgText(W / 2, 116, kind === 'V' ? 'Sketch the shear-force diagram.' : kind === 'M' ? 'Use the SFD to sketch the bending-moment diagram.' : kind === 'v' ? 'Predict the elastic curve.' : 'Predict tension and compression.', '#c5d5d1', 'middle', 11)}${svgText(W / 2, 138, 'Use Learn → Practice mode when you are ready to reveal the next stage.', '#80969c', 'middle', 8)}`;
