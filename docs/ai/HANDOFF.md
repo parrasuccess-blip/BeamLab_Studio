@@ -1,5 +1,13 @@
 # BeamLab AI Handoff
 
+## Active implementation — Account A, 2026-09-23
+
+**STATUS: implementation starting / baseline validation running.** The user approved the complete plan and requested implementation. Approved audit PR #20 is merged. Starting main: `d4c0479399e6e50582e7ed682c35912ac45f83dc`. Working branch: `feature/unrestricted-engineering-learning-safety`.
+
+First increment: unrestricted engineering destinations, learning-only answer masking, fixed-question mutation protection, consistent navigation/legacy preferences, coincident-action Show Why correction, and an inspector that cannot cover edit controls. Preserve the single solver, numerical tolerances, model origin/history restoration and 4.1.2 editing/annotation fixes. Full workspace redesign and richer lesson/math presentation remain subsequent scoped increments in the approved plan.
+
+Before long tests, push coherent source and update this record. Current production remains 4.1.2 until a validated release is separately verified.
+
 ## Active audit — Account A / Account B, 2026-09-22
 
 **STATUS: audit complete / detailed plan ready for user review / no application changes.** Starting main `3498b5c`; documentation branch `docs/workspace-ux-audit-plan`, draft PR [#20](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/20). Read [the current audit and plan](UX_AUDIT_AND_PLAN_2026_09_22.md) before implementation. The user requests a full plan first. Confirmed faults: Build/Analyse masking after Practice and reload; different Build entry semantics; ordinary inspector covering toolbar; learning-level restrictions leaking into direct use; Practice/Exam answer leakage through worked solutions and verification; and a false moment-continuity explanation for coincident point load/couple. Existing release evidence below remains valid for its tested scope.
