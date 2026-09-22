@@ -302,3 +302,12 @@ Syntax and whitespace checks pass. This coherent checkpoint is being published b
 - Vercel deployment `5DAvxyLvQRY78GXdK2a8412zYnjb` succeeds. Downloaded public HTML (735,456 bytes), release.json and SHA256.txt all match **d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04**. Public UI and tutor health identify **4.1.2**; tutor remains `configured:false`.
 - Public interaction: 6 → 8 → 9 m edits via Tab undo independently to 8 and 6; pending inline edit Undo closes its field; editor can reopen; Redo restores 29 kN; Undo restores 20 kN. Fixed-end reference inspection reports −41.667 kN·m at x=0 and separated critical labels. Saved a public screenshot and restored the original 6 m / 20 kN verification beam.
 - Updated HANDOFF, TESTING and release notes with actual results; retained historical failures and broader Show Why/math/mobile-learning follow-ups. Main release CI is linked in HANDOFF; verification documentation will go through its own PR gate. No new application change.
+
+
+## 2026-09-22 — Account A — Workspace UX audit and plan checkpoint
+
+STATUS: audit in progress / no application implementation. Starting main `3498b5c31d94af3007e20c0de80cd4fafef5b1a4`; documentation branch `docs/workspace-ux-audit-plan`; early draft PR #20. User asks for inspection and an in-depth shareable plan before changes.
+
+Fresh installation/build/Node suite passes 1,272 checks. Exact-main CI run 35729723993 / browser job 106752152285 records 112 passed with zero retries. Public HTML and metadata match local build at d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04 (735,456 bytes, 4.1.2).
+
+Live reproduction confirms global Practice masking in Build and after reload; inconsistent header/workspace Build behaviour; hidden answers appearing in Show Why and worked solutions; ordinary selected-object inspector covering toolbar controls; learning-level tool restrictions leaking back into direct engineering use; and an edited lesson silently returning to the catalogue while its temporary masked example remains. Lesson navigation and original beam/history/comparison restoration work in the checked journeys. Phone layout evidence reviewed from the released 4.1.2 CI artifact; no fresh manual phone session is claimed. Findings and proposed fixes will be completed in UX_AUDIT_AND_PLAN_2026_09_22.md. No solver, application source, test tolerance, main or deployment change.
