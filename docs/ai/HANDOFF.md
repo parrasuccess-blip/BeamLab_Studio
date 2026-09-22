@@ -1,14 +1,14 @@
 # BeamLab AI Handoff
 
-## Active update — Account A takeover, 2026-09-21
+## Active update — Account B recovery, 2026-09-22
 
 - **Task:** prevent overlapping diagram annotations on desktop and narrow/mobile layouts.
 - **Starting main:** `1c74ef4576d014a93ce203affa67826d89243ca6` (4.1.1 release plus completed production handoff).
 - **Branch:** `feature/diagram-annotation-layout`; [draft PR #18](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/18).
-- **Takeover checkpoint:** `adf45cec45b3cdec450c61be2d20c54406365af3`. Account B pushed the investigation record only; the actual diff against main contains no application changes. Account A fetched current refs and read all shared records before continuing.
-- **Status:** first implementation checkpoint / full regression and browser validation pending. Production remains the verified 4.1.1 release below.
+- **Takeover checkpoint:** `e155a9182e0ede0994f56183e7b3baa3f3c1f44b`. Account A added `b957c09` (takeover record) and `e155a91` (layout implementation/tests) after Account B's `adf45ce` investigation record. Account B fetched current refs and inspected the actual changes before continuing; no newer committed fixes exist.
+- **Status:** implementation retained / failed browser checks under investigation / draft PR not merged. Production remains the verified 4.1.1 release below.
 - **Scope:** critical-value/inspection labels and crowded structure labels; preserve numerical values, native interaction, temporary-learning model protection and existing solver/tolerances. Inspect actual failures before choosing the layout change.
-- **Validation:** fresh baseline passes 1,258 Node checks; starting-head CI records 96 browser checks passed. The first repair adds 14 passing focused Node checks and 12 browser project checks (108 total listed, execution pending). No readiness/production claim yet.
+- **Validation:** Account A's implementation adds 14 Node checks (1,272 reported passing). Exact-head PR CI `35622848288` has a successful regression job and **99 browser checks passed / 9 failed**: four incorrect endpoint jump-marker expectations, four PDF page-count failures (3 pages rather than 2), and one desktop lesson/history failure (second Undo disabled). Crowded-label inline editing/Undo and hinge/export checks pass in all four projects. Account B is investigating the history failure and Account A's reported manual Undo finding; no numerical tolerance changes are warranted.
 
 ## Current state
 
