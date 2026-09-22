@@ -246,3 +246,15 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Inspected actual layout, renderer, app, CSS, module-order, fixture and regression changes plus shared records. The solver and numerical tolerances are unchanged. The implementation separates inspection values from fixed annotations, wraps and stacks structure/load notes, and allocates bounded critical callouts with overflow rows.
 - Exact-head PR run `35622848288`: regression succeeds; browser job `106409964088` reports **99 passed / 9 failed** out of 108. Four endpoint checks wrongly expect `M⁺` although the continuous fixed-end value is correctly `M -41.667`; four PDF assertions observe three pages instead of two; one desktop lesson/history test reaches disabled Undo where a second prior edit is expected. All four crowded-label inline-edit Undo checks pass, so the separately reported manual Undo issue needs reproduction rather than an assumed fix.
 - Immediate plan: retain Account A's layout repair, correct only the independently justified endpoint expectation, investigate history and report pagination, inspect desktop/mobile evidence, then push coherent fixes before full validation. The current handoff now records actual failures instead of pending execution. No production readiness claim.
+
+### Account B — 2026-09-22, annotation recovery implementation checkpoint
+
+Continued PR #18 from `43a80450e284c4bbee39e75e57d6209751f1c487`, retaining Account A's annotation allocator and all solver behaviour. Fresh dependency installation and inherited Node baseline passed (1,272 checks). No newer remote work appeared on fetch.
+
+Investigated the public-site Undo report: the selected-object inspector physically covered the toolbar at laptop width. Keyboard Undo and pointer Undo after Deselect correctly restored the model. An initial impression that the pending value had reappeared was not supported; do not document this as a numerical/history-engine defect. Direct label editing now hides the competing inspector, and Undo/Redo dismiss obsolete inline fields. The general floating inspector remains available for ordinary object selection.
+
+The separate intermittent lesson/history failure can arise when a second input reaches the same field before its deferred Tab commit. Split an already-tabbed transaction before processing the next edit; retain native focus restoration and Firefox pointer-target deferral. Added a paused-clock browser journey, and strengthened the lesson assertion to verify the initial Undo really restores 8 m.
+
+Corrected the endpoint expectation from `M⁺` to `M`, preserving the analytical -41.667 kN·m value and solver. PDF grouping now uses the actual 511 × 655 point figure budget including top padding, rather than the arbitrary old 990 SVG-unit cutoff. Annotation text keeps its measured font size during PDF export. The existing two-page reference-report assertion remains intact.
+
+Syntax and whitespace checks pass. This coherent checkpoint is being published before full validation. Expected browser suite size is 112; passing results are not yet claimed. Production remains 4.1.1; PR #18 remains draft.

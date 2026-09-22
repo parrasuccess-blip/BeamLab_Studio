@@ -501,7 +501,7 @@ function render() {
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
     $('#inspector').classList.toggle('has-selection', v.selected.size > 0);
-    $('#mobile-done').hidden = designMode || v.selected.size === 0;
+    $('#mobile-done').hidden = designMode || !v.inspector || v.selected.size === 0;
     $('#toolbar').innerHTML = `<div class="stage-title"><i class="dot ${analysis ? 'mint' : 'amber'}"></i><div><h2>${analysis ? (0, common_1.esc)(analysis.system) : 'Model needs attention'}</h2><small>${(0, common_1.esc)(m.name)}</small></div></div><div class="toolbar-buttons">${(0, common_1.button)('undo', (0, common_1.icon)('undo'), 'icon-button', !history.past.length, 'Undo (Ctrl/Cmd Z)')}${(0, common_1.button)('redo', (0, common_1.icon)('redo'), 'icon-button', !history.future.length, 'Redo (Ctrl/Cmd Shift Z)')}<i class="toolbar-separator"></i>${(0, common_1.button)('compare', (0, common_1.icon)('compare'), 'icon-button ' + (compareModel ? 'active' : ''), !analysis && !compareModel, compareModel ? 'Clear comparison' : 'Freeze comparison')}${(0, common_1.button)('shortcuts', (0, common_1.icon)('help', 14), 'icon-button', false, 'Quick help (?)')}${(0, common_1.button)('ai-open', '<span class="ai-glyph">✦</span>', 'icon-button ai-launch', !!(v.session?.active && v.session.mode === 'exam'), 'Ask BeamLab contextual tutor')}${(0, common_1.button)('controls', (0, common_1.icon)('menu'), 'icon-button ' + (!v.controls ? 'active' : ''), false, 'Toggle controls')}${(0, common_1.button)('inspector', (0, common_1.icon)('settings'), 'icon-button ' + (!v.inspector ? 'active' : ''), false, 'Toggle inspector')}</div>`;
     width = Math.max(280, $('#graphs').getBoundingClientRect().width || width);
     renderStage();
@@ -1429,7 +1429,10 @@ function updateHistoryControls() {
 function applyNumber(input) {
     pauseSweep();
     const key = input.dataset.field;
-    if (fieldTransaction && fieldTransaction.input !== input) {
+    // A user can return to the same field before its deferred Tab commit runs.
+    // Commit that completed edit before starting the next one, without replacing
+    // the incoming input or a pressed pointer target.
+    if (fieldTransaction && (fieldTransaction.input !== input || fieldTransaction.tabbed)) {
         const previous = fieldTransaction; fieldTransaction = null;
         const next = history.model; history.model = previous.base;
         if (previous.input.getAttribute('aria-invalid') !== 'true' && verification.canonical(next) !== verification.canonical(previous.base)) { levelStarterActive = false; history.commit(next, previous.description); }
@@ -1767,6 +1770,8 @@ async function action(key, el) {
         return;
     }
     if (name === 'undo' || name === 'undo-dialog') {
+        inlineId = null;
+        $('#inline-edit').innerHTML = '';
         history.undo();
         v.selected = new Set([...v.selected].filter(id => history.model.items.some(o => o.id === id)));
         v.trace = null; v.pinned = false; v.pan = Math.max(0, Math.min(v.pan, history.model.length - history.model.length/v.zoom));
@@ -1778,6 +1783,8 @@ async function action(key, el) {
         return;
     }
     if (name === 'redo') {
+        inlineId = null;
+        $('#inline-edit').innerHTML = '';
         history.redo();
         v.selected = new Set([...v.selected].filter(id => history.model.items.some(o => o.id === id)));
         v.trace = null; v.pinned = false; v.pan = Math.max(0, Math.min(v.pan, history.model.length - history.model.length/v.zoom));
@@ -2385,6 +2392,10 @@ function inlineEdit(id, e) {
     }
     inlineId = id;
     v.selected = new Set([id]);
+    // The compact label editor replaces the floating inspector for this edit.
+    // Keeping both open can cover the toolbar, including Undo, on laptops.
+    v.inspector = false;
+    render();
     const key = (0, validation_1.isLoad)(i.kind) ? 'value' : 'x', units = i.kind === 'moment' ? 'kN\u00b7m' : (0, validation_1.isDistributed)(i.kind) ? 'kN/m' : i.kind === 'point' ? 'kN' : 'm';
     $('#inline-edit').innerHTML = `<div><span>${(0, common_1.esc)(i.label)} / ${examples_1.titles[i.kind]}</span>${(0, common_1.button)('inline-done', (0, common_1.icon)('close', 13), 'icon-button', false, 'Finish inline editing')}</div>${(0, common_1.field)('item:' + id + ':' + key, (0, validation_1.isLoad)(i.kind) ? 'Nominal magnitude' : 'Position', i[key], units, key === 'x' ? 0 : -100000, key === 'x' ? history.model.length : 100000)}${i.kind === 'variable' ? (0, common_1.field)('item:' + id + ':endValue', 'End intensity', i.endValue, 'kN/m') : ''}<small>Enter to apply. Escape to close.</small>`;
     const box = $('#inline-edit');

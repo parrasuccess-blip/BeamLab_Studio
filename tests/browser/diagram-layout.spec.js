@@ -45,7 +45,7 @@ test('endpoint inspection never covers fixed moment labels and reports independe
   await inspect(page,0);
   const block=page.locator('.diagram-block[data-kind="M"]');
   // wL²/12 = 41.6667 kN·m hogging at either fixed end.
-  await expect(block.locator('.trace-label')).toContainText('M⁺ -41.667 kN·m');
+  await expect(block.locator('.trace-label')).toContainText('M -41.667 kN·m');
   await expect(block.locator('[data-annotation="critical"]')).toHaveCount(3);
   const geometry=await block.evaluate(el=>({plot:el.querySelector('svg').getBoundingClientRect().bottom,readout:el.querySelector('.trace-label').getBoundingClientRect().top}));
   expect(geometry.readout).toBeGreaterThanOrEqual(geometry.plot);
@@ -69,8 +69,15 @@ test('crowded supports, prescribed movements and endpoint loads remain legible a
   await label.dblclick();
   const input=page.locator('#inline-edit').getByLabel('Nominal magnitude',{exact:true});
   await expect(input).toBeVisible();
+  await expect(page.locator('#inspector')).toBeHidden();
   await input.fill('27');await input.press('Enter');
   await expect(label).toContainText('+27.0 kN');
+  await act(page,'undo').click();await expect(label).toContainText('+23.0 kN');
+  // Undo must also work before Enter, close the obsolete editor, and retain Redo.
+  await label.dblclick();await input.fill('29');
+  await act(page,'undo').click();await expect(label).toContainText('+23.0 kN');
+  await expect(input).toHaveCount(0);
+  await act(page,'redo').click();await expect(label).toContainText('+29.0 kN');
   await act(page,'undo').click();await expect(label).toContainText('+23.0 kN');
   await checkLabels(page);
 });
