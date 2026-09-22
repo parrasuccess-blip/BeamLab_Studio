@@ -2233,7 +2233,10 @@ function pointerDown(e) {
         }
         else if (!v.selected.has(o.id))
             v.selected = new Set([o.id]);
-        v.inspector = true;
+        // The first press of a label must leave it available for the second tap.
+        // A mobile inspector opened here covers the target before pointerUp can
+        // recognise the double tap. Object bodies still open the full inspector.
+        v.inspector = !!o.locked || !el.closest('[data-inline]');
         if (o.locked) {
             render();
             toast('Object locked. Use Unlock in the Inspector.');
@@ -2245,9 +2248,9 @@ function pointerDown(e) {
         drag = { kind: 'object', base: (0, study_1.clone)(history.model), ids: [...v.selected], item: (0, study_1.clone)(o), part, startX: eventX(e.clientX, rect), startY: e.clientY, clientX: e.clientX, clientY: e.clientY, rect, moved: false, pointer: e.pointerId };
         renderStage();
         $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(history.model, analysis, v);
-        $('#inspector').hidden = false;
+        $('#inspector').hidden = !v.inspector;
         $('#inspector').classList.add('has-selection');
-        $('#workspace-grid').classList.remove('inspector-hidden');
+        $('#workspace-grid').classList.toggle('inspector-hidden', !v.inspector);
     }
     else {
         drag = { kind: 'marquee', base: (0, study_1.clone)(history.model), ids: e.shiftKey ? [...v.selected] : [], part: '', startX: 0, startY: 0, clientX: e.clientX, clientY: e.clientY, rect: svg.getBoundingClientRect(), moved: false, pointer: e.pointerId };
