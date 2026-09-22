@@ -501,7 +501,7 @@ function render() {
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
     $('#inspector').classList.toggle('has-selection', v.selected.size > 0);
-    $('#mobile-done').hidden = designMode || v.selected.size === 0;
+    $('#mobile-done').hidden = designMode || !v.inspector || v.selected.size === 0;
     $('#toolbar').innerHTML = `<div class="stage-title"><i class="dot ${analysis ? 'mint' : 'amber'}"></i><div><h2>${analysis ? (0, common_1.esc)(analysis.system) : 'Model needs attention'}</h2><small>${(0, common_1.esc)(m.name)}</small></div></div><div class="toolbar-buttons">${(0, common_1.button)('undo', (0, common_1.icon)('undo'), 'icon-button', !history.past.length, 'Undo (Ctrl/Cmd Z)')}${(0, common_1.button)('redo', (0, common_1.icon)('redo'), 'icon-button', !history.future.length, 'Redo (Ctrl/Cmd Shift Z)')}<i class="toolbar-separator"></i>${(0, common_1.button)('compare', (0, common_1.icon)('compare'), 'icon-button ' + (compareModel ? 'active' : ''), !analysis && !compareModel, compareModel ? 'Clear comparison' : 'Freeze comparison')}${(0, common_1.button)('shortcuts', (0, common_1.icon)('help', 14), 'icon-button', false, 'Quick help (?)')}${(0, common_1.button)('ai-open', '<span class="ai-glyph">✦</span>', 'icon-button ai-launch', !!(v.session?.active && v.session.mode === 'exam'), 'Ask BeamLab contextual tutor')}${(0, common_1.button)('controls', (0, common_1.icon)('menu'), 'icon-button ' + (!v.controls ? 'active' : ''), false, 'Toggle controls')}${(0, common_1.button)('inspector', (0, common_1.icon)('settings'), 'icon-button ' + (!v.inspector ? 'active' : ''), false, 'Toggle inspector')}</div>`;
     width = Math.max(280, $('#graphs').getBoundingClientRect().width || width);
     renderStage();
@@ -1159,7 +1159,8 @@ function renderExtras(skipReview = false) {
 }
 function updateTrace() {
     const a = analysis, m = history.model, x = v.trace;
-    const { xp } = (0, diagrams_1.coordinates)(m, diagramView());
+    const { xp, span } = (0, diagrams_1.coordinates)(m, diagramView());
+    const traceVisible = x !== null && x >= v.pan - 1e-8 && x <= v.pan + span + 1e-8;
     const practice = shown('practice'), pstep = v.practiceStep || 0;
     if (x !== null) { const slider=$('[data-range=trace]'), number=$('[data-trace-number]'); if(slider && slider!==document.activeElement) slider.value=String(x); if(number && number!==document.activeElement) number.value=String(Math.round(x*10000)/10000); }
     $('#trace-readout').innerHTML = x === null ? `<span>${(0, common_1.icon)('help', 12)} Hover a diagram. Click to pin.</span><small>${practice ? 'Practice mode hides unrevealed responses. ' : ''}Reactions up + / loads down + / sagging moment +</small>` : (() => {
@@ -1174,17 +1175,25 @@ function updateTrace() {
         const def = practice && pstep < 4 ? (shown('deformation') ? '<span>v hidden / predict first</span>' : '') : shown('deformation') && r ? `<span>v ${(0, common_1.signed)(r.v * 1000)} mm${cr ? ` <em>A ${(0, common_1.signed)(cr.v * 1000)} / Δ ${(0, common_1.signed)((r.v-cr.v)*1000)}</em>` : ''}</span>` : '';
         return `<b>x ${(0, common_1.fmt)(x)} m ${v.pinned ? '[pinned]' : ''}</b><span>${pair('V', 'kN', 2)}</span><span>${pair('M', 'kN·m', 3)}</span>${def}${v.pinned ? (0, common_1.button)('unpin', (0, common_1.icon)('close', 13), 'icon-button', false, 'Unpin cursor') : ''}`;
     })();
-    $('#graphs').querySelectorAll('.trace-group').forEach(g => { g.style.display = x === null ? 'none' : ''; if (x !== null) g.querySelectorAll('line').forEach(line => { line.setAttribute('x1', String(xp(x))); line.setAttribute('x2', String(xp(x))); }); });
+    $('#graphs').querySelectorAll('.trace-group').forEach(g => { g.style.display = traceVisible ? '' : 'none'; if (traceVisible) g.querySelectorAll('line').forEach(line => { line.setAttribute('x1', String(xp(x))); line.setAttribute('x2', String(xp(x))); }); });
     $('#graphs').querySelectorAll('.diagram-block[data-kind]').forEach(block => {
         const marker = block.querySelector('.trace-marker'), text = block.querySelector('.trace-label');
         if (!marker || !text) return;
         const k = block.dataset.kind, stage = k === 'V' ? 2 : k === 'M' ? 3 : 4, hidden = practice && pstep < stage;
-        marker.style.display = text.style.display = x === null || !a || hidden ? 'none' : '';
+        const active = x !== null && a && !hidden;
+        text.style.display = active ? '' : 'none';
+        marker.style.display = active && traceVisible ? '' : 'none';
+        const placeholder = block.querySelector('.trace-placeholder');
+        if (placeholder) placeholder.hidden = !!active;
         if (x !== null && a && !hidden) {
             const sample = a.sample(x), value = k === 'v' ? sample.v * 1000 : k === 'stress' ? -sample.M * (sample.c ?? a.properties.c) / (sample.I ?? a.properties.I) / 1000 : sample[k];
             const y = Number(block.dataset.base) - value / Number(block.dataset.max) * Number(block.dataset.amp);
             marker.setAttribute('cx', String(xp(x))); marker.setAttribute('cy', String(y));
-            text.setAttribute('x', String((0, common_1.clamp)(xp(x) + 9, 60, width - 85))); text.setAttribute('y', String((0, common_1.clamp)(y + 18, 25, 198))); text.textContent = (0, common_1.signed)(value, 3);
+            const left = a.sample(x, 'left');
+            const leftValue = k === 'v' ? left.v * 1000 : k === 'stress' ? -left.M * (left.c ?? a.properties.c) / (left.I ?? a.properties.I) / 1000 : left[k];
+            const name = k === 'stress' ? 'σ' : k;
+            const values = Math.abs(leftValue-value)>1e-5 ? `${name}⁻ ${(0,common_1.signed)(leftValue,3)} / ${name}⁺ ${(0,common_1.signed)(value,3)}` : `${name} ${(0,common_1.signed)(value,3)}`;
+            text.textContent = `x = ${(0,common_1.fmt)(x)} m · ${values} ${block.dataset.units}${traceVisible ? '' : ' · outside zoomed view'}`;
         }
     });
     if (shown('teaching')) $('#teaching').innerHTML = (0, diagrams_1.teaching)(m, a, x ?? a?.peakM.x ?? 0, v.level);
@@ -1420,7 +1429,10 @@ function updateHistoryControls() {
 function applyNumber(input) {
     pauseSweep();
     const key = input.dataset.field;
-    if (fieldTransaction && fieldTransaction.input !== input) {
+    // A user can return to the same field before its deferred Tab commit runs.
+    // Commit that completed edit before starting the next one, without replacing
+    // the incoming input or a pressed pointer target.
+    if (fieldTransaction && (fieldTransaction.input !== input || fieldTransaction.tabbed)) {
         const previous = fieldTransaction; fieldTransaction = null;
         const next = history.model; history.model = previous.base;
         if (previous.input.getAttribute('aria-invalid') !== 'true' && verification.canonical(next) !== verification.canonical(previous.base)) { levelStarterActive = false; history.commit(next, previous.description); }
@@ -1758,6 +1770,8 @@ async function action(key, el) {
         return;
     }
     if (name === 'undo' || name === 'undo-dialog') {
+        inlineId = null;
+        $('#inline-edit').innerHTML = '';
         history.undo();
         v.selected = new Set([...v.selected].filter(id => history.model.items.some(o => o.id === id)));
         v.trace = null; v.pinned = false; v.pan = Math.max(0, Math.min(v.pan, history.model.length - history.model.length/v.zoom));
@@ -1769,6 +1783,8 @@ async function action(key, el) {
         return;
     }
     if (name === 'redo') {
+        inlineId = null;
+        $('#inline-edit').innerHTML = '';
         history.redo();
         v.selected = new Set([...v.selected].filter(id => history.model.items.some(o => o.id === id)));
         v.trace = null; v.pinned = false; v.pan = Math.max(0, Math.min(v.pan, history.model.length - history.model.length/v.zoom));
@@ -2217,7 +2233,10 @@ function pointerDown(e) {
         }
         else if (!v.selected.has(o.id))
             v.selected = new Set([o.id]);
-        v.inspector = true;
+        // The first press of a label must leave it available for the second tap.
+        // A mobile inspector opened here covers the target before pointerUp can
+        // recognise the double tap. Object bodies still open the full inspector.
+        v.inspector = !!o.locked || !el.closest('[data-inline]');
         if (o.locked) {
             render();
             toast('Object locked. Use Unlock in the Inspector.');
@@ -2225,13 +2244,13 @@ function pointerDown(e) {
         }
         const part = el.closest('[data-part]')?.dataset.part || 'body';
         const rect = svg.getBoundingClientRect();
-        layout = (0, diagrams_1.layoutModel)(history.model, width);
+        layout = (0, diagrams_1.layoutModel)(history.model, width, v);
         drag = { kind: 'object', base: (0, study_1.clone)(history.model), ids: [...v.selected], item: (0, study_1.clone)(o), part, startX: eventX(e.clientX, rect), startY: e.clientY, clientX: e.clientX, clientY: e.clientY, rect, moved: false, pointer: e.pointerId };
         renderStage();
         $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(history.model, analysis, v);
-        $('#inspector').hidden = false;
+        $('#inspector').hidden = !v.inspector;
         $('#inspector').classList.add('has-selection');
-        $('#workspace-grid').classList.remove('inspector-hidden');
+        $('#workspace-grid').classList.toggle('inspector-hidden', !v.inspector);
     }
     else {
         drag = { kind: 'marquee', base: (0, study_1.clone)(history.model), ids: e.shiftKey ? [...v.selected] : [], part: '', startX: 0, startY: 0, clientX: e.clientX, clientY: e.clientY, rect: svg.getBoundingClientRect(), moved: false, pointer: e.pointerId };
@@ -2376,6 +2395,10 @@ function inlineEdit(id, e) {
     }
     inlineId = id;
     v.selected = new Set([id]);
+    // The compact label editor replaces the floating inspector for this edit.
+    // Keeping both open can cover the toolbar, including Undo, on laptops.
+    v.inspector = false;
+    render();
     const key = (0, validation_1.isLoad)(i.kind) ? 'value' : 'x', units = i.kind === 'moment' ? 'kN\u00b7m' : (0, validation_1.isDistributed)(i.kind) ? 'kN/m' : i.kind === 'point' ? 'kN' : 'm';
     $('#inline-edit').innerHTML = `<div><span>${(0, common_1.esc)(i.label)} / ${examples_1.titles[i.kind]}</span>${(0, common_1.button)('inline-done', (0, common_1.icon)('close', 13), 'icon-button', false, 'Finish inline editing')}</div>${(0, common_1.field)('item:' + id + ':' + key, (0, validation_1.isLoad)(i.kind) ? 'Nominal magnitude' : 'Position', i[key], units, key === 'x' ? 0 : -100000, key === 'x' ? history.model.length : 100000)}${i.kind === 'variable' ? (0, common_1.field)('item:' + id + ':endValue', 'End intensity', i.endValue, 'kN/m') : ''}<small>Enter to apply. Escape to close.</small>`;
     const box = $('#inline-edit');

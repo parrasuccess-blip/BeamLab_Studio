@@ -1,7 +1,7 @@
 {
   "name": "beamlab-studio",
   "private": true,
-  "version": "4.1.1",
+  "version": "4.1.2",
   "description": "BeamLab Studio - deterministic structural analysis, learning and transparent design review.",
   "scripts": {
     "build": "node scripts/build.cjs",

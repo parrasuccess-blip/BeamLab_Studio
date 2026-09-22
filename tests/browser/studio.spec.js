@@ -72,7 +72,9 @@ test('individual lessons have ordered navigation and restore model and undo hist
   await open(page);
   await page.getByLabel('Beam length',{exact:true}).fill('8');await page.getByLabel('Beam length',{exact:true}).press('Tab');
   await page.getByLabel('Beam length',{exact:true}).fill('9');await page.getByLabel('Beam length',{exact:true}).press('Tab');
-  await act(page,'undo').click();await act(page,'compare').click();
+  await act(page,'undo').click();
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
+  await act(page,'compare').click();
   const original=await modelCopy(page),history=await page.locator('#history-count').textContent();
   const saved=await page.evaluate(()=>localStorage.getItem('beamlab:studio:3.2'));
   await flow(page,'learn');await page.locator('.lesson-list button').first().click();
@@ -240,6 +242,24 @@ test('Tab commits each numeric edit, keeps keyboard focus and saves before any a
   await expect(act(page,'undo')).toBeDisabled();await expect(act(page,'redo')).toBeDisabled();
 });
 
+test('returning to a field before its Tab timer runs preserves separate edits',async({page})=>{
+  await page.clock.install({time:new Date('2026-01-01T00:00:00Z')});
+  await open(page);
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
+  const length=page.getByLabel('Beam length',{exact:true});
+  await length.fill('8');await length.press('Tab');
+  await length.fill('9');await length.press('Tab');
+  // Run the pending commits only after both user edits have arrived.
+  await page.clock.runFor(1);
+  await expect(page.locator('#history-count')).toHaveText('2 edits');
+  await page.clock.resume();
+  await act(page,'undo').click();await expect(length).toHaveValue('8');
+  await act(page,'undo').click();await expect(length).toHaveValue('6');
+  await act(page,'redo').click();await expect(length).toHaveValue('8');
+  await act(page,'redo').click();await expect(length).toHaveValue('9');
+  await page.reload();await showTools(page);await expect(length).toHaveValue('9');
+});
+
 test('Undo accepts the first pending edit and invalid Tab edits restore the committed model',async({page})=>{
   await open(page);
   await page.getByLabel('Beam length',{exact:true}).fill('8');
@@ -347,24 +367,25 @@ test('session navigation is guarded and exiting restores the edited beam',async(
   expect(await modelCopy(page)).toBe(original);
 });
 
-test('review exports carry the current model and numerical evidence',async({page})=>{
+test('review exports carry the current model and numerical evidence',async({page},testInfo)=>{
   await open(page);await flow(page,'review');
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
-  expect(audit.release).toBe('4.1.1');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
+  expect(audit.release).toBe('4.1.2');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
   const reportPending=page.waitForEvent('download');await page.locator('#design-studio [data-action="export:pdf"]').click();
   const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
+  await report.saveAs(testInfo.outputPath('reference-report.pdf'));
   expect(pdf.startsWith('%PDF-1.4')).toBe(true);
   expect(pdf).toContain('Peak moment |M| = 30.0000 kN m');
   expect(pdf).toContain('Not design approval');
   expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
   await act(page,'privacy').click();await expect(page.getByRole('dialog')).toContainText('encoded, readable snapshot');
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
-  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.1/);
+  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.2/);
 });
 
 test('optional tutor health is honest and deterministic teaching stays available',async({page,request})=>{
-  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.1',configured:false});
+  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.2',configured:false});
   await open(page);await act(page,'ai-open').click();
   await expect(page.getByRole('dialog')).toContainText('Online tutor is not connected');
   await expect(act(page,'ai-send')).toBeDisabled();

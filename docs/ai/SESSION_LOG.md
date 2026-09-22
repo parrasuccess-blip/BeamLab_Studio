@@ -204,3 +204,89 @@ Branch: `feature/direct-explore-learning-navigation`.
 - Replaced the stale HANDOFF snapshot with released-state evidence, accurate architecture safeguards and exact next-task guidance; retained every earlier SESSION_LOG entry. Updated RELEASE_4_1_1 and TESTING to distinguish historical candidate results from released-main/public verification. PROJECT_CONTEXT and durable DECISIONS need no changes.
 - Outcome: Account A's recovery is merged and production is independently verified. No application implementation was restored from stale Account B work, and no numerical tolerances or Firefox safeguards were weakened. PR #17 tracks final documentation CI and merge; its merge may advance main beyond the release-code SHA without changing the artifact.
 - Next recommended update: a dedicated, scoped investigation/fix for overlapping critical-value and inspection labels in diagrams, with crowded-support/load fixtures and desktop/mobile visual coverage. Mathematical presentation, shorter mobile lesson pages and deeper deterministic Show Why remain separate follow-ups.
+
+---
+
+## 2026-09-21 — Account B — Diagram annotation readability
+
+**STATUS: investigation starting / no application changes / not deployed**
+
+- User authorised the next scoped update after the 4.1.1 recovery and production verification. Account B fetched GitHub again: main remains `1c74ef4576d014a93ce203affa67826d89243ca6`, no open PRs or newer feature work. Old feature branches are historical; no interrupted local work is restored.
+- Dedicated branch: `feature/diagram-annotation-layout`, starting at that exact main commit in a clean worktree. This initial handoff/session checkpoint precedes implementation and long validation; a draft PR will serve as the live record.
+- Objective: investigate overlapping critical-value/inspection annotations and crowded structural labels, then make a bounded desktop/mobile layout repair. Preserve the single solver, numerical tolerances, displayed engineering values, Undo/Redo, native Firefox interaction and model preservation through learning.
+- Starting release evidence: 1,258 numerical/behaviour checks and 96 browser checks passed; public 4.1.1 was verified in the preceding session. Current-update validation is pending. Broader mathematical presentation, mobile lesson layout and deeper deterministic Show Why remain separate tasks.
+
+---
+
+## 2026-09-21 — Account A — Continue scoped diagram readability update
+
+**STATUS: recovery inspection complete / baseline validation and collision investigation / not deployed**
+
+- Fetched current GitHub state and inspected actual diffs. Main is `1c74ef4576d014a93ce203affa67826d89243ca6`; Account B's branch is `feature/diagram-annotation-layout` at `adf45cec45b3cdec450c61be2d20c54406365af3`, with open draft PR #18. The branch contains HANDOFF/SESSION_LOG changes only, not a published rendering implementation. Stale local work remains isolated.
+- Read PROJECT_CONTEXT, HANDOFF, SESSION_LOG, DECISIONS and TESTING completely. Account B completed the 4.1.1 release verification; the former navigation branch is merged history. Exact starting-head PR CI 35564542665 and push CI 35564338368 report success; fresh local baseline and detailed browser evidence are next.
+- Implementation checklist: shared collision-aware diagram annotations, dedicated inspection-value placement, crowded structure-label spacing, unchanged engineering values and direct manipulation. Keep mathematical presentation, broader lesson layout and deeper Show Why out of this scoped repair.
+- Validation checklist: install/build/current regressions first; add deterministic layout and browser overlap checks; inspect actual desktop/mobile diagrams and export behaviour; checkpoint before long tests; merge only after adequate validation and verify production separately.
+- This takeover record is pushed before implementation/long validation. No solver, numerical tolerance, sign, unit, model lifecycle or production change.
+
+### Collision repair checkpoint — full validation pending
+
+- Initial Account A record pushed as `b957c09`. Fresh `npm ci`, build and current tests passed: 1,258 Node checks, zero failed/skipped. Build matches released 4.1.1 hash. Starting-head browser job 106223683060 from PR run 35564542665 records 96 passed with zero retries.
+- Hosted preview reproduces the reported overlap: fixed-end critical `-41.67` and inspected `-41.667` occupy intersecting text rectangles at x=0. Code used fixed-width spacing for critical labels, unrelated cursor placement and fixed support-label baselines.
+- Added pure `studio/annotation-layout` for bounded wrapping, deterministic collision-free callout slots, explicit overflow rows and stacked structure notes. Critical sample selection/values and solver remain unchanged. Load lanes use actual label extents and current zoom; full names/values wrap instead of clipping. Support movements, reactions, hinges and region notes share separate annotation rows and leaders. Inline magnitude editing and direct object manipulation remain wired.
+- Inspection values now live in a separate, wrapping per-diagram readout, including left/right discontinuity values. The cursor stays at the exact sampled coordinate and hides when outside a zoomed view; its readout explicitly says so. Practice hiding and clean/guided/detailed controls remain.
+- Added 14 focused production-bundle Node checks (all pass) and three browser journeys across four projects (108 total checks listed): endpoint reference/collision, crowded supports and inline-edit Undo, detailed hinges/zoom/export. Syntax and diff whitespace checks pass. Full suite and hosted visual review are pending; this coherent checkpoint is pushed first.
+
+---
+
+## 2026-09-22 — Account B — Recover Account A's annotation implementation
+
+**STATUS: source/CI audit complete / targeted repair investigation / draft, not deployed**
+
+- User supplied Account A's intervening progress. Re-fetched GitHub: main remains `1c74ef4576d014a93ce203affa67826d89243ca6`; draft PR #18 is at `e155a9182e0ede0994f56183e7b3baa3f3c1f44b`. Account A added only `b957c09` and `e155a91` after the original Account B record; its later described endpoint correction and Undo investigation are not committed. Continue on `feature/diagram-annotation-layout`, retaining the newer source and tests.
+- Inspected actual layout, renderer, app, CSS, module-order, fixture and regression changes plus shared records. The solver and numerical tolerances are unchanged. The implementation separates inspection values from fixed annotations, wraps and stacks structure/load notes, and allocates bounded critical callouts with overflow rows.
+- Exact-head PR run `35622848288`: regression succeeds; browser job `106409964088` reports **99 passed / 9 failed** out of 108. Four endpoint checks wrongly expect `M⁺` although the continuous fixed-end value is correctly `M -41.667`; four PDF assertions observe three pages instead of two; one desktop lesson/history test reaches disabled Undo where a second prior edit is expected. All four crowded-label inline-edit Undo checks pass, so the separately reported manual Undo issue needs reproduction rather than an assumed fix.
+- Immediate plan: retain Account A's layout repair, correct only the independently justified endpoint expectation, investigate history and report pagination, inspect desktop/mobile evidence, then push coherent fixes before full validation. The current handoff now records actual failures instead of pending execution. No production readiness claim.
+
+### Account B — 2026-09-22, annotation recovery implementation checkpoint
+
+Continued PR #18 from `43a80450e284c4bbee39e75e57d6209751f1c487`, retaining Account A's annotation allocator and all solver behaviour. Fresh dependency installation and inherited Node baseline passed (1,272 checks). No newer remote work appeared on fetch.
+
+Investigated the public-site Undo report: the selected-object inspector physically covered the toolbar at laptop width. Keyboard Undo and pointer Undo after Deselect correctly restored the model. An initial impression that the pending value had reappeared was not supported; do not document this as a numerical/history-engine defect. Direct label editing now hides the competing inspector, and Undo/Redo dismiss obsolete inline fields. The general floating inspector remains available for ordinary object selection.
+
+The separate intermittent lesson/history failure can arise when a second input reaches the same field before its deferred Tab commit. Split an already-tabbed transaction before processing the next edit; retain native focus restoration and Firefox pointer-target deferral. Added a paused-clock browser journey, and strengthened the lesson assertion to verify the initial Undo really restores 8 m.
+
+Corrected the endpoint expectation from `M⁺` to `M`, preserving the analytical -41.667 kN·m value and solver. PDF grouping now uses the actual 511 × 655 point figure budget including top padding, rather than the arbitrary old 990 SVG-unit cutoff. Annotation text keeps its measured font size during PDF export. The existing two-page reference-report assertion remains intact.
+
+Syntax and whitespace checks pass. This coherent checkpoint is being published before full validation. Expected browser suite size is 112; passing results are not yet claimed. Production remains 4.1.1; PR #18 remains draft.
+
+---
+
+## 2026-09-22 — Account A — Complete Account B's annotation recovery
+
+**STATUS: current-source audit / two mobile editing failures / draft, not deployed**
+
+- Starting head `b8f5a1a47aeb82cae6a728188deeedef1a459e48`; branch `feature/diagram-annotation-layout`, draft PR #18. Main remains `1c74ef4576d014a93ce203affa67826d89243ca6`. Explicitly refreshed remote branch refs and created a clean worktree; previous unpushed experiments remain isolated.
+- Inspected Account B's actual commits `43a8045` and `b8f5a1a`: compact editor replaces competing inspector; Undo/Redo close stale fields; already-tabbed same-field edits commit separately; PDF grouping uses real page budget and retains annotation font sizes. The solver, numerical tolerances and model lifecycle remain unchanged.
+- Exact-head push run `35676434764` has a successful numerical job and **110 passed / 2 failed** browser checks. Both failures time out opening the inline magnitude field for a second edit after Undo on mobile WebKit and 360px Chromium. PDF, independent endpoint and delayed-Tab checks pass. The exact-head PR run is still running at takeover.
+- Implementation checklist: identify the mobile event sequence, fix the confirmed cause while retaining Account B's changes, keep label/direct-manipulation semantics and save coherent checkpoints. Validation checklist: fresh install/build/Node baseline, unchanged browser checks plus any focused regressions, desktop/mobile visual evidence, final exact-commit CI and independent public artifact verification. No merge until adequately validated.
+
+### Mobile editor diagnosis and repair
+
+- Takeover checkpoint pushed as `5ce1e0f`. Fresh `npm ci`, build and test pass: **1,272 Node checks**, zero failed/skipped. Account B's candidate artifact was 734,944 bytes / SHA-256 `8a4e86937ee8bf5f9039bd5d8b3ce6fc767b76cd70395e5b9161d07f7d3002b7`.
+- Downloaded exact-head browser evidence artifact `10672977360` and inspected both mobile failure screenshots and event traces. The first pointer press reopens the floating inspector over the target label, so the second press hits the inspector instead of completing the label double tap. This is a real obstruction; do not add waits, retry clicks or remove the existing reopening/Undo assertions.
+- Keep the full inspector closed for presses on editable load labels, while retaining it for object-body selection. Respect that state during the immediate drag/selection redraw. Account B's compact editor, pending-edit Undo/Redo cleanup, Tab race repair and PDF grouping remain intact. Existing failed browser journeys validate this precise sequence.
+- Syntax/diff checks pass. This focused source checkpoint precedes the full browser run; no readiness or production claim yet.
+
+### 4.1.2 release-candidate preparation
+
+- Mobile pointer fix pushed as `2a8d052`; full local Node suite still passes 1,272 checks. Its 112-check browser CI is running without test weakening or retries.
+- Reviewed actual phone endpoint and detailed-hinge screenshots from Account B's evidence. They exposed critical-point dots overlaying position text even though text boxes did not overlap each other. Reserve a 5 px clearance around exact critical coordinates and strengthen both pure-layout and browser geometry assertions; never move the underlying points or alter values.
+- Preparing explicit 4.1.2 identity in package/build/audit/tutor outputs and matching release-identity assertions, retaining BL410 fingerprints and all numerical expectations. Added RELEASE_4_1_2 and README changes. Final candidate numerical/browser execution and hosted/public verification remain pending.
+- Exact mobile-fix PR run `35677161432` is green: browser job `106586018776` passes all **112** checks; the two mobile reopening failures are resolved with existing assertions intact. Hosted preview confirms pending inline-edit Undo closes the editor, reopening works, and Redo restores the newly entered load.
+- Fresh final-candidate Node suite passes **1,272/1,272** with zero failed/skipped. During version preparation one old escaped-title expectation still referenced 4.1.1; corrected that identity-only assertion and reran successfully. Candidate HTML: **735,456 bytes**, SHA-256 `d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04`. Final 112-check browser execution with the strengthened critical-point clearance check is next.
+
+### Final candidate identity check and retained export evidence
+
+- Candidate `78c1726` PR run `35677895924` completes with **108/112 passed**. All annotation/marker, editing, PDF and learning journeys pass; all four failures are the same stale issue-report regex expecting 4.1.1 while the correct payload identifies 4.1.2. Correct that version-only expectation; no application or numerical change.
+- Preserve the existing PDF output in each browser test's artifact directory for visual review. Hosted preview displays 4.1.2 and independent fixed-end values correctly, but the cloud download bridge did not deliver the generated PDF. CI download/page-count/numerical assertions pass; use its retained file to inspect pagination and labels.
+- Reconciled HANDOFF into one current snapshot, retaining historical run details in this append-only log. Application bytes/hash remain unchanged. Push this coherent test/documentation checkpoint before the final browser rerun; production remains 4.1.1.

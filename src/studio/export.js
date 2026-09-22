@@ -225,12 +225,15 @@ async function pdfReport(m, a, v) {
     if (m.section.catalogue || (m.sectionRegions || []).some(r=>r.section?.catalogue)) add('Catalogue geometry used in the base and/or local regions: Liberty / InfraBuild HRSSP, 9th edition, Oct 2019, Tables 9/11/15. Historical starter subset. PFC torsion excluded.',9);
     finish();
     // Group aligned figures, not a tiny chart on an otherwise empty page.
-    const svgWidth=800, ns='http://www.w3.org/2000/svg';
+    const svgWidth=800, pageFigureWidth=511, pageFigureHeight=655, figureTop=18, ns='http://www.w3.org/2000/svg';
+    // Use the actual available page area, including the figure's top padding.
+    // Taller annotation rows must not split a group that still fits at full width.
+    const batchHeight=pageFigureHeight*svgWidth/pageFigureWidth-figureTop;
     const images=exportedSvgs(m,a,v,svgWidth);
     const batches=[]; let group=[],height=0;
     for (const svg of images) {
         const h=Number(svg.getAttribute('viewBox').split(' ')[3])+48;
-        if (group.length && height+h>990) { batches.push(group);group=[];height=0; }
+        if (group.length && height+h>batchHeight) { batches.push(group);group=[];height=0; }
         group.push(svg);height+=h;
     }
     if (group.length) batches.push(group);
@@ -238,18 +241,18 @@ async function pdfReport(m, a, v) {
         const outer=document.createElementNS(ns,'svg');outer.setAttribute('xmlns',ns);
         outer.setAttribute('width',String(svgWidth));outer.setAttribute('font-family','Arial, sans-serif');
         const bg=document.createElementNS(ns,'rect');bg.setAttribute('width','100%');bg.setAttribute('height','100%');bg.setAttribute('fill','#0d1318');outer.append(bg);
-        let at=18;
+        let at=figureTop;
         for (const svg of batch) {
             const title=document.createElementNS(ns,'text');title.setAttribute('x','30');title.setAttribute('y',String(at+17));title.setAttribute('font-size','17');title.setAttribute('fill','#e3eeeb');title.textContent=svg.getAttribute('aria-label');outer.append(title);at+=38;
             const h=Number(svg.getAttribute('viewBox').split(' ')[3]);svg.setAttribute('x','0');svg.setAttribute('y',String(at));svg.setAttribute('width',String(svgWidth));svg.setAttribute('height',String(h));
-            svg.querySelectorAll('text').forEach(t=>{const n=Number(t.getAttribute('font-size'));if(n)t.setAttribute('font-size',String(n*1.1));});
+            svg.querySelectorAll('text').forEach(t=>{const n=Number(t.getAttribute('font-size'));if(n&&!t.closest('[data-annotation]'))t.setAttribute('font-size',String(n*1.1));});
             outer.append(svg);at+=h+10;
         }
         outer.setAttribute('height',String(at));outer.setAttribute('viewBox',`0 0 ${svgWidth} ${at}`);
         const canvas=await raster(new XMLSerializer().serializeToString(outer),2);
         const encoded=canvas.toDataURL('image/jpeg',.97).split(',')[1];
         const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
-        const displayHeight=Math.min(655,511*at/svgWidth),displayWidth=displayHeight*svgWidth/at;
+        const displayHeight=Math.min(pageFigureHeight,pageFigureWidth*at/svgWidth),displayWidth=displayHeight*svgWidth/at;
         cmd=line('ANNOTATED ANALYSIS DIAGRAMS',793,17,true)+line('Full member / active case factors / signed internal actions',771,10);
         cmd+=`q ${displayWidth} 0 0 ${displayHeight} 42 ${749-displayHeight} cm /Im1 Do Q\n`;
         cmd+=line('Deformation is exaggerated. Nominal load labels; current factored results. No comparison overlay.',66,8);

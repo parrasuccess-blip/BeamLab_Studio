@@ -1,4 +1,4 @@
-# BeamLab Studio 4.1.1 — Engineering and Learning Studio
+# BeamLab Studio 4.1.2 — Engineering and Learning Studio
 
 Interactive beam analysis and learning, built from readable source. Educational/static-analysis research preview; **not structural design approval or code certification**.
 
@@ -15,7 +15,9 @@ One deterministic Euler–Bernoulli model powers every learning level. Changing 
 
 Direct engineering use never requires a lesson or learning-level choice. Standalone lessons/challenges temporarily load examples without overwriting your saved beam. Return to your model restores Undo/Redo and comparison within the page session; reload retains the saved beam and learning progress.
 
-See `docs/RELEASE_4_1_1.md` for this update and its validation record.
+Diagram annotations wrap and separate crowded values while keeping each marker at its exact engineering coordinate. Inspection values have their own readout; label editing preserves Undo/Redo on desktop and mobile.
+
+See `docs/RELEASE_4_1_2.md` for this update and its validation record.
 
 ## Build and verify
 
