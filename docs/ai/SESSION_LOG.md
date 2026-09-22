@@ -319,3 +319,21 @@ STATUS: recovery complete / detailed plan being completed / no application chang
 Starting main `3498b5c31d94af3007e20c0de80cd4fafef5b1a4`; audit branch `docs/workspace-ux-audit-plan`, head `e82d59a2a223e19b9e5d861b690644429b145cf9`, draft PR #20. Refreshed GitHub rather than continuing the obsolete PR #18 recovery in this chat. PR #18 and release-record PR #19 are merged; source is 4.1.2. Inspected Account A's later mobile pointer fix, marker clearance and release identity changes, plus all shared AI records. These supersede Account B's b8f5a1 checkpoint and must be retained.
 
 The user supplied Account A's longer audit narrative and asked to continue the request for an in-depth plan before implementation. The final detailed plan and audit screenshots described there are not in the current remote branch (only two audit documentation commits exist). Continue and complete that deliverable; distinguish directly reproduced facts, source-supported risks, inherited evidence and proposals. Verify additional exam answer exposure and coincident point/couple explanation before recording them as confirmed. Keep application code, tests and production unchanged during this planning task.
+
+
+### Workspace audit completed — Account A, 2026-09-22
+
+STATUS: detailed implementation plan ready for user review / docs and evidence only. Draft PR #20 contains UX_AUDIT_AND_PLAN_2026_09_22.md with ranked findings, source causes, proposed interface/state contracts, five delivery increments, affected files and acceptance journeys. Added public screenshots of masked Build diagrams, toolbar obstruction and exam worked answers.
+
+Additional confirmed findings after the checkpoint: active Exam Mode still exposes reaction tables through Show working and numerical extrema through Model checks; source also has an unguarded CSV result path. The contextual explainAt dialog falsely says moment is continuous for a coincident point force and couple. Reproduced directly from the production bundle: 10 m simply supported, 20 kN downward and +30 kN m CCW at x=5 gives correct reactions 13/7 kN, M-left 65, M-right 35, jump -30, while the explanatory sentence is wrong. The same dialog omits generated self-weight from its local intensity selection; this is not a solver failure.
+
+Fresh baseline remains 1,272 Node checks / current-main 112 browser checks, all passing in the executions documented above. Live analytical benchmark panel passes 21/21. Numerical verification and independent 6 m/7 m centre-load references agree. Explicit full-session exit, Focus/Exit focus and Present/End tour restore the study. Audit browser restored to the original named 6 m / 20 kN beam, All Tools, no prediction, no comparison, no active activity. Actual main remains 3498b5c and production remains the identical 4.1.2 artifact. No source/test/tolerance change, merge or deployment was performed.
+
+The remaining work is implementation after user review, with fresh refs and a dedicated feature branch. This audit does not claim exhaustive device or engineering certification. The prior green suite lacks the reproduced state transitions and answer-surface checks; add those without weakening existing assertions.
+
+
+### Account A / Account B plan reconciliation — 2026-09-22
+
+The user supplied Account B's recovery report while Account A's final plan was being saved. Refreshed PR #20: Account B checkpoint 99b199f is newer than e82d59a; it contains the recovery record but not a published final plan. Preserved that checkpoint and both accounts' history. The completed plan and screenshots are being published as a descendant of the observed Account B head, using a non-forced ref update.
+
+Added Account B's further live finding: Undo can replace the question model during an active exam. Account A confirmed the source path: undo/undo-dialog/redo mutate history directly without the session guard used by commit(). This new live reproduction is attributed to Account B; it was not repeated in Account A's browser after the report. The repair plan now includes a central model-mutation policy, immutable question identity, and toolbar/keyboard/history/pending-edit coverage. Keep application code and production unchanged until the user reviews the completed plan.

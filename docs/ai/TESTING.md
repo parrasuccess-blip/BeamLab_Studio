@@ -205,3 +205,12 @@ These are observed release results, not future fixed test counts. Re-establish t
 - Retain the paused-clock same-field Tab race and repeated direct-label editing/Undo/Redo tests, including before Enter. The first mobile label tap must not open an inspector over the second tap. Object-body and locked-object inspection still work.
 - Screenshots from desktop Chromium/Firefox, iPhone WebKit and 360px Chromium and both reference PDF pages were reviewed. Standard-font PDF text was also checked with MuPDF after local Poppler substitution showed incorrect spacing.
 - Public HTML is **735,456 bytes**, SHA-256 **d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04**, matching downloaded release/hash metadata and the tested build. Vercel release deployment succeeds. Live independent Tab edits, pending label Undo/Redo and exact endpoint readings pass. See HANDOFF for the durable screenshot and release details.
+
+
+## Workspace audit findings — 2026-09-22 (plan only)
+
+At main 3498b5c, fresh npm ci/build/test passes 1,272 checks; exact-main CI 35729723993 / browser job 106752152285 passes 112 checks, zero retries. Public live benchmarks pass 21/21 and the 4.1.2 artifact hash is unchanged. No new application or test implementation was made in the audit.
+
+Green baseline coverage misses confirmed cases now listed in [the audit plan](UX_AUDIT_AND_PLAN_2026_09_22.md): persisted prediction masks outside Learn; different Build entry paths; academic-level coupling; ordinary-inspector pointer obstruction; Practice/Exam answer leakage via worked solutions/verification; and incorrect coincident-action wording in contextual Show Why. Implement the plan's regression matrix before claiming these faults are repaired. Preserve all existing numerical, focus, annotation, PDF and model-restoration assertions. Phone screenshots from the released artifact were reviewed; do not report that as a fresh physical-phone interaction test.
+
+Account B subsequently reported active-exam Undo changing the question beam; Account A confirmed direct unguarded history actions in source. Add the plan's fixed-question mutation-policy checks for toolbar, keyboard, history and pending-edit routes. This addition is a planned regression, not a test already added or passed.

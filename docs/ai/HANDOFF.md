@@ -1,10 +1,14 @@
 # BeamLab AI Handoff
 
-## Active audit — Account B recovery, 2026-09-22
+## Active audit — Account A / Account B, 2026-09-22
 
-**STATUS: audit and plan only / public UX faults reproduced / no application changes.** Starting main `3498b5c`; documentation branch `docs/workspace-ux-audit-plan`, draft PR [#20](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/20). Read [the current audit and plan](UX_AUDIT_AND_PLAN_2026_09_22.md) before implementation. The user requests a full plan first. Build result masking and ordinary-inspector obstruction are confirmed broader UX issues, distinct from the released direct-label editing fix. Existing release evidence below remains valid for its tested scope.
+**STATUS: audit complete / detailed plan ready for user review / no application changes.** Starting main `3498b5c`; documentation branch `docs/workspace-ux-audit-plan`, draft PR [#20](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/20). Read [the current audit and plan](UX_AUDIT_AND_PLAN_2026_09_22.md) before implementation. The user requests a full plan first. Confirmed faults: Build/Analyse masking after Practice and reload; different Build entry semantics; ordinary inspector covering toolbar; learning-level restrictions leaking into direct use; Practice/Exam answer leakage through worked solutions and verification; and a false moment-continuity explanation for coincident point load/couple. Existing release evidence below remains valid for its tested scope.
 
-Account B resumed from Account A's committed audit checkpoint `e82d59a2a223e19b9e5d861b690644429b145cf9` after fetching current refs and inspecting PRs #18–20. The handover narrative describes a finished detailed plan, but GitHub currently contains only the checkpoint findings. Account B will complete and publish that plan, verify the additional exam/Show Why findings, and retain the released source. The older Account B PR #18 recovery is superseded by merged 4.1.2; do not resume it.
+Fresh local install/build/test: 1,272 passed. Exact-main CI 35729723993: 112 browser checks passed, zero retries. Public artifact matches the release hash below. Live benchmarks: 21/21 passed. The solver agrees with independent centre-load and coincident-action references; the false continuity claim is in explanation code. Existing lesson navigation, original beam/history/comparison restoration, invalid-input rollback, Focus and Present exit were checked live. Phone evidence was reviewed from released CI; no new physical-phone test is claimed.
+
+**Next action after plan review:** start a new feature branch from then-current main and follow the scoped increments in the audit plan. Correct state separation, answer visibility, control obstruction and explanation accuracy before broad cosmetic changes. Do not treat this documentation PR as an implemented or deployed fix.
+
+Recovery reconciliation: Account B checkpoint `99b199f10ed17d0ddcac3a1dd9db72efb7f7483c` correctly recorded that only Account A's earlier checkpoint had reached GitHub. This completed plan preserves that recovery commit and adds the final details and evidence. Account B additionally reproduced Undo replacing an exam question model while the session remains active; Account A confirmed the unguarded history action in source. This is now a P1 model-mutation issue in the first planned repair, alongside answer visibility. Do not resume obsolete PR #18 work or treat the saved plan as implemented code.
 
 ## Current verified release — Account A, 2026-09-22
 
@@ -68,6 +72,6 @@ Earlier pending/failure entries in SESSION_LOG are chronological evidence, not c
 
 No unresolved blocker remains in the released annotation/editing scope. The broader requested follow-ups are consistent mathematical notation (including exported reports), long mobile lesson layouts, and deeper deterministic Show Why explanations.
 
-**Recommended next scoped update:** improve Show Why around the selected position and actual model: physical explanation, signed equations with substituted values, boundary/discontinuity reasoning and level-appropriate depth. Keep it deterministic and verify its claims against existing solver results. Broader numerical/design-code roadmap work needs separate validation.
+**Priority updated by the user-requested audit:** first repair direct-use/learning state separation and the other confirmed P1 faults in the linked audit plan, then improve workspace layout, learning navigation, mathematical notation and deterministic Show Why. No application work was started during the audit. Broader numerical/design-code roadmap work needs separate validation.
 
 Follow D-011: dedicated branches, early draft PRs, progressive HANDOFF/SESSION_LOG updates and pushed checkpoints before long tests. Credits may end without warning. Shell Git fetch works; connected GitHub Git-object API writes use existing base trees/parents and non-forced updates. Never force-push shared work or put credentials in files.
