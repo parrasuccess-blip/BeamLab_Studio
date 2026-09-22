@@ -196,3 +196,12 @@ Implementation `c785fae`: fresh local installation/build/test **1,258 passed**; 
 - `/api/tutor` identifies 4.1.1 and reports `configured:false`; offline functionality is expected. No provider connection is claimed.
 
 These are observed release results, not future fixed test counts. Re-establish the current baseline after fetching newer work.
+
+## 4.1.2 released baseline — 2026-09-22
+
+- Released code `e6d4585a648bd624d1db41dc3d7e60037c448b4b` / PR #18. Final candidate `2ab5003` passes **1,272 Node checks**, zero failed/skipped, and **112 browser checks**, zero retries.
+- Exact-head PR run **35727547909**, browser job **106744894705**, and push run **35727543390** succeed. Browser evidence **10694401811** includes reference PDFs from all four projects. Release artifact **10692979694**.
+- Inspect both annotation boxes and critical-marker bounds: text/boxes must neither collide nor clip, and point dots must not cover labels. Exercise endpoint readouts, zoom/outside-view state, hinge zeros, crowded support movement notes and full load names. Keep the independent fixed-end values and two-page PDF assertion unchanged.
+- Retain the paused-clock same-field Tab race and repeated direct-label editing/Undo/Redo tests, including before Enter. The first mobile label tap must not open an inspector over the second tap. Object-body and locked-object inspection still work.
+- Screenshots from desktop Chromium/Firefox, iPhone WebKit and 360px Chromium and both reference PDF pages were reviewed. Standard-font PDF text was also checked with MuPDF after local Poppler substitution showed incorrect spacing.
+- Public HTML is **735,456 bytes**, SHA-256 **d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04**, matching downloaded release/hash metadata and the tested build. Vercel release deployment succeeds. Live independent Tab edits, pending label Undo/Redo and exact endpoint readings pass. See HANDOFF for the durable screenshot and release details.
