@@ -1,3 +1,11 @@
+## Current recovery — Account A, 2026-09-23
+
+**STATUS: repairing remaining browser failures / draft PR #21 / not released.** Active branch: `feature/unrestricted-engineering-learning-safety`. Starting head: `cd572dceaeb77cf08c3d68e732ca2233c6254d61`; main remains `d4c0479399e6e50582e7ed682c35912ac45f83dc`. Account B’s two later commits are retained. Older unpushed Account A work is isolated in a separate worktree and must not overwrite this branch.
+
+Fresh installation/build/numerical baseline: **1,294 passed**, zero failed/skipped. Latest exact-head PR run **35804104092**: **130/136 browser checks passed**. Failures: four ambiguous guided-plan button locators in the new evidence test; one Firefox inline-editor opening timeout; one real 360px Undo obstruction. Diagnostics identify the inspector Load case selector covering Undo. Source confirms an older `.inspector.has-selection:not([hidden])` fixed-position rule overrides the new mobile flow layout. Keep the hit-test and all solver tolerances intact.
+
+Implementation checklist: remove the obsolete floating-mobile rule; resolve label-pointer lifecycle and focused test selectors; reconcile remaining transition/answer-surface edge cases against current source; checkpoint before the full four-project run; prepare 4.1.3 identity only with truthful validation records. Test checklist: preserve all existing assertions, inspect desktop/mobile evidence, exercise hosted flows, then verify production independently after a validated merge. The hosted preview is accessible to Account A; Account B’s access limitation remains historically accurate. Artifact delivery currently returns 403; no fresh artifact screenshot review is claimed yet.
+
 ## Active recovery — Account B, 2026-09-23
 
 **STATUS: PR #21 implementation recovered / one browser failure / not release-ready.** Starting main `d4c0479399e6e50582e7ed682c35912ac45f83dc`; feature `feature/unrestricted-engineering-learning-safety` at `7cac76b9c570e2b4501af08ba9ff4d11cf6e6a68`. Account A's approved audit PR #20 is merged. Continue this implementation, not the older local audit or annotation worktrees.
