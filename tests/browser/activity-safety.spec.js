@@ -15,11 +15,15 @@ test('legacy hidden-result preference and first-year learning never restrict eng
   await expect(page.locator('.practice-cover')).toHaveCount(0);
   await expect(act(page,'tab:section')).toBeVisible();await expect(act(page,'tab:cases')).toBeVisible();
   await act(page,'advanced').click();await expect(page.getByRole('button',{name:'Add applied couple',exact:true})).toBeVisible();
+  await flow(page,'analyse');await tools(page);
+  for(const layer of ['deformation','stress','shear','moving'])await act(page,'toggle:'+layer).click();
   await flow(page,'learn');await expect(act(page,'level:year1')).toHaveAttribute('aria-pressed','true');
   await page.getByRole('switch',{name:'Practice mode',exact:true}).click();
   await expect(page.locator('#metrics')).toContainText('Predict first');
   await expect(page.locator('#teaching')).toHaveText('');
   await flow(page,'analyse');await expect(page.locator('#metrics')).toContainText('40.00 kN·m');
+  for(const panel of ['section-stress','shear-stress','moving-lab'])await expect(page.locator('#'+panel)).toBeVisible();
+  await expect(page.locator('#graphs')).toContainText('Deformed shape');
   await expect(act(page,'working')).toBeEnabled();
   await flow(page,'build');expect(await snapshot(page)).toBe(original);
   await flow(page,'learn');await expect(act(page,'level:year1')).toHaveAttribute('aria-pressed','true');
@@ -85,12 +89,47 @@ test('selected-object editor leaves Undo physically reachable and only one edito
   await expect(page.locator('#controls')).toBeHidden();await expect(page.locator('#inspector')).toBeVisible();
   await page.getByLabel('Force',{exact:true}).fill('27');await page.getByLabel('Force',{exact:true}).press('Enter');
   await act(page,'undo').scrollIntoViewIfNeeded();
-  const hit=await act(page,'undo').evaluate(button=>{const b=button.getBoundingClientRect();return button.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));});
-  expect(hit).toBe(true);
+  const hit=await act(page,'undo').evaluate(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return {receivesClick:button.contains(top),button:{x:b.x,y:b.y,width:b.width,height:b.height},cover:top?.outerHTML.slice(0,300),viewport:{width:innerWidth,height:innerHeight}};});
   await page.screenshot({path:info.outputPath('reserved-object-editor.png'),fullPage:true});
+  expect(hit.receivesClick,JSON.stringify(hit)).toBe(true);
   await act(page,'undo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('20');
   await act(page,'redo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('27');
   await page.locator('#inspector [data-action="deselect"]').click();
   await tools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('8');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
+});
+
+test('invalid lesson edit preserves its question; a committed edit announces exploration and can restart',async({page})=>{
+  await start(page);const original=await snapshot(page);
+  await flow(page,'learn');await act(page,'level:year1').click();await act(page,'lesson-start:l1-point-shear').click();
+  const label=page.locator('#graphs [data-inline="value"]').first();
+  await label.dblclick();
+  const input=page.locator('#inline-edit').getByLabel('Nominal magnitude',{exact:true});
+  await input.fill('27');await input.fill('999999999999');await input.press('Enter');
+  await expect(page.locator('.activity-navigation')).toBeVisible();
+  await expect(page.locator('.activity-changed')).toHaveCount(0);
+  await expect(label).toContainText('20.0 kN');
+  await label.dblclick();await input.fill('27');await input.press('Enter');
+  await expect(label).toContainText('27.0 kN');
+  await page.locator('#workspace').press('Escape');
+  await expect(page.locator('.activity-changed')).toContainText('This learning example was edited');
+  await expect(page.locator('.practice-cover')).toHaveCount(0);
+  await act(page,'activity-restart').click();
+  await expect(page.locator('.activity-navigation')).toBeVisible();await expect(label).toContainText('20.0 kN');
+  await expect(page.locator('.activity-changed')).toHaveCount(0);
+  await flow(page,'build');expect(await snapshot(page)).toBe(original);
+  await act(page,'undo').click();await tools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+});
+
+test('revealing extra response layers after a correct study question does not change learning evidence',async({page})=>{
+  await start(page);await flow(page,'learn');await act(page,'level:year1').click();
+  await act(page,'learn-section:session').click();await act(page,'session-start:plan').click();
+  await act(page,'lesson-choice:step-down').click();await act(page,'lesson-check').click();
+  await expect(page.locator('.challenge-feedback.pass')).toContainText('Correct');
+  const before=await page.evaluate(()=>({mastery:localStorage.getItem('beamlab:studio:3.2:mastery'),events:localStorage.getItem('beamlab:studio:3.2:learning-evidence')}));
+  await act(page,'activity-reveal-all').click();
+  await expect(act(page,'working')).toBeEnabled();
+  expect(await page.evaluate(()=>({mastery:localStorage.getItem('beamlab:studio:3.2:mastery'),events:localStorage.getItem('beamlab:studio:3.2:learning-evidence')}))).toEqual(before);
+  await act(page,'session-next').click();await expect(act(page,'session-exit')).toBeEnabled();
+  await expect(page.locator('.challenge-feedback.pass')).toHaveCount(0);
 });

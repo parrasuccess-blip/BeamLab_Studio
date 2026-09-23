@@ -6,6 +6,8 @@ Exact-head PR CI `35796548498`: numerical job passed; browser job `106977095224`
 
 Next: establish fresh local baseline, diagnose the mobile obstruction, inspect the missing transition/invalid-edit repairs, checkpoint coherent changes, run all four browser projects, inspect rendered evidence, and verify the actual public artifact only after a validated merge. Preserve the new activity/explanation policies and all 4.1.2 model/history/pointer repairs. Broader layout/notation work remains separate.
 
+Account B milestone: fresh `npm ci` / `npm test` passes **1,294/1,294**. Added rollback-safe activity invalidation (only committed edits end a standalone question), and made revealing additional layers after a locked answer preserve its existing evidence. Added browser journeys for these paths and advanced-layer restoration after Learn. The mobile obstruction assertion is retained with exact hit-target/geometry diagnostics and screenshot capture before assertion; cause/fix still pending. Hosted preview access is denied to the current Vercel/browser account, and artifact file delivery returns 403. Do not claim fresh visual review or release readiness until this evidence is obtained.
+
 ## Account A implementation checkpoint — 2026-09-23 (historical)
 
 Draft PR #21: `feature/unrestricted-engineering-learning-safety`. Baseline installation, build and **1,272/1,272** tests passed before application changes.

@@ -226,7 +226,10 @@ function shown(key) {
 function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: visibility().step, trace: v.trace, compare: visibility().complete ? comparison : null, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
 function solve() {
     // Lesson choices/recaps describe a fixed reference study, not arbitrary edits.
-    if (!v.session?.active && v.lessonId && v.lessonModelReference &&
+    // Numerical fields and drags preview changes before commit. An invalid or
+    // cancelled preview must not discard the question that rollback restores.
+    const committedEdit = !fieldTransaction && !drag && !activity.modelLocked(v);
+    if (committedEdit && v.lessonId && v.lessonModelReference &&
         verification.fingerprint(history.model) !== v.lessonModelReference) {
         v.changedActivity = {kind:'lesson', id:v.lessonId};
         v.practice = false;
@@ -236,7 +239,7 @@ function solve() {
         v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
         v.lessonModelReference = null;
     }
-    if (!v.session?.active && v.challengeId && v.challengeModelReference &&
+    if (committedEdit && v.challengeId && v.challengeModelReference &&
         verification.fingerprint(history.model) !== v.challengeModelReference) {
         v.changedActivity = {kind:'challenge', id:v.challengeId};
         v.practice = false;
@@ -1763,7 +1766,9 @@ async function action(key, el) {
     if (name === 'activity-reveal-all') {
         if (!activity.isLearning(v) || visibility().exam || !questionIsCurrent()) return;
         const lesson = currentLesson(), challenge = currentChallenge(), spec = lesson || challenge;
-        if (spec && analysis) { const kind = lesson ? 'lesson' : 'challenge'; recordReveal(kind, spec); sessionRecordReveal(kind, spec, lesson ? sessionExpectedLabel(spec, (0,challenges_1.predictionFor)(spec,analysis,history.model)) : String((0,challenges_1.answerFor)(spec,analysis))); }
+        // Revealing extra response layers after a completed question is a view
+        // action, not another failed/revealed attempt in learning evidence.
+        if (spec && analysis && !v.session?.currentLocked) { const kind = lesson ? 'lesson' : 'challenge'; recordReveal(kind, spec); sessionRecordReveal(kind, spec, lesson ? sessionExpectedLabel(spec, (0,challenges_1.predictionFor)(spec,analysis,history.model)) : String((0,challenges_1.answerFor)(spec,analysis))); }
         v.practice = true; v.practiceStep = 4; render(); return;
     }
     if (name === 'practice-next') { if (!activity.isLearning(v) || visibility().exam) return; v.practice = true; v.practiceStep = (0, common_1.clamp)((v.practiceStep || 0) + 1, 0, 4); render(); save(); return; }
@@ -2489,7 +2494,6 @@ const demoSteps = [
 ];
 function startDemo() {
     if (blockModelEdit()) return;
-    endStandaloneLearning();
     endStandaloneLearning();
     finishField();
     if (!demoSession) demoSession = {
