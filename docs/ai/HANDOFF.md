@@ -1,3 +1,9 @@
+## Firefox root-cause refinement — Account B, 2026-09-23
+
+**STATUS: hover-layout repair checkpoint / validation pending / not released.** Preserved Account A’s 4.1.3 recovery. Checkpoint `1536123` passed numerical validation but the stronger browser stability check found an 18px Firefox shift; two phone failures measured initial auto-scroll rather than layout (corrected in `a7c51a5`). The wrapped hover prompt above the graphs becomes a shorter numerical readout on pointer movement, moving the SVG label before the click. Geometric fallback at pointerdown does not address this preceding reflow and has been replaced.
+
+Hovering an editable label now keeps the readout stable. Active dragging, beam/plot hover and the explicit inspection control continue to update it. The real double-click, question rollback, Undo/history and less-than-one-pixel target-stability assertions remain. This is the final interaction repair under test, not a numerical change. D-013 records the already-approved learning/engineering separation. Candidate artifact/production status must be verified after green final CI.
+
 ## Current recovery — Account B, 2026-09-23 (after Account A’s release preparation)
 
 **STATUS: Firefox label repair checkpoint / draft PR #21 / not released.** Starting head `c2374b4b79ff00f1c36bb3fd5b536c17b237fdfa`; branch `feature/unrestricted-engineering-learning-safety`; main `d4c0479`. Inspected all three newer Account A commits (`266d973`, `cf59e7c`, `c2374b4`) and retained mobile in-flow editing, lifecycle/masking fixes and 4.1.3 identity. Account A’s final Firefox repair mentioned in chat was not on GitHub.

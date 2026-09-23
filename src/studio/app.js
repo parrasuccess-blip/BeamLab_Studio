@@ -2295,13 +2295,8 @@ function pointerDown(e) {
         return;
     if (blockModelEdit()) return;
     finishField();
-    // Firefox can report the underlying object rectangle for an SVG label press.
-    // Resolve the visible label bounds before opening an editor that reflows the beam.
-    const inline = el.closest('[data-inline]') || [...svg.querySelectorAll('[data-inline]')].reverse().find(label => {
-        const box = label.getBoundingClientRect();
-        return e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
-    });
-    const target = (inline || el).closest('[data-object]'), id = target?.dataset.object;
+    const inline = el.closest('[data-inline]');
+    const target = el.closest('[data-object]'), id = target?.dataset.object;
     const o = history.model.items.find(i => i.id === id);
     if (o) {
         if (!(0, levels_1.canEditItem)(activity.toolLevel(v), o)) {
@@ -2402,6 +2397,10 @@ function pointerMove(e) {
     const el = e.target, svg = el.closest('#graphs svg[data-chart],#graphs svg[data-model]');
     if (!svg)
         return;
+    // A label is an editing target. Updating the hover readout can change its
+    // wrapping/height and move the label away before the first or second press.
+    // Dragging still updates the trace above; plots and the beam remain inspectable.
+    if (el.closest('[data-inline]')) return;
     let x = eventX(e.clientX, svg.getBoundingClientRect());
     const dist = history.model.length / v.zoom * 7 / svg.getBoundingClientRect().width;
     const closest = history.model.items.flatMap(i => i.end !== undefined ? [i.x, i.end] : [i.x]).sort((a, b) => Math.abs(a - x) - Math.abs(b - x))[0];

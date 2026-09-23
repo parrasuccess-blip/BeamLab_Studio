@@ -139,3 +139,14 @@ Every substantial update uses a dedicated feature branch and an early draft PR. 
 Standalone lessons/challenges preserve the engineering model, undo/redo, comparison and view in memory and do not autosave example beams over the original. Reload retains the saved model and independent learning evidence; undo/redo and comparison remain session-only. Say this accurately.
 
 When a user explicitly opens a valid saved study, shared snapshot or model JSON during a standalone activity, first restore the engineering origin, then commit the opened model and leave the temporary activity. Undo returns to the engineering origin. Failed/cancelled imports must leave both the activity and preserved original intact. Active/review learning sessions retain their existing guard.
+
+
+## D-013 — Learning activity owns restrictions; engineering stays unrestricted
+
+**Status:** Accepted — first correctness increment of the approved workspace UX plan, 4.1.3
+
+Build / Explore, Analyse and Review use all engineering capabilities and visible results independently of the saved learning level. Learn alone applies academic presentation and prediction visibility. A shared activity policy controls every answer-bearing surface, including comparison, Show Why, working, checks, tutor and result exports. Entering engineering does not rewrite the saved academic preference or the physical model.
+
+Active and reviewed fixed-question sessions protect their question model at mutation handlers, including numeric preview, drag, Undo/Redo and imports. Navigation offers an explicit exit and restores the original engineering study/history/comparison. A standalone lesson remains explorable: invalid input preserves the question, while a committed model change explicitly pauses grading and offers restart. Opening extra response layers after an already completed question must not rewrite learning evidence. This refines D-003, D-007 and D-012 without replacing the solver or grading/adaptive algorithms.
+
+**Reason:** Saved learning preferences must not block ordinary engineering use, and hidden-answer claims must hold consistently. Question answers and evidence are meaningful only for the stated physical model.
