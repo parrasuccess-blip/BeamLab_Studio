@@ -1,3 +1,11 @@
+## Current recovery — Account B, 2026-09-23 (after Account A’s release preparation)
+
+**STATUS: Firefox label repair checkpoint / draft PR #21 / not released.** Starting head `c2374b4b79ff00f1c36bb3fd5b536c17b237fdfa`; branch `feature/unrestricted-engineering-learning-safety`; main `d4c0479`. Inspected all three newer Account A commits (`266d973`, `cf59e7c`, `c2374b4`) and retained mobile in-flow editing, lifecycle/masking fixes and 4.1.3 identity. Account A’s final Firefox repair mentioned in chat was not on GitHub.
+
+Exact starting-head CI **35818969990**: numerical job succeeds; browser job **107046555262** reports **135/136 passed**. The remaining Firefox trace records a label press targeting the underlying object rectangle, then an inspector reflow moving the beam before the second press. Resolve visible inline-label bounds before deciding object-body selection. Keep the actual double-click/invalid-input regression; additionally assert the label does not move and the full inspector stays closed. Normal body selection and locked objects retain their inspector path. No solver change.
+
+Artifact retrieval is now available through the supported file materialization tool (artifact **10732742734**). Removed only the redundant base64 screenshot logging; viewport screenshots remain in CI artifacts. New validation is pending after this checkpoint. Do not merge until the four-project suite and rendered desktop/mobile evidence pass, then verify production independently. Broader UX plan stages remain follow-up work.
+
 ## 4.1.3 candidate preparation — Account A, 2026-09-23
 
 **STATUS: candidate identity prepared / numerical checks green / browser gate running.** Functional recovery checkpoint cf59e7c retains B’s changes and repairs the phone editor’s legacy CSS override. Version 4.1.3 is now explicit in package, build, verification, tutor health and release-identity assertions; BL410 model references stay unchanged. Release notes describe this first correctness increment and leave the broader redesign explicit.

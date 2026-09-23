@@ -381,3 +381,8 @@ Starting recovery record 266d973. Fresh local build/numerical suite passes 1,294
 ### Account A — 4.1.3 release identity checkpoint
 
 Functional repair cf59e7c saved before full CI. Prepared 4.1.3 package/build/audit/tutor identity and matching identity-only assertions; added release notes and README scope. Numerical build/tests pass 1,294. Added regression for keeping Learn selected when changing level during a temporary activity. Hosted current preview confirms that route, invalid rollback, Next/Previous notice cleanup, original 8 m restoration and protected exam exit. Public download independently remains 4.1.2, same 735,456-byte hash as the released baseline. Final candidate CI and phone visual review remain required before merging.
+
+
+### 2026-09-23 — Account B — Recover 4.1.3 preparation and finish Firefox label targeting
+
+Starting `c2374b4`, main `d4c0479`, draft PR #21. Fetched and reviewed Account A’s three commits since B’s `cd572dc`, including actual source/test diffs. Kept all recovery and release identity changes. Latest exact-head CI is 1,294 numerical checks and 135/136 browser checks; the sole failure is the unchanged real Firefox double-click path. Its event log shows a first press on the underlying object rect, followed by a moved second target. Added visible-label hit resolution before opening the reserved inspector and retained/strengthened the real interaction regression. Restored supported CI artifact delivery via file materialization, inspected the failing screenshot, and removed redundant base64 log output while preserving artifact screenshots. Implementation checkpoint precedes full validation. Production has not been changed.

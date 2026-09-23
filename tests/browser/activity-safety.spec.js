@@ -97,8 +97,7 @@ test('selected-object editor leaves Undo physically reachable and only one edito
   await act(page,'undo').scrollIntoViewIfNeeded();
   const hit=await act(page,'undo').evaluate(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return {receivesClick:button.contains(top),button:{x:b.x,y:b.y,width:b.width,height:b.height},cover:top?.outerHTML.slice(0,300),viewport:{width:innerWidth,height:innerHeight}};});
   await page.screenshot({path:info.outputPath('reserved-object-editor.png'),fullPage:true});
-  const viewport=await page.screenshot({path:info.outputPath('editor-viewport.png')});
-  if(process.env.CI)console.log('BEAMLAB_VIEWPORT '+info.project.name+' '+viewport.toString('base64'));
+  await page.screenshot({path:info.outputPath('editor-viewport.png')});
   expect(hit.receivesClick,JSON.stringify(hit)).toBe(true);
   await act(page,'undo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('20');
   await act(page,'redo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('27');
@@ -116,7 +115,13 @@ test('invalid lesson edit preserves its question; a committed edit announces exp
   await expect(page.locator('.activity-changed')).toHaveCount(0);
   await page.evaluate(()=>{window.__labelEvents=[];for(const type of ['pointerdown','pointerup','dblclick'])document.addEventListener(type,e=>{const t=e.target.closest('[data-object]');window.__labelEvents.push({type,target:e.target.tagName,object:t?.dataset.object,inline:e.target.closest('[data-inline]')?.dataset.inline,x:e.clientX,y:e.clientY,scrollY,editor:!!document.querySelector('#inline-edit input')});},true);});
   const label=page.locator('#graphs [data-inline="value"]').first();
+  // Retain the real double click: the first press must not reflow its second target.
+  const beforeLabel=await label.boundingBox();
   await label.dblclick();
+  await expect(page.locator('#inspector')).toBeHidden();
+  const afterLabel=await label.boundingBox();
+  expect(Math.abs(afterLabel.x-beforeLabel.x)).toBeLessThan(1);
+  expect(Math.abs(afterLabel.y-beforeLabel.y)).toBeLessThan(1);
   const events=await page.evaluate(()=>window.__labelEvents);
   console.log('Lesson label pointer evidence',info.project.name,JSON.stringify(events));
   const input=page.locator('#inline-edit').getByLabel('Nominal magnitude',{exact:true});

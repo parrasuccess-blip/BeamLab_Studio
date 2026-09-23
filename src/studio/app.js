@@ -2295,7 +2295,13 @@ function pointerDown(e) {
         return;
     if (blockModelEdit()) return;
     finishField();
-    const target = el.closest('[data-object]'), id = target?.dataset.object;
+    // Firefox can report the underlying object rectangle for an SVG label press.
+    // Resolve the visible label bounds before opening an editor that reflows the beam.
+    const inline = el.closest('[data-inline]') || [...svg.querySelectorAll('[data-inline]')].reverse().find(label => {
+        const box = label.getBoundingClientRect();
+        return e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
+    });
+    const target = (inline || el).closest('[data-object]'), id = target?.dataset.object;
     const o = history.model.items.find(i => i.id === id);
     if (o) {
         if (!(0, levels_1.canEditItem)(activity.toolLevel(v), o)) {
@@ -2316,7 +2322,7 @@ function pointerDown(e) {
         // The first press of a label must leave it available for the second tap.
         // A mobile inspector opened here covers the target before pointerUp can
         // recognise the double tap. Object bodies still open the full inspector.
-        v.inspector = !!o.locked || !el.closest('[data-inline]');
+        v.inspector = !!o.locked || !inline;
         if (o.locked) {
             render();
             toast('Object locked. Use Unlock in the Inspector.');
