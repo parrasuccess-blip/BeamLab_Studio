@@ -226,14 +226,9 @@ test('Tab commits each numeric edit, keeps keyboard focus and saves before any a
   await act(page,'redo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
   await page.getByLabel('Beam length',{exact:true}).fill('10');
   await page.getByLabel('Beam length',{exact:true}).press('Shift+Tab');
-  // Firefox includes the scrollable tools panel in its native tab order.
-  // Preserve that destination, then verify keyboard navigation continues.
-  const previousControl=page.getByRole('button',{name:isMobile?'Done with tools':'Studies',exact:true});
-  await expect(browserName==='firefox'?page.locator('#controls'):previousControl).toBeFocused();
-  if(browserName==='firefox') {
-    await page.keyboard.press('Shift+Tab');
-    await expect(previousControl).toBeFocused();
-  }
+  // Build now exposes section/case tabs at every saved learning level.
+  // The Section tab is the native predecessor of the first model field.
+  await expect(page.getByRole('tab',{name:'Section',exact:true})).toBeFocused();
   await expect(page.locator('#history-count')).toHaveText('3 edits');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('beamlab:studio:3.2')).length)).toBe(10);
   await act(page,'undo').click();await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('9');
@@ -338,7 +333,8 @@ test('fixed-support rotation is editable, auditable and preserved at a lower lev
   await flow(page,'build');
   await showTools(page);
   await page.locator('#controls').getByRole('button',{name:'Select A',exact:true}).click();
-  await expect(page.locator('#inspector')).toContainText('Prescribed rotation active');
+  await expect(page.getByLabel('Prescribed rotation',{exact:true})).toHaveValue('2');
+  await expect(page.getByLabel('Prescribed rotation',{exact:true})).toBeEditable();
 });
 
 test('progress export, invalid import and confirmed restore leave the model unchanged',async({page})=>{
@@ -363,7 +359,11 @@ test('session navigation is guarded and exiting restores the edited beam',async(
   await act(page,'session-start:practice').click();
   await flow(page,'build');
   await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Learn');
-  await act(page,'session-exit').click();await act(page,'session-exit-confirm').click();
+  await expect(page.getByRole('dialog')).toContainText('Exit this learning session?');
+  await page.getByRole('button',{name:'Stay in Learn',exact:true}).click();
+  await expect(page.locator('.session-shell')).toBeVisible();
+  await flow(page,'build');await act(page,'session-exit-confirm').click();
+  await expect(page.locator('.workflow-nav [aria-current]')).toContainText('Build / Explore');
   expect(await modelCopy(page)).toBe(original);
 });
 
@@ -371,7 +371,7 @@ test('review exports carry the current model and numerical evidence',async({page
   await open(page);await flow(page,'review');
   const pending=page.waitForEvent('download');await act(page,'export-audit').click();
   const download=await pending,audit=JSON.parse(await fs.readFile(await download.path(),'utf8'));
-  expect(audit.release).toBe('4.1.2');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
+  expect(audit.release).toBe('4.1.3');expect(audit.pass).toBe(true);expect(audit.checks).toHaveLength(6);expect(audit.model.length).toBe(6);
   const reportPending=page.waitForEvent('download');await page.locator('#design-studio [data-action="export:pdf"]').click();
   const report=await reportPending,pdf=await fs.readFile(await report.path(),'latin1');
   await report.saveAs(testInfo.outputPath('reference-report.pdf'));
@@ -381,11 +381,11 @@ test('review exports carry the current model and numerical evidence',async({page
   expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
   await act(page,'privacy').click();await expect(page.getByRole('dialog')).toContainText('encoded, readable snapshot');
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
-  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.2/);
+  await act(page,'issue-report').click();await expect(page.getByLabel('Issue report JSON')).toHaveValue(/4\.1\.3/);
 });
 
 test('optional tutor health is honest and deterministic teaching stays available',async({page,request})=>{
-  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.2',configured:false});
+  const health=await request.get('/api/tutor');expect(await health.json()).toEqual({message:'Success',release:'4.1.3',configured:false});
   await open(page);await act(page,'ai-open').click();
   await expect(page.getByRole('dialog')).toContainText('Online tutor is not connected');
   await expect(act(page,'ai-send')).toBeDisabled();

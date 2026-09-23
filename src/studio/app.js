@@ -12,6 +12,7 @@ const common_1 = require("./common");
 const diagrams_1 = require("./diagrams");
 const panels_1 = require("./panels");
 const workspace = require("./workspace");
+const activity = require("./activity-policy");
 const sectionLab = require("./section-lab");
 const reviewHub = require("./review-hub");
 const learningTransfer = require("./learning-transfer");
@@ -70,7 +71,7 @@ const v = { fibre:0, sectionSide:'right', reviewDetail:'overview', workspaceMode
 let standaloneOrigin = null;
 try {
     const saved = JSON.parse(localStorage.getItem(storageKey + ':view') || '{}');
-    for (const k of ['deformation', 'stress', 'shear', 'teaching', 'annotations', 'practice'])
+    for (const k of ['deformation', 'stress', 'shear', 'teaching', 'annotations'])
         if (typeof saved[k] === 'boolean')
             v[k] = saved[k];
     if (['clean','guided','detailed'].includes(saved.annotationMode)) v.annotationMode = saved.annotationMode;
@@ -79,7 +80,7 @@ try {
 }
 catch { /* Model export remains available when storage is disabled. */ }
 if (!levels_1.modes[v.level]) v.level = 'all';
-if (!(0, levels_1.allowedTabs)(v.level).includes(v.tab)) v.tab = 'build';
+if (!(0, levels_1.allowedTabs)(activity.toolLevel(v)).includes(v.tab)) v.tab = 'build';
 let analysis = null, error = '', compareModel = null, comparison = null;
 let width = 760, layout, toastTimer;
 let fieldTransaction = null;
@@ -202,24 +203,46 @@ if (levelStarterActive) {
     v.currentCase = initialStarter.cases[0].id;
 }
 const publicOrigin = /^https?:$/.test(location.protocol) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+function visibility() { return activity.resultVisibility(v); }
+function blockModelEdit() {
+    if (sessionLoading || !activity.modelLocked(v)) return false;
+    toast('The given model is locked. Exit or finish the learning session to edit your own study.');
+    return true;
+}
+function questionIsCurrent() {
+    if (activity.questionMatches(v, verification.fingerprint(history.model))) return true;
+    v.activityMismatch = true;
+    toast('The question model changed. Restore the given model before checking this answer.');
+    render();
+    return false;
+}
 function shown(key) {
+    if (key === 'practice') return visibility().masked;
+    if (['teaching','moving','review'].includes(key) && !visibility().complete) return false;
     const hasEIOnlyOverrides = (history.model.stiffnessRegions || []).some(r => Math.abs(Number(r.factor)-1) > 1e-12);
     if ((key === 'stress' || key === 'shear') && hasEIOnlyOverrides) return false;
-    return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(v.level, key) && !!v[key];
+    return key === 'annotations' ? v.annotationMode !== 'clean' : (0, levels_1.canUseFeature)(activity.toolLevel(v), key) && !!v[key];
 }
-function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: v.practiceStep || 0, trace: v.trace, compare: comparison, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
+function diagramView() { return { width, zoom: v.zoom, pan: v.pan, selected: v.selected, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, deformation: shown('deformation'), stress: shown('stress'), teaching: shown('teaching'), practice: shown('practice'), practiceStep: visibility().step, trace: v.trace, compare: visibility().complete ? comparison : null, layout, scaleLimits: demoSession?.index === 0 ? {V:20,M:30,v:1.3,stress:18} : null }; }
 function solve() {
     // Lesson choices/recaps describe a fixed reference study, not arbitrary edits.
-    if (v.lessonId && v.lessonModelReference &&
+    // Numerical fields and drags preview changes before commit. An invalid or
+    // cancelled preview must not discard the question that rollback restores.
+    const committedEdit = !fieldTransaction && !drag && !activity.modelLocked(v);
+    if (committedEdit && v.lessonId && v.lessonModelReference &&
         verification.fingerprint(history.model) !== v.lessonModelReference) {
+        v.changedActivity = {kind:'lesson', id:v.lessonId};
+        v.practice = false;
         v.lessonId = null;
         v.lessonChoice = null;
         v.lessonFeedback = null;
         v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
         v.lessonModelReference = null;
     }
-    if (v.challengeId && v.challengeModelReference &&
+    if (committedEdit && v.challengeId && v.challengeModelReference &&
         verification.fingerprint(history.model) !== v.challengeModelReference) {
+        v.changedActivity = {kind:'challenge', id:v.challengeId};
+        v.practice = false;
         v.challengeId = null;
         v.challengeFeedback = null;
         v.challengeModelReference = null;
@@ -246,7 +269,7 @@ function save() {
     try {
         (0, study_1.validateStudy)(history.model);
         localStorage.setItem(storageKey, JSON.stringify(history.model));
-        localStorage.setItem(storageKey + ':view', JSON.stringify({ deformation: v.deformation, stress: v.stress, shear: v.shear, moving: v.moving, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, teaching: v.teaching, practice: v.practice }));
+        localStorage.setItem(storageKey + ':view', JSON.stringify({ deformation: v.deformation, stress: v.stress, shear: v.shear, moving: v.moving, annotations: v.annotationMode !== 'clean', annotationMode: v.annotationMode, teaching: v.teaching }));
         if (learningConfigured || levelStarterActive) localStorage.setItem(storageKey + ':learning', JSON.stringify({ level: v.level, teachMe: v.teachMe }));
         if (levelStarterActive) localStorage.setItem(storageKey + ':starter-follow', '1'); else localStorage.removeItem(storageKey + ':starter-follow');
         $('#save-label').textContent = 'Saved in this browser';
@@ -265,23 +288,24 @@ function saveLearning() {
 }
 function renderLearningBar() {
     const root = $('#learning-bar');
-    if (!root) return;
     const current = (0, levels_1.mode)(v.level);
-    const learning = workspace.phaseFor(v) === 'learn', expanded = learning || v.levelPreferencesOpen;
+    const learning = activity.isLearning(v), expanded = learning || v.levelPreferencesOpen;
     root.classList.toggle('compact', !expanded);
-    root.innerHTML = `<div class="level-context"><span>${learning ? 'LEARNING LEVEL' : 'TOOL VISIBILITY'}</span><b>${(0, common_1.esc)(current.short)}${learning ? ' / ' + (0, common_1.esc)(current.title) : ''}</b><small>${learning ? (0, common_1.esc)(current.subtitle) : v.level === 'all' ? 'Start building. Learning is optional.' : 'Simplified controls; advanced properties stay active.'}${expanded && levelStarterActive ? ' · untouched starter follows your selected level' : ''}</small></div>${learning ? '' : `<button type="button" data-action="level-preferences" class="secondary" aria-expanded="${expanded}" aria-controls="level-options">${expanded ? 'Hide preferences' : 'Choose visible tools'}</button>`}<div id="level-options" class="level-options" ${expanded ? '' : 'hidden'}><div class="level-switch" role="group" aria-label="Learning level">${levels_1.modeOrder.map(id => { const m = (0, levels_1.mode)(id); return `<button data-action="level:${id}" class="${v.level === id ? 'active' : ''}" aria-pressed="${v.level === id}" ${v.session?.active || v.session?.review ? 'disabled' : ''}><span>${(0, common_1.esc)(m.short)}</span><small>${(0, common_1.esc)(m.title)}</small></button>`; }).join('')}</div>${(0, common_1.button)('curriculum', (0, common_1.icon)('help', 14), 'icon-button level-help', false, 'How the learning levels were chosen')}</div>`;
+    root.innerHTML = `<div class="level-context"><span>${learning ? 'LEARNING LEVEL' : 'BUILD / EXPLORE'}</span><b>${learning ? (0, common_1.esc)(current.short + ' / ' + current.title) : 'All Tools'}</b><small>${learning ? (0, common_1.esc)(current.subtitle) : 'All engineering tools and results are available. Learning is optional.'}</small></div>${learning ? '' : `<button type="button" data-action="level-preferences" class="secondary" aria-expanded="${expanded}" aria-controls="level-options">${expanded ? 'Hide learning settings' : 'Learning settings'}</button>`}<div id="level-options" class="level-options" ${expanded ? '' : 'hidden'}>${learning ? '' : '<p class="hint">Choose an explanation level for Learn. This does not restrict Build, Analyse or Review.</p>'}<div class="level-switch" role="group" aria-label="Learning level">${levels_1.modeOrder.map(id => { const m = (0, levels_1.mode)(id); return `<button data-action="level:${id}" class="${v.level === id ? 'active' : ''}" aria-pressed="${v.level === id}" ${activity.modelLocked(v) ? 'disabled' : ''}><span>${(0, common_1.esc)(m.short)}</span><small>${(0, common_1.esc)(m.title)}</small></button>`; }).join('')}</div>${(0, common_1.button)('curriculum', (0, common_1.icon)('help', 14), 'icon-button level-help', false, 'How the learning levels were chosen')}</div>`;
 }
 function setLearningMode(id, fromSetup = false) {
     if (v.session?.active || v.session?.review) { toast('Finish or close the learning session before changing level.'); return; }
     if (!levels_1.modes[id]) return;
     finishField();
+    const destination = workspace.phaseFor(v);
     endStandaloneLearning();
+    Object.assign(v, workspace.transition(v, destination));
     const previous = v.level;
     v.level = id;
     v.advanced = false;
     v.selected.clear();
     inlineId = null;
-    if (!(0, levels_1.allowedTabs)(id).includes(v.tab)) v.tab = 'build';
+    if (activity.isLearning(v) && !(0, levels_1.allowedTabs)(id).includes(v.tab)) v.tab = 'learn';
     if (levelStarterActive) installLevelStarter(id);
     saveLearning();
     render();
@@ -322,9 +346,9 @@ function toast(message) {
     toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 6000);
 }
 function commit(next, label, keepSelection = true) {
-    if (v.session?.active && !sessionLoading) { toast('The problem model is locked during a learning session. Finish or exit the session to edit your own study.'); return; }
+    if (blockModelEdit()) return;
     pauseSweep();
-    if (v.challengeId) { v.challengeId = null; v.challengeFeedback = null; }
+
     if (v.lessonId) { v.lessonChoice = null; v.lessonFeedback = null; }
     finishField();
     levelStarterActive = false;
@@ -348,30 +372,35 @@ function renderWorkspaceModeBar() {
     $('#workflow-context').innerHTML = workspace.renderContext(v, !!analysis);
     $('#workspace-grid').dataset.phase = workspace.phaseFor(v);
 }
+let pendingWorkspace = null;
+function requestSessionExit(target = null) {
+    pendingWorkspace = target;
+    if (v.session?.review) {
+        const old = v.session; restoreSessionOrigin(old);
+        if (target) setWorkflow(target);
+        return;
+    }
+    if (!v.session?.active) return;
+    openDialog('Exit this learning session?', `<p>Your original structural study, edit history and comparison will be restored. This unfinished session will be discarded; evidence from answers already checked remains.${v.session.mode === 'plan' ? ' The saved resume point will also be removed.' : ''}</p><div class="dialog-actions">${(0,common_1.button)('dialog-close','Stay in Learn','secondary')}${(0,common_1.button)('session-exit-confirm',target ? 'Exit and return to ' + (target === 'build' ? 'Build / Explore' : target === 'analyse' ? 'Analyse' : 'Review') : 'Exit session','danger')}</div>`);
+}
 function setWorkflow(target) {
     const next = workspace.transition(v, target);
-    if (!next) { toast('Finish or close the learning session before changing workspace.'); return; }
+    if (!next) { if (workspace.steps.some(s => s.id === target)) requestSessionExit(target); return; }
     finishField();
-    if (target !== 'learn') endStandaloneLearning();
+    if (target !== 'learn') {
+        endStandaloneLearning();
+        v.practice = false; v.practiceStep = 0;
+        levelStarterActive = false;
+    }
     Object.assign(v, next);
     if (matchMedia('(max-width:780px)').matches) v.controls = target === 'learn';
-    if(target==='review') v.reviewDetail='overview';
-    v.selected.clear();
-    render();
-    save();
+    if (target === 'review') v.reviewDetail = 'overview';
+    v.selected.clear(); inlineId = null; $('#inline-edit').innerHTML = '';
+    render(); save();
 }
 function enterWorkspace(target) {
-    if (v.session?.active || v.session?.review) { setWorkflow(target); return; }
-    finishField();
-    if (target === 'build') {
-        endStandaloneLearning();
-        // Direct entry reveals every tool, without installing a level's example.
-        levelStarterActive = false;
-        v.level = 'all';
-        v.practice = false;
-        saveLearning();
-    }
     setWorkflow(target);
+    if (activity.modelLocked(v) && target !== 'learn') return;
     window.history.replaceState(null, '', '#workspace');
     $('#workspace').focus({preventScroll:true});
     $('#workspace').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
@@ -422,7 +451,7 @@ function renderDesignStudio() {
     <div class="design-output"><section class="design-card design-step-card design-step-1"><span class="eyebrow">DEMAND / CURRENT SOLVED FACTOR SET</span><h3>Deterministic analysis carried into design context.</h3><div class="design-demand-grid"><article class="design-demand"><span>Peak |M*|</span><b>${(0,common_1.fmt)(d.moment,3)} kN·m</b><small>x = ${(0,common_1.fmt)(d.momentX,3)} m</small><button data-action="design-jump:moment" aria-label="Inspect critical moment in Analysis"></button></article><article class="design-demand"><span>Peak |V*|</span><b>${(0,common_1.fmt)(d.shear,3)} kN</b><small>x = ${(0,common_1.fmt)(d.shearX,3)} m</small><button data-action="design-jump:shear" aria-label="Inspect critical shear in Analysis"></button></article><article class="design-demand"><span>Peak |v|</span><b>${(0,common_1.fmt)(d.deflectionMm,3)} mm</b><small>x = ${(0,common_1.fmt)(d.deflectionX,3)} m</small><button data-action="design-jump:deflection" aria-label="Inspect critical deflection in Analysis"></button></article><article class="design-demand ${d.elasticStressMPa===null?'unavailable':''}"><span>Elastic fibre stress</span><b>${d.elasticStressMPa===null?'NOT INFERRED':(0,common_1.fmt)(d.elasticStressMPa,3)+' MPa'}</b><small>${d.elasticStressMPa===null?'EI-only zones do not define local section geometry':r.section.hasTrueSteppedSections?'governing local section · x '+(0,common_1.fmt)(d.elasticStressX,3)+' m · '+(0,common_1.esc)(d.elasticStressSection):'from current M and I/c'}</small></article></div><div class="design-signed"><div><span>Moment + / −</span><b>${(0,common_1.signed)(d.momentPositive,2)} / ${(0,common_1.signed)(d.momentNegative,2)} kN·m</b></div><div><span>Shear + / −</span><b>${(0,common_1.signed)(d.shearPositive,2)} / ${(0,common_1.signed)(d.shearNegative,2)} kN</b></div></div></section>
     <section class="design-card design-step-card design-step-3"><span class="eyebrow">ENTERED CHECKS</span><h3>Demand divided by the criteria you supplied.</h3><div class="design-ratio-list">${r.checks.map(designRatioCard).join('')}</div><div class="design-governing"><span>Governing entered-check ratio</span><b>${governing}</b></div>${sourceLine}<div class="design-warning">A ratio below 1.0 only means BeamLab demand is below the <b>entered</b> capacity/limit. It does not prove AS 4100 compliance, structural adequacy or project approval.</div></section>
     <section class="design-card design-step-card design-step-1"><span class="eyebrow">SECTION & MEMBER CONTEXT</span><h3>${(0,common_1.esc)(r.section.label)}${r.section.hasTrueSteppedSections?' + true stepped sections':''}${r.section.hasEIOnlyOverrides?' + EI-only overrides':''}</h3><div class="design-section-grid"><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'E / base':'E'}</span><b>${(0,common_1.fmt)(r.section.E_GPa,3)} GPa</b></article><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'Ix / base':'Ix'}</span><b>${Number(r.section.I_mm4).toExponential(3)} mm⁴</b></article><article><span>${r.section.hasTrueSteppedSections||r.section.hasEIOnlyOverrides?'Area / base':'Area'}</span><b>${(0,common_1.fmt)(r.section.A_mm2,1)} mm²</b></article><article><span>${r.section.hasTrueSteppedSections?'True regions':r.section.hasEIOnlyOverrides?'EI zones':'c'}</span><b>${r.section.hasTrueSteppedSections?(r.section.steppedRegions?.length || 0):r.section.hasEIOnlyOverrides?(r.section.stiffnessZones?.length || 0):(0,common_1.fmt)(r.section.c_mm,2)+' mm'}</b></article></div>${r.section.hasTrueSteppedSections?`<div class="design-stepped-sections"><span class="eyebrow">LOCAL SECTION PROFILE</span>${steppedRows}</div><div class="design-input-note">BeamLab uses these local E/I/A/depth/density properties for deterministic member response and elastic stress. User-entered member capacities remain external inputs and must be verified for every relevant region.</div>`:''}${r.section.hasEIOnlyOverrides?`<div class="design-warning">EI-only multipliers change analysis stiffness without defining local geometry. Local elastic stress and first-yield references are deliberately unavailable while an EI-only override is active.</div>`:''}<p class="design-source-note">${m.section.catalogue?'Base catalogue geometry/area/Ix comes from the existing BeamLab InfraBuild reference library. The library is not a design-capacity database.':'Base section properties come from the BeamLab section model.'}</p></section>
-    <section class="design-card design-step-card design-step-4"><span class="eyebrow">ACTION FACTOR LEDGER</span><h3>Exactly what produced this response.</h3><p>Current BeamLab factors are shown without implying a standard combination. Change or apply factors deliberately in Analysis / Cases.</p><div class="factor-ledger">${factorRows}</div>${combos}${(0,levels_1.canUseFeature)(v.level,'cases')?(0,common_1.button)('design-edit-cases','Edit cases & factors in Analysis','wide-button'):''}</section>
+    <section class="design-card design-step-card design-step-4"><span class="eyebrow">ACTION FACTOR LEDGER</span><h3>Exactly what produced this response.</h3><p>Current BeamLab factors are shown without implying a standard combination. Change or apply factors deliberately in Analysis / Cases.</p><div class="factor-ledger">${factorRows}</div>${combos}${(0,levels_1.canUseFeature)(activity.toolLevel(v),'cases')?(0,common_1.button)('design-edit-cases','Edit cases & factors in Analysis','wide-button'):''}</section>
     <section class="design-card design-step-card design-step-4"><span class="eyebrow">DESIGN READINESS</span><h3>What is known, entered, and still missing.</h3><div class="design-readiness">${readiness}</div></section>
     <section class="design-card violet design-step-card design-step-5"><span class="eyebrow">PUBLIC REFERENCE BASIS INSPECTED FOR 4.0</span><h3>Australian design context, without pretending the clauses are implemented.</h3><div class="design-standards">${standards}</div><div class="design-warning">The linked NCC schedule identifies the editions above. BeamLab 4.0 does not reproduce proprietary standard clauses or derive their member capacities/load combinations. Verify the applicable NCC edition, jurisdiction, amendments, project basis and purchased standards before real design work.</div></section>${finishCard}</div></div>${navigation}</section>`;
 }
@@ -477,13 +506,15 @@ function render() {
     $('#workspace-grid').hidden = designMode;
     $('#design-studio').hidden = !designMode;
     document.querySelector('.workspace-foot')?.classList.toggle('design-active', designMode);
-    const restricted = (0, levels_1.restrictedStudyFeatures)(v.level, m, v);
+    const restricted = (0, levels_1.restrictedStudyFeatures)(activity.toolLevel(v), m, v);
     $('#level-notice').hidden = !restricted.length;
     $('#level-notice').innerHTML = restricted.length ? `<span>${(0, common_1.icon)('help', 14)}</span><div><b>This study goes beyond ${(0, common_1.esc)((0, levels_1.mode)(v.level).short)}.</b><p>${(0, common_1.esc)(restricted.join(', '))} remain active in the calculation but some editing controls are hidden.</p></div>${(0, common_1.button)('level:all', 'Show all tools', 'secondary')}` : '';
-    $('#workspace-grid').classList.toggle('controls-hidden', !v.controls);
-    $('#workspace-grid').classList.add('inspector-hidden');
-    $('#controls').hidden = !v.controls;
-    $('#inspector').hidden = !v.inspector || !v.selected.size || designMode;
+    const inspectorVisible = v.inspector && v.selected.size > 0 && !designMode && !activity.modelLocked(v) && !inlineId;
+    $('#workspace-grid').classList.toggle('controls-hidden', !v.controls && !inspectorVisible);
+    $('#workspace-grid').classList.toggle('inspector-hidden', !inspectorVisible);
+    $('#workspace-grid').classList.toggle('editing-object', inspectorVisible);
+    $('#controls').hidden = !v.controls || inspectorVisible;
+    $('#inspector').hidden = !inspectorVisible;
     v.masteryView = buildMasteryView(v.level);
     const learningSnapshot = learningEvidenceSnapshot();
     v.learningRecommendation = (0, learning_path_1.recommendNext)(v.level, learningSnapshot, lessonProgress, challengeProgress);
@@ -501,12 +532,12 @@ function render() {
     syncSessionClock();
     $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(m, analysis, v);
     $('#inspector').classList.toggle('has-selection', v.selected.size > 0);
-    $('#mobile-done').hidden = designMode || !v.inspector || v.selected.size === 0;
-    $('#toolbar').innerHTML = `<div class="stage-title"><i class="dot ${analysis ? 'mint' : 'amber'}"></i><div><h2>${analysis ? (0, common_1.esc)(analysis.system) : 'Model needs attention'}</h2><small>${(0, common_1.esc)(m.name)}</small></div></div><div class="toolbar-buttons">${(0, common_1.button)('undo', (0, common_1.icon)('undo'), 'icon-button', !history.past.length, 'Undo (Ctrl/Cmd Z)')}${(0, common_1.button)('redo', (0, common_1.icon)('redo'), 'icon-button', !history.future.length, 'Redo (Ctrl/Cmd Shift Z)')}<i class="toolbar-separator"></i>${(0, common_1.button)('compare', (0, common_1.icon)('compare'), 'icon-button ' + (compareModel ? 'active' : ''), !analysis && !compareModel, compareModel ? 'Clear comparison' : 'Freeze comparison')}${(0, common_1.button)('shortcuts', (0, common_1.icon)('help', 14), 'icon-button', false, 'Quick help (?)')}${(0, common_1.button)('ai-open', '<span class="ai-glyph">✦</span>', 'icon-button ai-launch', !!(v.session?.active && v.session.mode === 'exam'), 'Ask BeamLab contextual tutor')}${(0, common_1.button)('controls', (0, common_1.icon)('menu'), 'icon-button ' + (!v.controls ? 'active' : ''), false, 'Toggle controls')}${(0, common_1.button)('inspector', (0, common_1.icon)('settings'), 'icon-button ' + (!v.inspector ? 'active' : ''), false, 'Toggle inspector')}</div>`;
+    $('#mobile-done').hidden = true;
+    $('#toolbar').innerHTML = `<div class="stage-title"><i class="dot ${analysis ? 'mint' : 'amber'}"></i><div><h2>${analysis ? (0, common_1.esc)(analysis.system) : 'Model needs attention'}</h2><small>${(0, common_1.esc)(m.name)}</small></div></div><div class="toolbar-buttons">${(0, common_1.button)('undo', (0, common_1.icon)('undo'), 'icon-button', activity.modelLocked(v) || !history.past.length, 'Undo (Ctrl/Cmd Z)')}${(0, common_1.button)('redo', (0, common_1.icon)('redo'), 'icon-button', activity.modelLocked(v) || !history.future.length, 'Redo (Ctrl/Cmd Shift Z)')}<i class="toolbar-separator"></i>${(0, common_1.button)('compare', (0, common_1.icon)('compare'), 'icon-button ' + (compareModel ? 'active' : ''), !visibility().complete || (!analysis && !compareModel), compareModel ? 'Clear comparison' : 'Freeze comparison')}${(0, common_1.button)('shortcuts', (0, common_1.icon)('help', 14), 'icon-button', false, 'Quick help (?)')}${(0, common_1.button)('ai-open', '<span class="ai-glyph">✦</span>', 'icon-button ai-launch', !visibility().complete, 'Ask BeamLab contextual tutor')}${(0, common_1.button)('controls', (0, common_1.icon)('menu'), 'icon-button ' + (!v.controls ? 'active' : ''), false, 'Toggle controls')}${(0, common_1.button)('inspector', (0, common_1.icon)('settings'), 'icon-button ' + (!v.inspector ? 'active' : ''), !v.selected.size || activity.modelLocked(v), v.selected.size ? 'Toggle selected-object editor' : 'Select a support or load to edit')}</div>`;
     width = Math.max(280, $('#graphs').getBoundingClientRect().width || width);
     renderStage();
     renderExtras();
-    $('#study-name').innerHTML = `<input aria-label="Study name" data-text="name" maxlength="100" value="${(0, common_1.esc)(m.name)}">`;
+    $('#study-name').innerHTML = `<input aria-label="Study name" data-text="name" maxlength="100" ${activity.modelLocked(v) ? 'readonly' : ''} value="${(0, common_1.esc)(m.name)}">`;
     $('#history-count').textContent = history.past.length + ' edits';
     if (designMode) renderDesignStudio();
     renderDemo();
@@ -518,13 +549,16 @@ function saveChallengeProgress() {
 function startChallenge(id) {
     const spec = (0, challenges_1.getChallenge)(id);
     if (!spec) { toast('Challenge not found.'); return; }
+    if (!sessionLoading && activity.modelLocked(v)) return;
     beginStandaloneLearning();
+    v.changedActivity = null; v.activityMismatch = false;
     v.lessonId = null; v.lessonChoice = null; v.lessonFeedback = null;
     v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     v.tab = 'learn';
     loadExample(spec.example);
     v.challengeId = spec.id;
     v.challengeModelReference = verification.fingerprint(history.model);
+    v.changedActivity = null;
     v.challengeFeedback = null;
     v.taskAttempted = false; v.taskMasteryLocked = false;
     v.practice = true;
@@ -540,7 +574,9 @@ function saveLessonProgress() {
 function startLesson(id) {
     const spec = (0, challenges_1.getLesson)(id);
     if (!spec) { toast('Lesson not found.'); return; }
+    if (!sessionLoading && activity.modelLocked(v)) return;
     beginStandaloneLearning();
+    v.changedActivity = null; v.activityMismatch = false;
     v.tab = 'learn';
     loadExample(spec.example);
     v.challengeId = null; v.challengeFeedback = null;
@@ -548,7 +584,8 @@ function startLesson(id) {
     v.taskAttempted = false; v.taskMasteryLocked = false;
     v.lessonMethod = 'choice'; v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     v.lessonModelReference = verification.fingerprint(history.model);
-    if (spec.target === 'v' && (0, levels_1.canUseFeature)(v.level, 'deformation')) v.deformation = true;
+    v.changedActivity = null;
+    if (spec.target === 'v' && (0, levels_1.canUseFeature)(activity.toolLevel(v), 'deformation')) v.deformation = true;
     v.practice = true;
     v.practiceStep = Math.max(0, (spec.revealStep || 2) - 1);
     solve(); render(); save();
@@ -567,9 +604,10 @@ function endStandaloneLearning() {
     const origin = standaloneOrigin;
     const preferences = {level:v.level, teachMe:v.teachMe, learnSection:v.learnSection};
     standaloneOrigin = null;
-    v.standaloneLearning = false;
+    v.standaloneLearning = false; v.changedActivity = null; v.activityMismatch = false;
     applySessionOrigin(origin);
     Object.assign(v, preferences);
+    v.changedActivity = null;
     v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
     v.lessonModelReference = null; v.challengeModelReference = null;
     v.lessonChoice = null; v.lessonSketch = []; v.lessonSketchResult = null;
@@ -685,7 +723,7 @@ function restoreSessionOrigin(session = v.session) {
     const origin = session?.origin;
     if (!origin) { v.session = null; render(); return; }
     applySessionOrigin(origin);
-    v.session = null; v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
+    v.session = null; v.activityMismatch = false; v.changedActivity = null; v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
     v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     render(); save();
 }
@@ -779,6 +817,7 @@ function resumeGuidedStudyBlock() {
 }
 function startLearningSession(mode) {
     if (v.session?.active || v.session?.review) return;
+    finishField();
     endStandaloneLearning();
     const sessionMode = mode === 'exam' ? 'exam' : mode === 'plan' ? 'plan' : 'practice';
     let queue = [], focusTarget = 0, mixedTarget = 0, phaseTotal = 0, initialTrajectory = null, studyPlanRationale = '';
@@ -816,11 +855,17 @@ function loadSessionTask() {
     const task = s.queue[s.index];
     if (!task) { finishLearningSession(); return; }
     s.currentLocked = false;
+    v.workspaceMode = 'analysis'; v.tab = 'learn'; v.controls = true;
+    inlineId = null; $('#inline-edit').innerHTML = '';
     sessionLoading = true;
     try {
         if (task.kind === 'lesson') { startLesson(task.id); if (s.mode === 'exam') v.lessonMethod = 'sketch'; }
         else { v.lessonId = null; v.lessonChoice = null; v.lessonFeedback = null; v.lessonSketch = []; v.lessonSketchResult = null; startChallenge(task.id); }
     } finally { sessionLoading = false; }
+    v.selected.clear();
+    s.questionModel = (0, study_1.clone)(history.model);
+    s.questionReference = verification.fingerprint(history.model);
+    v.activityMismatch = false;
     v.learnSection = 'session';
     if (s.mode === 'exam') { v.teaching = false; v.practice = true; }
     render();
@@ -1018,6 +1063,7 @@ function compareModelChanges(A, B) {
     return changes;
 }
 function tutorContext(mode='question') {
+    if (!visibility().complete) return null;
     if (!analysis) return null;
     const m = history.model;
     const x = v.trace === null ? analysis.peakM.x : v.trace;
@@ -1067,6 +1113,7 @@ function tutorPromptText(key) {
     return prompts[key] || '';
 }
 function renderTutorDialog() {
+    if (!visibility().complete || $('#dialog-title')?.textContent !== 'Ask BeamLab' || !$('#dialog')?.classList.contains('open')) return;
     const content = $('#dialog-content');
     if (!content) return;
     const ctx = analysis ? tutorContext(aiTutor.mode) : null;
@@ -1076,6 +1123,7 @@ function renderTutorDialog() {
     content.innerHTML = `<div class="ai-dialog"><div class="ai-boundary"><b>Solver first.</b> The tutor receives BeamLab's deterministic results as authoritative context. It explains and asks questions; it does not calculate or certify the structure.</div><div class="ai-context-strip"><span>${(0, common_1.esc)((0, levels_1.mode)(v.level).short)}</span>${ctx ? `<span>x ${(0, common_1.fmt)(x, 3)} m</span><span>V ${(0, common_1.signed)(ctx.inspected.V_kN, 2)} kN</span><span>M ${(0, common_1.signed)(ctx.inspected.M_kNm, 2)} kN·m</span>` : ''}<span>4.1 contextual tutor</span></div><div class="ai-quick"><button data-action="ai-quick:point" ${!analysis || !available ? 'disabled' : ''}>Explain this point</button><button data-action="ai-quick:peak" ${!analysis || !available ? 'disabled' : ''}>Why is max moment here?</button><button data-action="ai-quick:compare" ${!comparison || !available ? 'disabled' : ''}>Explain what changed</button><button data-action="ai-quick:quiz" ${!analysis || !available ? 'disabled' : ''}>Quiz me on this beam</button><button data-action="ai-quick:hint" ${!analysis || !available ? 'disabled' : ''}>Give me a hint</button><button data-action="ai-quick:design" ${v.workspaceMode !== 'design' || !analysis || !available ? 'disabled' : ''}>Explain design review</button></div>${messages ? `<div class="ai-thread">${messages}</div>` : '<p class="hint">Choose a prompt above or ask your own question. Explanations adapt to your current learning level.</p>'}${aiTutor.error ? `<div class="ai-error">${(0, common_1.esc)(aiTutor.error)}</div>` : ''}${aiTutor.busy ? '<div class="ai-thinking"><i></i>Connecting the solved model to an explanation…</div>' : ''}<div class="ai-compose"><textarea id="ai-question" maxlength="600" placeholder="Ask about the current beam, diagram, support, load or comparison…" aria-label="Question for BeamLab Tutor" ${aiTutor.busy ? 'disabled' : ''}></textarea><div class="ai-compose-row"><button type="button" data-action="ai-clear" class="secondary" ${!aiTutor.history.length ? 'disabled' : ''}>Clear</button><button type="button" data-action="ai-send" class="primary" ${aiTutor.busy || !available || !analysis ? 'disabled' : ''}>Ask BeamLab</button></div></div>${available ? '' : '<div class="ai-offline"><b>Online tutor is not connected.</b><p>Use a local explanation of this exact solved model.</p><button data-action="explain-here" class="primary">Open deterministic Show Why</button></div>'}<p class="hint">AI explanations may be imperfect. For numerical values, diagrams and equilibrium, use BeamLab's solver outputs shown in the workspace.</p></div>`;
 }
 function openTutor() {
+    if (!visibility().complete) { toast(activity.restrictionMessage(v)); return; }
     if (v.session?.active && v.session.mode === 'exam') { toast('Ask BeamLab is disabled during Exam Mode. Submit the exam before using the tutor.'); return; }
     if (!analysis) { toast('Complete a stable model first.'); return; }
     openDialog('Ask BeamLab', '<div class="ai-thinking"><i></i>Preparing deterministic context…</div>');
@@ -1117,39 +1165,44 @@ function shortcutsDialog() {
 }
 function renderStage() {
     const m = history.model, a = analysis;
-    const practice = shown('practice'), pstep = v.practiceStep || 0;
+    const {masked:practice, step:pstep} = visibility();
     const hiddenMetric = (stage) => practice && pstep < stage;
     const metrics = [...(a?.reactions || []).map(r => ({ label: 'Reaction ' + r.label, value: hiddenMetric(1) ? 'Predict first' : (0, common_1.signed)(r.force) + ' kN', meta: hiddenMetric(1) ? 'Reveal reactions when ready' : `x = ${(0, common_1.fmt)(r.x)} m${r.fixed ? ' / MF ' + (0, common_1.signed)(r.moment) + ' kN m' : ''}`, hidden: hiddenMetric(1) })), { label: 'Peak shear', value: hiddenMetric(2) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakV.V)) + ' kN' : '--', meta: hiddenMetric(2) ? 'Sketch the SFD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakV.x) + ' m' : 'No result', hidden: hiddenMetric(2) }, { label: 'Peak moment', value: hiddenMetric(3) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakM.M)) + ' kN·m' : '--', meta: hiddenMetric(3) ? 'Sketch the BMD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakM.x) + ' m' : 'No result', hidden: hiddenMetric(3) }, ...(shown('deformation') ? [{ label: 'Peak deflection', value: hiddenMetric(4) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakD.v) * 1000) + ' mm' : '--', meta: hiddenMetric(4) ? 'Predict the elastic curve first' : a ? 'x = ' + (0, common_1.fmt)(a.peakD.x) + ' m / |v|' : 'No result', hidden: hiddenMetric(4) }] : [])];
     $('#metrics').innerHTML = metrics.map(c => `<div class="metric ${c.hidden ? 'practice-hidden' : ''}"><span>${(0, common_1.esc)(c.label)}</span><strong>${c.value}</strong><small>${(0, common_1.esc)(c.meta)}</small></div>`).join('');
     $('#error').hidden = !error;
     $('#error').innerHTML = `<strong>Check the model</strong><p>${(0, common_1.esc)(error)}</p>`;
     $('#case-summary').innerHTML = `<span>${(0, common_1.icon)('layers', 13)} RESPONSE</span><b>${m.cases.filter(c => c.enabled && c.factor !== 0).map(c => `${(0, common_1.fmt)(c.factor, 2)}\u00d7${(0, common_1.esc)(c.name)}`).join(' + ') || 'No active cases'}</b>${m.selfWeight ? '<small>Includes case-factored self-weight</small>' : ''}`;
-    $('#compare-note').hidden = !compareModel;
-    if (compareModel) {
+    $('#compare-note').hidden = !compareModel || !visibility().complete;
+    if (compareModel && visibility().complete) {
         const A = comparisonMetrics(comparison), B = comparisonMetrics(a);
         $('#compare-note').innerHTML = `${(0, common_1.icon)('compare', 14)}<span>${comparison ? 'A = dashed frozen snapshot / B = current colour.' : 'Comparison paused: restore the same member length to compare.'}</span>${comparison && A && B ? `<div class="compare-mini"><b>Δ|M| ${deltaText(A.moment,B.moment,'kN m')}</b><b>Δ|v| ${deltaText(A.deflection,B.deflection,'mm')}</b></div>${(0, common_1.button)('compare-details', 'Details', 'text-button')}` : ''}${(0, common_1.button)('compare', (0, common_1.icon)('close', 13), 'icon-button', false, 'Clear comparison')}`;
     }
+    if (!visibility().complete) $('#compare-note').innerHTML = '';
     $('#graphs').innerHTML = (0, diagrams_1.renderDiagrams)(m, a, diagramView());
     $('#trace-position').innerHTML = `<div class="trace-position"><label for="trace-number">Inspect x / m</label><input type="range" data-range="trace" aria-label="Inspection position" min="0" max="${m.length}" step="${m.length/1000}" value="${v.trace ?? m.length/2}"><input id="trace-number" type="number" data-trace-number min="0" max="${m.length}" step="any" value="${v.trace ?? m.length/2}" aria-label="Inspection position in metres"></div>`;
-    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a, 'Inspect equilibrium, energy and critical locations')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
+    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a || !visibility().complete, 'Inspect equilibrium, energy and critical locations')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
     $('#assumptions').hidden = !a?.warnings.length && !m.section.family?.includes('PFC');
     $('#assumptions').innerHTML = `<summary>Model assumptions to review</summary>${[...(a?.warnings || []), ...(m.section.family === 'PFC' ? ['Channel bending is about horizontal x-x only. Torsion from load eccentricity and shear-centre effects is not represented.'] : [])].map(w => `<p>${(0, common_1.esc)(w)}</p>`).join('')}`;
-    $('#working-toggle').innerHTML = (0, common_1.button)('working', `${(0, common_1.icon)('help', 16)}<span>${v.working ? 'Hide worked solution' : 'Show working, step by step'}</span>${(0, common_1.icon)('right', 16)}`, 'working-toggle', !a);
+    $('#working-toggle').innerHTML = (0, common_1.button)('working', `${(0, common_1.icon)('help', 16)}<span>${v.working ? 'Hide worked solution' : 'Show working, step by step'}</span>${(0, common_1.icon)('right', 16)}`, 'working-toggle', !a || !visibility().complete);
+    $('#working-toggle').insertAdjacentHTML('beforeend', !visibility().complete ? `<p class="answer-policy-note">${(0,common_1.esc)(activity.restrictionMessage(v))}</p>` : '');
     updateTrace();
 }
 function renderExtras(skipReview = false) {
     const a = analysis, m = history.model, x = v.trace ?? a?.peakM.x ?? 0;
     movingLab?.update(m,shown('moving'));
-    $('#shear-stress').hidden = !shown('shear') || (shown('practice') && v.practiceStep < 4);
-    if(shown('shear') && (!shown('practice') || v.practiceStep >= 4)) $('#shear-stress').innerHTML = renderShear(m,a,x);
+    if (!visibility().complete) $('#moving-lab').innerHTML = '';
+    $('#shear-stress').hidden = !shown('shear') || (shown('practice') && visibility().step < 4);
+    if(shown('shear') && (!shown('practice') || visibility().step >= 4)) $('#shear-stress').innerHTML = renderShear(m,a,x);
     $('#teaching').hidden = !shown('teaching');
+    if (!visibility().complete) for (const id of ['teaching','section-stress','shear-stress','review']) $('#' + id).innerHTML = '';
     if (shown('teaching'))
         $('#teaching').innerHTML = (0, diagrams_1.teaching)(m, a, x, v.level);
-    $('#section-stress').hidden = !shown('stress') || (shown('practice') && v.practiceStep < 4);
-    if (shown('stress') && (!shown('practice') || v.practiceStep >= 4))
+    $('#section-stress').hidden = !shown('stress') || (shown('practice') && visibility().step < 4);
+    if (shown('stress') && (!shown('practice') || visibility().step >= 4))
         $('#section-stress').innerHTML = sectionLab.render(m, a, x, v.fibre, v.sectionSide);
-    $('#working').hidden = !v.working || !a;
-    if (v.working && a)
+    $('#working').hidden = !v.working || !a || !visibility().complete;
+    if (!visibility().complete) $('#working').innerHTML = '';
+    if (v.working && a && visibility().complete)
         $('#working').innerHTML = (0, working_1.working)(m, a, v.step);
     if (!skipReview) {
         $('#review').hidden = !shown('review');
@@ -1161,10 +1214,10 @@ function updateTrace() {
     const a = analysis, m = history.model, x = v.trace;
     const { xp, span } = (0, diagrams_1.coordinates)(m, diagramView());
     const traceVisible = x !== null && x >= v.pan - 1e-8 && x <= v.pan + span + 1e-8;
-    const practice = shown('practice'), pstep = v.practiceStep || 0;
+    const {masked:practice, step:pstep} = visibility();
     if (x !== null) { const slider=$('[data-range=trace]'), number=$('[data-trace-number]'); if(slider && slider!==document.activeElement) slider.value=String(x); if(number && number!==document.activeElement) number.value=String(Math.round(x*10000)/10000); }
     $('#trace-readout').innerHTML = x === null ? `<span>${(0, common_1.icon)('help', 12)} Hover a diagram. Click to pin.</span><small>${practice ? 'Practice mode hides unrevealed responses. ' : ''}Reactions up + / loads down + / sagging moment +</small>` : (() => {
-        const r = a?.sample(x), l = a?.sample(x, 'left'), cr = comparison?.sample(x), cl = comparison?.sample(x, 'left');
+        const r = a?.sample(x), l = a?.sample(x, 'left'), cr = visibility().complete ? comparison?.sample(x) : null, cl = visibility().complete ? comparison?.sample(x, 'left') : null;
         const pair = (k, units, stage) => {
             if (practice && pstep < stage) return `${k} hidden / predict first`;
             if (!r || !l) return '--';
@@ -1210,7 +1263,8 @@ function newIdentity(kind) {
     return { label: prefix + n, colour: (0, validation_1.isSupport)(kind) ? '#9fbbb4' : kind === 'hinge' ? '#bc9aff' : examples_1.colours.find(c => !used.has(c)) || examples_1.colours[m.items.length % examples_1.colours.length] };
 }
 function add(kind, x = history.model.length / 2, preset) {
-    if (!(0, levels_1.canUseTool)(v.level, kind)) { toast(`${examples_1.titles[kind]} is hidden at ${(0, levels_1.mode)(v.level).short}. Move up a learning level to use it.`); return; }
+    if (blockModelEdit()) return;
+    if (!(0, levels_1.canUseTool)(activity.toolLevel(v), kind)) { toast(`${examples_1.titles[kind]} is hidden at ${(0, levels_1.mode)(v.level).short}. Move up a learning level to use it.`); return; }
     const m = history.model;
     if (m.items.length >= 48) {
         toast('48 structural objects is the limit.');
@@ -1244,7 +1298,8 @@ else
     v.selected = new Set([id]); v.inspector = true; render(); }
 function selectedItems() { return history.model.items.filter(i => v.selected.has(i.id)); }
 function nudge(delta) {
-    const movable = selectedItems().filter(i => !i.locked && (0, levels_1.canEditItem)(v.level, i));
+    if (blockModelEdit()) return;
+    const movable = selectedItems().filter(i => !i.locked && (0, levels_1.canEditItem)(activity.toolLevel(v), i));
     if (!movable.length)
         return;
     const bound = (i) => (0, validation_1.isDistributed)(i.kind) ? i.end : i.x;
@@ -1253,7 +1308,8 @@ function nudge(delta) {
     commit({ ...history.model, items: history.model.items.map(i => ids.has(i.id) ? { ...i, x: i.x + delta, ...(i.end !== undefined ? { end: i.end + delta } : {}) } : i) }, 'Move selection');
 }
 function duplicate() {
-    const chosen = selectedItems().filter(i => (0, levels_1.canEditItem)(v.level, i));
+    if (blockModelEdit()) return;
+    const chosen = selectedItems().filter(i => (0, levels_1.canEditItem)(activity.toolLevel(v), i));
     if (!chosen.length)
         return;
     if (history.model.items.length + chosen.length > 48) {
@@ -1280,14 +1336,15 @@ function duplicate() {
     v.selected = new Set(newIds);
     commit(m, 'Duplicate selection');
 }
-function remove() { const unlocked = selectedItems().filter(i => !i.locked && (0, levels_1.canEditItem)(v.level, i)); if (!unlocked.length) {
+function remove() {
+    if (blockModelEdit()) return; const unlocked = selectedItems().filter(i => !i.locked && (0, levels_1.canEditItem)(activity.toolLevel(v), i)); if (!unlocked.length) {
     toast('Unlock objects before removing them.');
     return;
 } const ids = new Set(unlocked.map(i => i.id)); commit({ ...history.model, items: history.model.items.filter(i => !ids.has(i.id)) }, 'Remove selection', false); }
 function openDialog(title, content) { pauseSweep(); dialogReturnFocus = document.activeElement; finishField(); $('#dialog-title').textContent = title; $('#dialog-content').innerHTML = content; $('#dialog').classList.add('open'); $('#dialog').setAttribute('aria-hidden', 'false'); $('#dialog-close').focus(); }
 function closeDialog() { $('#dialog').classList.remove('open'); $('#dialog').setAttribute('aria-hidden', 'true'); if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus(); }
 function openSectionRegionDialog(id = '') {
-    if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) { toast('True stepped-section editing appears from 3rd+ Year mode.'); return; }
+    if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'steppedSections')) { toast('True stepped-section editing appears from 3rd+ Year mode.'); return; }
     const regions = history.model.sectionRegions || [];
     const existing = regions.find(r => r.id === id) || null;
     if (!existing && regions.length >= section_regions_1.MAX_SECTION_REGIONS) { toast(section_regions_1.MAX_SECTION_REGIONS + ' stepped-section regions is the limit.'); return; }
@@ -1301,7 +1358,7 @@ function openSectionRegionDialog(id = '') {
     openDialog(existing ? 'Edit true stepped section' : 'Add true stepped section', `<div class="section-region-dialog-intro"><p>Assign an actual BeamLab section to one non-overlapping interval. The section is stored as an independent local property set, so the deterministic solver can use its own E, I, area, depth, density and self-weight.</p></div><label class="field"><span>Region label</span><div><input id="section-region-label" maxlength="40" value="${(0,common_1.esc)(region.label)}" aria-label="Stepped section label"></div><em class="field-error"></em></label><label class="field"><span>Start x</span><div><input id="section-region-start" type="number" min="0" max="${m.length}" step="any" value="${region.x}" aria-label="Stepped section start"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>End x</span><div><input id="section-region-end" type="number" min="0" max="${m.length}" step="any" value="${region.end}" aria-label="Stepped section end"><small>m</small></div><em class="field-error"></em></label><label class="field"><span>Local section source</span><select id="section-region-source" aria-label="Local stepped section source">${existingOption}${opt('__base__','Copy current base section',source==='__base__')}${groups}</select><em class="field-error"></em></label><div class="section-region-dialog-summary"><b>Current local definition</b><span>${(0,common_1.esc)((0,section_regions_1.sectionLabel)(region.section))}</span><small>E ${(0,common_1.fmt)(region.section.E,2)} GPa · Ix ${currentProps ? (currentProps.I*1e12).toExponential(3) : '--'} mm⁴ · depth ${(0,common_1.fmt)(region.section.h,1)} mm · self-weight ${currentProps ? (0,common_1.fmt)(currentProps.weight,3) : '--'} kN/m</small></div><p class="section-region-dialog-note">“Copy current base section” stores a snapshot; later edits to the base section do not silently rewrite this region. Catalogue choices use BeamLab's tabulated A/Ix geometry and editable teaching material assumptions.</p><p id="section-region-dialog-error" class="stiffness-dialog-error" role="alert"></p><div class="dialog-actions">${(0,common_1.button)('section-region-save:'+(existing ? existing.id : 'new'), existing ? 'Save stepped section' : 'Add stepped section', 'primary')}${(0,common_1.button)('dialog-close','Cancel','secondary')}</div>`);
 }
 function openStiffnessDialog(id = '') {
-    if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) { toast('Piecewise EI editing appears from 3rd+ Year mode.'); return; }
+    if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'varyingEI')) { toast('Piecewise EI editing appears from 3rd+ Year mode.'); return; }
     const regions = history.model.stiffnessRegions || [];
     const existing = regions.find(r => r.id === id) || null;
     if (!existing && regions.length >= stiffness_1.MAX_REGIONS) { toast(stiffness_1.MAX_REGIONS + ' EI zones is the limit.'); return; }
@@ -1340,6 +1397,7 @@ function openLibrary() {
     openDialog('Your saved studies', `<p>Stored only in this browser. Export important models as JSON.</p>${(0, common_1.button)('save-named', 'Save current study', 'primary')}<div class="library-list">${records.map((r, i) => `<div><b>${(0, common_1.esc)(r.name)}</b><span>${(0, common_1.fmt)(r.model.length)} m</span>${(0, common_1.button)('open-named:' + i, 'Open', 'secondary')}${(0, common_1.button)('delete-named:' + i, (0, common_1.icon)('trash', 13), 'icon-button', false, 'Delete saved study')}</div>`).join('') || '<p class="muted">No named snapshots yet.</p>'}</div>`);
 }
 async function doExport(kind) {
+    if (activity.resultActionBlocked(v, 'export', kind)) { toast(activity.restrictionMessage(v)); return; }
     if (exportBusy) { toast('An export is already being prepared.'); return; }
     finishField();
     $('#export-menu').hidden = true;
@@ -1382,7 +1440,7 @@ function share() {
     const code = (0, export_1.snapshotCode)(history.model), url = publicOrigin ? location.href.split('#')[0] + '#model=' + code : code;
     openDialog('Share a model snapshot', `<p>${publicOrigin ? 'Anyone with this link can read the complete model snapshot. No account is needed.' : 'This is the downloadable edition. Share the snapshot code with someone using this same HTML build. Public links require hosting this build first.'}</p><p class="hint">The snapshot is encoded, not encrypted. Avoid including confidential project information.</p><textarea id="share-code" aria-label="Model snapshot code" readonly>${(0, common_1.esc)(url)}</textarea>${(0, common_1.button)('copy-share', 'Copy snapshot', 'primary')}<div class="divider"></div><h3>Open a shared snapshot</h3><textarea id="paste-snapshot" aria-label="Paste model snapshot" placeholder="Paste a BLSTUDIO3: code or a compatible model link"></textarea>${(0, common_1.button)('open-snapshot', 'Open snapshot', 'secondary')}`);
 }
-function openHistory() { openDialog('Edit history', `<p>Up to 80 edits are kept in this session. Dragging a group counts as one edit. Reload keeps the model, not its history.</p><div class="history-list">${history.past.slice().reverse().map((e, i) => `<div><span>${history.past.length - i}</span><b>${(0, common_1.esc)(e.label)}</b></div>`).join('') || '<p>No edits yet.</p>'}</div>${(0, common_1.button)('undo-dialog', 'Undo latest', 'secondary', !history.past.length)}`); }
+function openHistory() { openDialog('Edit history', `<p>Up to 80 edits are kept in this session. Dragging a group counts as one edit. Reload keeps the model, not its history.</p><div class="history-list">${history.past.slice().reverse().map((e, i) => `<div><span>${history.past.length - i}</span><b>${(0, common_1.esc)(e.label)}</b></div>`).join('') || '<p>No edits yet.</p>'}</div>${(0, common_1.button)('undo-dialog', 'Undo latest', 'secondary', activity.modelLocked(v) || !history.past.length)}`); }
 function privacyDialog() {
     openDialog('Privacy & local data', `<h3>Your model stays on this device.</h3><p>BeamLab stores the current study, named local studies, learning evidence and review inputs in this browser. There is no account or analytics tracker in this release. Clearing this browser's site data removes these local copies.</p><h3>When data leaves your browser</h3><p>Exports are files you choose to save. Shared model links contain an encoded, readable snapshot; anyone with the link can open it. If you choose the optional online tutor, your question, recent conversation and structured model/learning context are sent to the hosting endpoint and its configured AI provider. The tutor never runs automatically and is disabled in exams.</p><p>Model calculations, Show Why and practice work without the online tutor. Export a JSON copy before changing devices. Only include information you intend to share in a snapshot or public issue.</p>`);
 }
@@ -1404,6 +1462,7 @@ function finishField(preserveFocus = false) {
         ? '#' + CSS.escape(focusRoot.id) + ' [' + focusAttribute + '="' + CSS.escape(focused.getAttribute(focusAttribute)) + '"]' : null;
     const t = fieldTransaction;
     fieldTransaction = null;
+    if (activity.modelLocked(v) && !sessionLoading) { history.model = t.base; render(); return; }
     const next = history.model;
     history.model = t.base;
     if (t.input.getAttribute('aria-invalid') === 'true') {
@@ -1423,10 +1482,11 @@ function updateHistoryControls() {
         && verification.canonical(history.model) !== verification.canonical(fieldTransaction.base);
     // A first valid edit must make Undo clickable before focus leaves the field.
     // Update existing buttons in place so a pointer target is never replaced.
-    $('#toolbar [data-action="undo"]').disabled = !history.past.length && !pendingEdit;
-    $('#toolbar [data-action="redo"]').disabled = !history.future.length || !!pendingEdit;
+    $('#toolbar [data-action="undo"]').disabled = activity.modelLocked(v) || (!history.past.length && !pendingEdit);
+    $('#toolbar [data-action="redo"]').disabled = activity.modelLocked(v) || !history.future.length || !!pendingEdit;
 }
 function applyNumber(input) {
+    if (blockModelEdit()) return;
     pauseSweep();
     const key = input.dataset.field;
     // A user can return to the same field before its deferred Tab commit runs.
@@ -1491,6 +1551,7 @@ function applyNumber(input) {
     updateHistoryControls();
 }
 function textChanged(input) {
+    if (blockModelEdit()) return;
     const key = input.dataset.text, m = (0, study_1.clone)(history.model), text = input.value.trim();
     if (!text) {
         toast('A name cannot be empty.');
@@ -1510,6 +1571,7 @@ async function action(key, el) {
     if (!key.startsWith('copy-'))
         finishField();
     const [name, ...rest] = key.split(':'), id = rest.join(':');
+    if (activity.resultActionBlocked(v, name, id)) { toast(activity.restrictionMessage(v)); return; }
     if (!['sweep-play','demo-notes','dismiss-toast'].includes(name)) pauseSweep();
     if (name === 'sweep-play') { if (sweepPlaying) pauseSweep(); else playSweep(); return; }
     if (name === 'sweep-reset') { sweepProgress = .5; sweepDirection = 1; applySweep(); return; }
@@ -1526,7 +1588,7 @@ async function action(key, el) {
     if (name === 'ai-send') { await askTutor('question'); return; }
     if (name === 'ai-quick') { const prompt = tutorPromptText(id); if (prompt) await askTutor(id, prompt); return; }
     if (name === 'ai-design') { const prompt = tutorPromptText('design'); if (prompt) { openTutor(); await askTutor('design', prompt); } return; }
-    if (name === 'design-open') { if (!(0,levels_1.canUseFeature)(v.level,'review')) return; v.reviewDetail='criteria'; designStep=1;renderDesignStudio();return; }
+    if (name === 'design-open') { if (!(0,levels_1.canUseFeature)(activity.toolLevel(v),'review')) return; v.reviewDetail='criteria'; designStep=1;renderDesignStudio();return; }
     if(name==='progress-transfer'){learningTransferDialog();return;}
     if(name==='progress-export'){const payload=learningTransfer.create(lessonProgress,challengeProgress,masteryStats,learningEvidenceEvents);(0,export_1.download)(JSON.stringify(payload,null,2),'beamlab-learning-progress.json','application/json');return;}
     if(name==='progress-import'){if(v.session?.active||v.session?.review)return;$('#progress-file').value='';$('#progress-file').click();return;}
@@ -1557,7 +1619,7 @@ async function action(key, el) {
     if (name === 'design-next') { setDesignStep(designStep + 1); return; }
     if (name === 'design-back') { setDesignStep(designStep - 1); return; }
     if (name === 'design-jump') { if (!analysis) return; const x = id === 'shear' ? analysis.peakV.x : id === 'deflection' ? analysis.peakD.x : analysis.peakM.x; v.workspaceMode='analysis'; v.trace=x; v.pinned=true; render(); $('#structure-block')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}); return; }
-    if (name === 'design-edit-cases') { if (!(0,levels_1.canUseFeature)(v.level,'cases')) { toast('Load-case editing is available in 3rd+ or All Tools.'); return; } v.workspaceMode='analysis'; v.tab='cases'; render(); return; }
+    if (name === 'design-edit-cases') { if (!(0,levels_1.canUseFeature)(activity.toolLevel(v),'cases')) { toast('Load-case editing is available in 3rd+ or All Tools.'); return; } v.workspaceMode='analysis'; v.tab='cases'; render(); return; }
     if (name === 'design-combination') { const c=(history.model.combinations||[]).find(c=>c.id===id); if(c) { commit((0,study_1.setCombination)(history.model,c.factors),'Apply '+c.name+' for design review'); v.workspaceMode='design'; render(); } return; }
     if (name === 'design-export') { if (!analysis) { toast('Complete a stable model before exporting a design review.'); return; } try { const snap=(0,design_1.reviewSnapshot)(history.model,analysis,designSettings,verification.fingerprint(history.model)); (0,export_1.download)(JSON.stringify(snap,null,2),'beamlab-design-review.json','application/json'); toast('Design review JSON created.'); } catch(e) { toast(e instanceof Error?e.message:'Could not export the design review.'); } return; }
     if (name === 'design-reset') { openDialog('Reset Design Studio inputs?', `<p>This clears only the manually entered capacities, serviceability criterion, yield reference and design notes. The structural model and analysis are untouched.</p>${(0,common_1.button)('design-reset-confirm','Reset design inputs','danger')}`); return; }
@@ -1574,9 +1636,11 @@ async function action(key, el) {
     if (name === 'study-block-resume') { resumeGuidedStudyBlock(); return; }
     if (name === 'study-block-resume-discard') { clearGuidedStudyBlockResume(); render(); toast('Saved guided study block discarded.'); return; }
     if (name === 'session-next') { sessionAdvance(); return; }
-    if (name === 'session-skip') { sessionSkipCurrent(); return; }
-    if (name === 'session-exit') { if (v.session?.active) openDialog('Exit this learning session?', `<p>Your original structural study is preserved. This unfinished session will be discarded, but mastery from answers already checked remains in this browser.${v.session.mode === 'plan' ? ' The saved resume point for this guided block will also be removed.' : ''}</p>${(0,common_1.button)('session-exit-confirm','Exit session','danger')}`); return; }
-    if (name === 'session-exit-confirm') { const old=v.session; if (old?.mode === 'plan') clearGuidedStudyBlockResume(); closeDialog(); restoreSessionOrigin(old); return; }
+    if (name === 'session-skip') { if (!questionIsCurrent()) return; sessionSkipCurrent(); return; }
+    if (name === 'session-exit') { requestSessionExit(); return; }
+    if (name === 'session-exit-confirm') { const old=v.session; if (old?.mode === 'plan') clearGuidedStudyBlockResume(); const destination = pendingWorkspace; pendingWorkspace = null; closeDialog(); restoreSessionOrigin(old); if (destination) setWorkflow(destination); return; }
+    if (name === 'session-restore-question') { if (v.session?.active && v.session.questionModel) { history.model = (0,study_1.clone)(v.session.questionModel); v.activityMismatch = false; render(); } return; }
+    if (name === 'activity-restart') { const task = v.changedActivity; if (task) { if (task.kind === 'lesson') startLesson(task.id); else startChallenge(task.id); } return; }
     if (name === 'session-review-close') { const old=v.session; restoreSessionOrigin(old); return; }
     if (name === 'session-review-next') { sessionReviewNext(); return; }
     if (name === 'session-review-plan-again') { sessionReviewPlanAgain(); return; }
@@ -1615,6 +1679,7 @@ async function action(key, el) {
     if (name === 'lesson-method') { if (v.session?.active && v.session.mode === 'exam') { toast('Exam mode uses your own sketch for diagram questions.'); return; } if (['choice','sketch'].includes(id)) { v.lessonMethod = id; v.lessonFeedback = null; v.lessonSketchResult = null; render(); } return; }
     if (name === 'lesson-choice') { if (v.session?.active && v.session.currentLocked) return; v.lessonChoice = id; v.lessonFeedback = null; v.lessonSketchResult = null; render(); return; }
     if (name === 'lesson-sketch-clear') { if (v.session?.active && v.session.currentLocked) return; v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = []; v.lessonFeedback = null; render(); return; }
+    if (['lesson-sketch-check','lesson-check','lesson-reveal','challenge-check','challenge-reveal','session-skip'].includes(name) && !questionIsCurrent()) return;
     if (name === 'lesson-sketch-check') {
         const spec = currentLesson();
         if (!spec || !analysis || (v.session?.active && v.session.currentLocked)) return;
@@ -1675,6 +1740,7 @@ async function action(key, el) {
     if (name === 'lesson-reset') { if(v.session?.active||v.session?.review)return; openDialog('Reset learning progress', `<p>This clears completed mini-lessons, numerical challenges and local mastery history on this browser. It does not change your structural model.</p>${(0, common_1.button)('lesson-reset-confirm','Reset progress','danger')}`); return; }
     if (name === 'lesson-reset-confirm') { lessonProgress={}; challengeProgress={}; masteryStats={}; learningEvidenceEvents=[]; clearGuidedStudyBlockResume(); v.lessonProgress=lessonProgress; v.challengeProgress=challengeProgress; v.masteryStats=masteryStats; try { localStorage.removeItem(storageKey+':lessons'); localStorage.removeItem(storageKey+':challenges'); localStorage.removeItem(storageKey+':mastery'); localStorage.removeItem(storageKey+':learning-evidence'); } catch {} closeDialog(); render(); toast('Learning progress, mastery and recent learning evidence reset. Any saved study block was also cleared. Your beam model was not changed.'); return; }
     if (name === 'explain-here') {
+        if (!visibility().complete) { openDialog('Think through the beam', `<p>${(0,common_1.esc)(activity.restrictionMessage(v))}</p>${visibility().exam ? '' : '<p>Start with the free-body diagram. Use load direction to predict how shear changes, then use the sign of shear to predict whether moment rises or falls.</p>'}`); return; }
         if (v.session?.active && v.session.mode === 'exam') { toast('Show Why is hidden until the exam session is submitted.'); return; }
         if (!analysis) { toast('Complete a stable model first.'); return; }
         try {
@@ -1694,16 +1760,24 @@ async function action(key, el) {
             const result = (0, challenges_1.checkAnswer)(spec, guess, analysis), exam=!!v.session?.active&&v.session.mode==='exam';
             recordMastery('challenge',spec,result.correct,exam); sessionRecordAttempt('challenge',spec,result.correct,(0,common_1.fmt)(guess,4)+' '+spec.unit,(0,common_1.fmt)(result.expected,4)+' '+spec.unit);
             if (exam) { v.challengeFeedback={kind:'exam',text:'Answer recorded. BeamLab will show the mark and reference value after the session.'}; render(); return; }
-            if (result.correct) { challengeProgress[spec.id] = true; saveChallengeProgress(); v.challengeFeedback = {kind:'pass',text:'Correct. ' + (0, common_1.fmt)(result.expected,4) + ' ' + spec.unit + ' is within the accepted tolerance (1% or 0.02 units, whichever is larger).'}; }
+            if (result.correct) { v.practiceStep = 4; challengeProgress[spec.id] = true; saveChallengeProgress(); v.challengeFeedback = {kind:'pass',text:'Correct. ' + (0, common_1.fmt)(result.expected,4) + ' ' + spec.unit + ' is within the accepted tolerance (1% or 0.02 units, whichever is larger).'}; }
             else v.challengeFeedback = {kind:'fail',text:'Not quite. Your answer is ' + (0, common_1.fmt)(result.error,4) + ' ' + spec.unit + ' away. Check the free-body diagram and sign/magnitude, then try again.'};
             render();
         } catch(e) { toast(e instanceof Error ? e.message : 'Could not check this answer.'); }
         return;
     }
-    if (name === 'challenge-reveal') { const spec=currentChallenge(); if(v.session?.active&&v.session.mode==='exam'){toast('Solutions stay hidden until the exam session is submitted.');return;} if(spec&&analysis){ const expected=(0,challenges_1.answerFor)(spec,analysis), expectedText=(0,common_1.fmt)(expected,4)+' '+spec.unit; recordReveal('challenge',spec); sessionRecordReveal('challenge',spec,expectedText); v.challengeFeedback={kind:'reveal',text:'Reference answer: '+expectedText+'. Revealing an answer does not mark the challenge complete.'}; render(); } return; }
+    if (name === 'challenge-reveal') { const spec=currentChallenge(); if(v.session?.active&&v.session.mode==='exam'){toast('Solutions stay hidden until the exam session is submitted.');return;} if(spec&&analysis){ const expected=(0,challenges_1.answerFor)(spec,analysis), expectedText=(0,common_1.fmt)(expected,4)+' '+spec.unit; v.practiceStep = 4; recordReveal('challenge',spec); sessionRecordReveal('challenge',spec,expectedText); v.challengeFeedback={kind:'reveal',text:'Reference answer: '+expectedText+'. Revealing an answer does not mark the challenge complete.'}; render(); } return; }
     if (name === 'challenge-next') { if(v.session?.active){sessionAdvance();return;} const list=(0,challenges_1.listChallenges)(v.level); const next=list.find(c=>!challengeProgress[c.id])||list[0]; if(next) startChallenge(next.id); return; }
-    if (name === 'practice-next') { v.practice = true; v.practiceStep = (0, common_1.clamp)((v.practiceStep || 0) + 1, 0, 4); render(); save(); return; }
-    if (name === 'practice-reset') { v.practice = true; v.practiceStep = 0; render(); save(); return; }
+    if (name === 'activity-reveal-all') {
+        if (!activity.isLearning(v) || visibility().exam || !questionIsCurrent()) return;
+        const lesson = currentLesson(), challenge = currentChallenge(), spec = lesson || challenge;
+        // Revealing extra response layers after a completed question is a view
+        // action, not another failed/revealed attempt in learning evidence.
+        if (spec && analysis && !v.session?.currentLocked) { const kind = lesson ? 'lesson' : 'challenge'; recordReveal(kind, spec); sessionRecordReveal(kind, spec, lesson ? sessionExpectedLabel(spec, (0,challenges_1.predictionFor)(spec,analysis,history.model)) : String((0,challenges_1.answerFor)(spec,analysis))); }
+        v.practice = true; v.practiceStep = 4; render(); return;
+    }
+    if (name === 'practice-next') { if (!activity.isLearning(v) || visibility().exam) return; v.practice = true; v.practiceStep = (0, common_1.clamp)((v.practiceStep || 0) + 1, 0, 4); render(); save(); return; }
+    if (name === 'practice-reset') { if (!activity.isLearning(v) || visibility().exam) return; v.practice = true; v.practiceStep = 0; render(); save(); return; }
     if (name === 'export-audit') {
         try { lastAudit = verification.audit(history.model, analysis); export_1.download(JSON.stringify(lastAudit,null,2), 'beamlab-verification-'+lastAudit.reference+'.json','application/json'); }
         catch(e) { toast('Verification not exported: '+e.message); }
@@ -1731,8 +1805,8 @@ async function action(key, el) {
     if (name === 'level-next') { setLearningMode(nextLevelForSelection()); return; }
     if (name === 'level-example') { loadExample((0, levels_1.recommendedExample)(v.level)); return; }
     if (name === 'tab') {
-        if ((v.session?.active || v.session?.review) && id !== 'learn') { toast('Finish or close the learning session before leaving Learn.'); return; }
-        if (!(0, levels_1.allowedTabs)(v.level).includes(id)) return;
+        if (activity.modelLocked(v) && id !== 'learn') { requestSessionExit(id === 'layers' ? 'analyse' : 'build'); return; }
+        if (!(0, levels_1.allowedTabs)(activity.toolLevel(v)).includes(id)) return;
         if (id !== 'learn') endStandaloneLearning();
         v.tab = id;
         render();
@@ -1740,8 +1814,9 @@ async function action(key, el) {
     }
     if (name === 'toggle') {
         if (v.session?.active && v.session.mode === 'exam' && ['teaching','practice'].includes(id)) { toast('Hints and progressive reveal stay locked during Exam mode.'); return; }
+        if (id === 'practice' && !activity.isLearning(v)) return;
         if (id === 'annotations') { v.annotationMode = v.annotationMode === 'clean' ? 'detailed' : 'clean'; v.annotations = v.annotationMode !== 'clean'; render(); save(); return; }
-        if (!['annotations', 'teachMe'].includes(id) && !(0, levels_1.canUseFeature)(v.level, id)) {
+        if (!['annotations', 'teachMe'].includes(id) && !(0, levels_1.canUseFeature)(activity.toolLevel(v), id)) {
             toast(`${id.replace(/_/g, ' ')} is available at a higher learning level.`);
             return;
         }
@@ -1765,11 +1840,13 @@ async function action(key, el) {
         return;
     }
     if (name === 'controls' || name === 'inspector') {
-        v[name] = !v[name];
+        if (name === 'controls' && v.inspector && v.selected.size) { v.inspector = false; v.controls = true; }
+        else v[name] = !v[name];
         render();
         return;
     }
     if (name === 'undo' || name === 'undo-dialog') {
+        if (blockModelEdit()) return;
         inlineId = null;
         $('#inline-edit').innerHTML = '';
         history.undo();
@@ -1783,6 +1860,7 @@ async function action(key, el) {
         return;
     }
     if (name === 'redo') {
+        if (blockModelEdit()) return;
         inlineId = null;
         $('#inline-edit').innerHTML = '';
         history.redo();
@@ -1926,7 +2004,7 @@ async function action(key, el) {
     if (name === 'section-region-add') { openSectionRegionDialog(); return; }
     if (name === 'section-region-edit') { openSectionRegionDialog(id); return; }
     if (name === 'section-region-remove') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'steppedSections')) return;
         const m = (0, study_1.clone)(history.model);
         const before = m.sectionRegions?.length || 0;
         m.sectionRegions = (m.sectionRegions || []).filter(r => r.id !== id);
@@ -1935,7 +2013,7 @@ async function action(key, el) {
         return;
     }
     if (name === 'section-region-save') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'steppedSections')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'steppedSections')) return;
         const label = $('#section-region-label')?.value.trim() || '';
         const x = Number($('#section-region-start')?.value);
         const end = Number($('#section-region-end')?.value);
@@ -1974,7 +2052,7 @@ async function action(key, el) {
     if (name === 'stiffness-add') { openStiffnessDialog(); return; }
     if (name === 'stiffness-edit') { openStiffnessDialog(id); return; }
     if (name === 'stiffness-remove') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'varyingEI')) return;
         const m = (0, study_1.clone)(history.model);
         const before = m.stiffnessRegions?.length || 0;
         m.stiffnessRegions = (m.stiffnessRegions || []).filter(r => r.id !== id);
@@ -1983,7 +2061,7 @@ async function action(key, el) {
         return;
     }
     if (name === 'stiffness-save') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'varyingEI')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'varyingEI')) return;
         const label = $('#stiffness-label')?.value.trim() || '';
         const x = Number($('#stiffness-start')?.value);
         const end = Number($('#stiffness-end')?.value);
@@ -2009,7 +2087,7 @@ async function action(key, el) {
         return;
     }
     if (name === 'selfweight') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'selfweight')) { toast('Self-weight editing appears from 3rd+ Year mode.'); return; }
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'selfweight')) { toast('Self-weight editing appears from 3rd+ Year mode.'); return; }
         commit({ ...history.model, selfWeight: !history.model.selfWeight }, 'Toggle self-weight');
         return;
     }
@@ -2020,7 +2098,7 @@ async function action(key, el) {
         commit(m, 'Detach catalogue section');
         return;
     }
-    if (['case-toggle', 'case-remove', 'save-combination', 'confirm-combination', 'combination', 'delete-combination'].includes(name) && !(0, levels_1.canUseFeature)(v.level, 'cases')) {
+    if (['case-toggle', 'case-remove', 'save-combination', 'confirm-combination', 'combination', 'delete-combination'].includes(name) && !(0, levels_1.canUseFeature)(activity.toolLevel(v), 'cases')) {
         toast('Load cases and combinations appear from 3rd+ Year mode.');
         return;
     }
@@ -2114,12 +2192,12 @@ function selectChanged(select) {
         v.annotationMode = value; v.annotations = value !== 'clean'; render(); save(); return;
     }
     if (key === 'currentCase') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'cases')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'cases')) return;
         v.currentCase = value;
         return;
     }
     if (key === 'addCase') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'cases')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'cases')) return;
         if (m.cases.length >= 12) {
             toast('12 load cases is the limit.');
             return;
@@ -2133,7 +2211,7 @@ function selectChanged(select) {
         return;
     }
     if (key === 'catalogue') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'catalogue')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'catalogue')) return;
         if (value)
             m.section = (0, catalogue_1.fromCatalogue)(value);
         else {
@@ -2160,7 +2238,7 @@ function selectChanged(select) {
         return;
     }
     if (key.startsWith('itemCase:')) {
-        if (!(0, levels_1.canUseFeature)(v.level, 'cases')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'cases')) return;
         const i = m.items.find(i => i.id === key.slice(9));
         if (i && !i.locked)
             i.caseId = value;
@@ -2168,7 +2246,7 @@ function selectChanged(select) {
         return;
     }
     if (key === 'selfWeightCase') {
-        if (!(0, levels_1.canUseFeature)(v.level, 'selfweight')) return;
+        if (!(0, levels_1.canUseFeature)(activity.toolLevel(v), 'selfweight')) return;
         m.selfWeightCase = value;
         commit(m, 'Assign self-weight case');
         return;
@@ -2205,6 +2283,7 @@ function pointerDown(e) {
         return;
     const el = e.target, tool = el.closest('[data-tool]');
     if (tool) {
+        if (blockModelEdit()) return;
         finishField();
         palette = { kind: tool.dataset.tool, x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId };
         e.preventDefault();
@@ -2214,11 +2293,13 @@ function pointerDown(e) {
     const svg = el.closest('svg[data-model]');
     if (!svg)
         return;
+    if (blockModelEdit()) return;
     finishField();
+    const inline = el.closest('[data-inline]');
     const target = el.closest('[data-object]'), id = target?.dataset.object;
     const o = history.model.items.find(i => i.id === id);
     if (o) {
-        if (!(0, levels_1.canEditItem)(v.level, o)) {
+        if (!(0, levels_1.canEditItem)(activity.toolLevel(v), o)) {
             v.selected = new Set([o.id]);
             v.inspector = true;
             render();
@@ -2236,7 +2317,7 @@ function pointerDown(e) {
         // The first press of a label must leave it available for the second tap.
         // A mobile inspector opened here covers the target before pointerUp can
         // recognise the double tap. Object bodies still open the full inspector.
-        v.inspector = !!o.locked || !el.closest('[data-inline]');
+        v.inspector = !!o.locked || !inline;
         if (o.locked) {
             render();
             toast('Object locked. Use Unlock in the Inspector.');
@@ -2248,9 +2329,7 @@ function pointerDown(e) {
         drag = { kind: 'object', base: (0, study_1.clone)(history.model), ids: [...v.selected], item: (0, study_1.clone)(o), part, startX: eventX(e.clientX, rect), startY: e.clientY, clientX: e.clientX, clientY: e.clientY, rect, moved: false, pointer: e.pointerId };
         renderStage();
         $('#inspector').innerHTML = (0, panels_1.inspectorPanel)(history.model, analysis, v);
-        $('#inspector').hidden = !v.inspector;
-        $('#inspector').classList.add('has-selection');
-        $('#workspace-grid').classList.toggle('inspector-hidden', !v.inspector);
+        // Open the reserved editor after pointerUp; its reflow must not alter drag coordinates.
     }
     else {
         drag = { kind: 'marquee', base: (0, study_1.clone)(history.model), ids: e.shiftKey ? [...v.selected] : [], part: '', startX: 0, startY: 0, clientX: e.clientX, clientY: e.clientY, rect: svg.getBoundingClientRect(), moved: false, pointer: e.pointerId };
@@ -2318,6 +2397,10 @@ function pointerMove(e) {
     const el = e.target, svg = el.closest('#graphs svg[data-chart],#graphs svg[data-model]');
     if (!svg)
         return;
+    // A label is an editing target. Updating the hover readout can change its
+    // wrapping/height and move the label away before the first or second press.
+    // Dragging still updates the trace above; plots and the beam remain inspectable.
+    if (el.closest('[data-inline]')) return;
     let x = eventX(e.clientX, svg.getBoundingClientRect());
     const dist = history.model.length / v.zoom * 7 / svg.getBoundingClientRect().width;
     const closest = history.model.items.flatMap(i => i.end !== undefined ? [i.x, i.end] : [i.x]).sort((a, b) => Math.abs(a - x) - Math.abs(b - x))[0];
@@ -2364,7 +2447,7 @@ function pointerUp(e, cancel = false) {
     const next = history.model;
     history.model = d.base;
     layout = undefined;
-    if (!cancel && d.moved) {
+    if (!cancel && d.moved && !activity.modelLocked(v)) {
         levelStarterActive = false;
         history.commit(next, d.part === 'w0' || d.part === 'w1' ? 'Change variable-load intensity' : 'Drag ' + (d.ids.length > 1 ? 'selection' : d.item.label));
     }
@@ -2381,11 +2464,12 @@ function pointerUp(e, cancel = false) {
     }
 }
 function inlineEdit(id, e) {
+    if (blockModelEdit()) return;
     finishField();
     const i = history.model.items.find(i => i.id === id);
     if (!i)
         return;
-    if (!(0, levels_1.canEditItem)(v.level, i)) {
+    if (!(0, levels_1.canEditItem)(activity.toolLevel(v), i)) {
         toast(`Move to a higher learning level to edit ${i.label}.`);
         return;
     }
@@ -2419,6 +2503,7 @@ const demoSteps = [
     ['Look inside the section.', 'A rectangular section shows a parabolic transverse-shear profile. Move across the beam to connect changing shear force to the stresses through its depth. No new capacity claim is implied.']
 ];
 function startDemo() {
+    if (blockModelEdit()) return;
     endStandaloneLearning();
     finishField();
     if (!demoSession) demoSession = {
@@ -2515,6 +2600,7 @@ function playSweep() {
     sweepFrame=requestAnimationFrame(frame);
 }
 function auditDialog() {
+    if (!visibility().complete) { toast(activity.restrictionMessage(v)); return; }
     if(!analysis){toast('Complete a valid model before checking it.');return;}
     try {
         lastAudit=verification.audit(history.model,analysis);

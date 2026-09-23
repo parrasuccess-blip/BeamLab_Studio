@@ -337,3 +337,60 @@ The remaining work is implementation after user review, with fresh refs and a de
 The user supplied Account B's recovery report while Account A's final plan was being saved. Refreshed PR #20: Account B checkpoint 99b199f is newer than e82d59a; it contains the recovery record but not a published final plan. Preserved that checkpoint and both accounts' history. The completed plan and screenshots are being published as a descendant of the observed Account B head, using a non-forced ref update.
 
 Added Account B's further live finding: Undo can replace the question model during an active exam. Account A confirmed the source path: undo/undo-dialog/redo mutate history directly without the session guard used by commit(). This new live reproduction is attributed to Account B; it was not repeated in Account A's browser after the report. The repair plan now includes a central model-mutation policy, immutable question identity, and toolbar/keyboard/history/pending-edit coverage. Keep application code and production unchanged until the user reviews the completed plan.
+
+
+## 2026-09-23 — Account A — Start approved engineering/learning repair
+
+STATUS: implementation starting / baseline validation running. User explicitly approved proceeding with the completed plan. Refreshed GitHub: main 3498b5c, only open PR #20 at 45322e7. Exact-head audit CI 35764732666 is successful. Merged approved documentation PR #20 as d4c0479399e6e50582e7ed682c35912ac45f83dc; no application changes. Created dedicated feature/unrestricted-engineering-learning-safety from that new main and a clean local worktree.
+
+Objective: implement the first correctness/state increment, plus the confirmed selected-inspector obstruction; preserve one deterministic solver, all numerical tolerances, edited model/history restoration, direct-label/mobile and Firefox focus fixes. Establish a fresh baseline, add behaviour/explanation regressions, checkpoint before the full browser run, inspect desktop/mobile evidence and actual preview, then merge only validated work and verify public artifact/version. Broader navigation, learning layout and full mathematical presentation follow the approved plan in later increments.
+
+### 2026-09-23 — Account A, first repair implementation checkpoint
+
+- Draft PR #21 saved before implementation; fresh baseline passed 1,272 checks.
+- Implemented activity policy, effective tool level, legacy practice migration, output restrictions, session mutation guards/navigation exit, question fingerprints and changed-standalone notice. Preserved solver/grading/model schemas/tolerances and original model restoration.
+- Shared deterministic explanation fixes coincident actions and self-weight. Inspector occupies reserved space; label editor remains compact and mutually exclusive.
+- Added production-bundle policy/reference tests and four end-to-end browser journeys. Validation pending at this checkpoint; no merge or production release authorized by passing evidence yet.
+
+### 2026-09-23 — Account B — Recover PR #21 validation and unfinished follow-up
+
+- Refreshed all remote refs after the user supplied Account A's implementation progress. Audit PR #20 is now merged at `d4c0479399e6e50582e7ed682c35912ac45f83dc`; draft PR #21 is the active work. Created a clean worktree from feature head `7cac76b9c570e2b4501af08ba9ff4d11cf6e6a68`. Older local audit notes remain isolated and must not overwrite the approved plan.
+- Inspected the activity policy, shared explanation module, application transition/mutation/output changes, reserved inspector, and new tests. Exact-head PR run `35796548498` has a successful numerical job and **127/128 browser checks passing**. Job `106977095224` fails only the small-mobile Chromium Undo hit-target assertion while the selected-object editor is open.
+- The supplied narrative describes subsequent invalid-lesson-edit/session refinements and 4.1.3 identity preparation; no such later commit is currently on GitHub. Current committed version remains 4.1.2. Recover intended behaviour from current code and add/retain concrete regressions instead of assuming the missing edits shipped.
+- Takeover checkpoint precedes fresh local validation and further repairs. No merge or production claim. Vercel commit status reports successful preview; the deployment metadata connector returns not found, so actual artifact/browser evidence remains necessary. Browser artifact download was requested but its returned file URL responds 403 in this environment; this is a retrieval limitation, not an application failure.
+
+### Account B — restore unpushed edge-case intentions
+
+- Takeover pushed as `57b5eac`. Fresh installation and build/Node tests pass **1,294/1,294**, zero failed/skipped.
+- Source confirms invalid numerical previews can discard the standalone question before rollback. Delay question invalidation while a numeric or drag transaction is pending; a committed changed reference still receives the explicit exploration/restart notice. Preserve deferred Tab, rollback, storage and origin rules.
+- The new Reveal remaining responses action previously added reveal evidence even after the question was correctly completed or already revealed. Keep the existing locked result/evidence when opening extra diagram layers. Removed a duplicate no-op standalone cleanup call in presentation entry.
+- Added browser coverage for invalid-preview rollback, valid temporary exploration/restart/original restoration, completed-question evidence stability, and advanced layers after returning from Learn. Kept the mobile hit-target assertion unchanged in meaning and added target/geometry diagnostics plus capture before assertion. Browser validation is pending at this source checkpoint.
+- The supported browser reaches a Vercel access-required page for the preview; the connected account lacks this team's deployment access. The authorized Vercel share-link tool also reports no access. No protection settings were changed. Continue code/CI work, but rendered candidate review remains a release gate.
+
+
+### 2026-09-23 — Account A — Resume Account B’s latest repair checkpoint
+
+Starting head cd572dc, PR #21; main d4c0479. Created a clean worktree and retained B’s rollback/evidence changes. Fresh npm ci and npm test pass 1,294 checks. Exact-head PR CI 35804104092 finishes 130/136 browser checks; six failures described in HANDOFF. Current implementation is not release-ready. The mobile obstruction has a concrete legacy CSS specificity cause. Investigating the Firefox label edit before changing its regression. Older unpushed version/edge refinements are preserved separately and will be reconciled selectively, not copied wholesale. Hosted preview access works in Account A’s browser. No production change or merge.
+
+
+### Account A — repair checkpoint before full browser validation
+
+Starting recovery record 266d973. Fresh local build/numerical suite passes 1,294. Fixed the legacy fixed-inspector CSS override; precise button selection in B’s new completed-evidence test; remaining stale activity notices, route preservation, comparison masking and missing-fingerprint checks. Kept B’s rollback/evidence repairs and all numerical expectations. Firefox double-tap failure is still under investigation; pointer-event diagnostics are added without removing its assertion. Editor viewport evidence is logged in CI as well as stored as artifacts because artifact download delivery currently returns 403. Full 136-check browser execution follows this coherent source checkpoint. No merge or production change.
+
+
+### Account A — 4.1.3 release identity checkpoint
+
+Functional repair cf59e7c saved before full CI. Prepared 4.1.3 package/build/audit/tutor identity and matching identity-only assertions; added release notes and README scope. Numerical build/tests pass 1,294. Added regression for keeping Learn selected when changing level during a temporary activity. Hosted current preview confirms that route, invalid rollback, Next/Previous notice cleanup, original 8 m restoration and protected exam exit. Public download independently remains 4.1.2, same 735,456-byte hash as the released baseline. Final candidate CI and phone visual review remain required before merging.
+
+
+### 2026-09-23 — Account B — Recover 4.1.3 preparation and finish Firefox label targeting
+
+Starting `c2374b4`, main `d4c0479`, draft PR #21. Fetched and reviewed Account A’s three commits since B’s `cd572dc`, including actual source/test diffs. Kept all recovery and release identity changes. Latest exact-head CI is 1,294 numerical checks and 135/136 browser checks; the sole failure is the unchanged real Firefox double-click path. Its event log shows a first press on the underlying object rect, followed by a moved second target. Added visible-label hit resolution before opening the reserved inspector and retained/strengthened the real interaction regression. Restored supported CI artifact delivery via file materialization, inspected the failing screenshot, and removed redundant base64 log output while preserving artifact screenshots. Implementation checkpoint precedes full validation. Production has not been changed.
+
+Account B validation refinement: scroll the label into view before recording its viewport bounds. This distinguishes a real inspector-induced movement from Playwright’s expected initial auto-scroll on phones; the real double-click and less-than-one-pixel stability assertions are unchanged. Fresh installation/build/numerical tests on implementation 1536123 pass 1,294 with zero failures/skips.
+
+
+Account B root-cause refinement: implementation 1536123’s stronger bounds assertion reports an 18px Firefox label shift, while its other journeys pass. Phone measurement failures came from initial auto-scroll and were fixed by measuring after scrolling (`a7c51a5`). Source shows pointerMove replacing the wrapped hover prompt with a shorter readout above the diagrams. That moves the label before pointerdown, explaining why the event targeted its underlying object rect. Replaced the inadequate pointerdown geometry fallback with stable readout behaviour while hovering an editable label. Drag/plot/beam inspection is unchanged. Retained the actual double-click and stability checks; new CI follows this checkpoint. No release claimed.
+
+
+Account B validation of `3ca8691`: local 1,294 checks pass; exact-head CI 35859656037 reports 135/136 browser passes. Firefox’s full invalid-edit journey is repaired; WebKit’s compact input is present in the failure screenshot, but the new whole-interaction geometry measurement includes 11px of movement. Changed that additional assertion to compare label bounds at the two actual pointerdown events, require the same object and inline value on both, and retain the <1px bound and complete functional journey. This directly tests the original target-loss fault instead of measuring unrelated pre-click hover/editor-focus layout. No application change. CI release artifact 10750015323 matches all three local dist files exactly (746,563-byte HTML, d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533). Production remains unmerged.
