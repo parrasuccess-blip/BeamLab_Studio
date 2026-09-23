@@ -1,4 +1,12 @@
-## Account A implementation checkpoint — 2026-09-23
+## Active recovery — Account B, 2026-09-23
+
+**STATUS: PR #21 implementation recovered / one browser failure / not release-ready.** Starting main `d4c0479399e6e50582e7ed682c35912ac45f83dc`; feature `feature/unrestricted-engineering-learning-safety` at `7cac76b9c570e2b4501af08ba9ff4d11cf6e6a68`. Account A's approved audit PR #20 is merged. Continue this implementation, not the older local audit or annotation worktrees.
+
+Exact-head PR CI `35796548498`: numerical job passed; browser job `106977095224` has **127 passed / 1 failed out of 128**. The small-mobile Chromium selected-object-editor journey fails the real hit-target assertion for Undo. Do not remove it or force clicks. Account A's supplied narrative describes later session/invalid-edit fixes and 4.1.3 preparation, but these are not in the fetched branch. Recover those intentions against actual code before release. Committed package version is still 4.1.2; production has not been updated by this PR.
+
+Next: establish fresh local baseline, diagnose the mobile obstruction, inspect the missing transition/invalid-edit repairs, checkpoint coherent changes, run all four browser projects, inspect rendered evidence, and verify the actual public artifact only after a validated merge. Preserve the new activity/explanation policies and all 4.1.2 model/history/pointer repairs. Broader layout/notation work remains separate.
+
+## Account A implementation checkpoint — 2026-09-23 (historical)
 
 Draft PR #21: `feature/unrestricted-engineering-learning-safety`. Baseline installation, build and **1,272/1,272** tests passed before application changes.
 
