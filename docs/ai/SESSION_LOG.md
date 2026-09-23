@@ -371,3 +371,8 @@ Objective: implement the first correctness/state increment, plus the confirmed s
 ### 2026-09-23 — Account A — Resume Account B’s latest repair checkpoint
 
 Starting head cd572dc, PR #21; main d4c0479. Created a clean worktree and retained B’s rollback/evidence changes. Fresh npm ci and npm test pass 1,294 checks. Exact-head PR CI 35804104092 finishes 130/136 browser checks; six failures described in HANDOFF. Current implementation is not release-ready. The mobile obstruction has a concrete legacy CSS specificity cause. Investigating the Firefox label edit before changing its regression. Older unpushed version/edge refinements are preserved separately and will be reconciled selectively, not copied wholesale. Hosted preview access works in Account A’s browser. No production change or merge.
+
+
+### Account A — repair checkpoint before full browser validation
+
+Starting recovery record 266d973. Fresh local build/numerical suite passes 1,294. Fixed the legacy fixed-inspector CSS override; precise button selection in B’s new completed-evidence test; remaining stale activity notices, route preservation, comparison masking and missing-fingerprint checks. Kept B’s rollback/evidence repairs and all numerical expectations. Firefox double-tap failure is still under investigation; pointer-event diagnostics are added without removing its assertion. Editor viewport evidence is logged in CI as well as stored as artifacts because artifact download delivery currently returns 403. Full 136-check browser execution follows this coherent source checkpoint. No merge or production change.

@@ -17,7 +17,8 @@ function resultVisibility(view) {
 function questionMatches(view, fingerprint) {
     const expected = view.session?.active ? view.session.questionReference
         : view.lessonId ? view.lessonModelReference : view.challengeId ? view.challengeModelReference : null;
-    return !expected || expected === fingerprint;
+    const fixedQuestion = !!(view.session?.active || view.lessonId || view.challengeId);
+    return fixedQuestion ? !!expected && expected === fingerprint : true;
 }
 function resultActionBlocked(view, name, id) {
     if (resultVisibility(view).complete) return false;

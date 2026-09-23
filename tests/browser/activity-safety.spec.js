@@ -48,7 +48,12 @@ test('prediction masks all answer surfaces until an explicit reveal',async({page
   await act(page,'export-menu').click();await act(page,'export:csv').click();
   await expect(page.locator('#toast')).toContainText('hidden results');
   await act(page,'export-menu').click();
-  for(let i=0;i<4;i++)await act(page,'practice-next').click();
+  for(let i=0;i<4;i++) {
+    await act(page,'practice-next').click();
+    await page.getByLabel('Inspection position in metres',{exact:true}).fill('2');
+    await page.getByLabel('Inspection position in metres',{exact:true}).press('Enter');
+    if(i<3)await expect(page.locator('#trace-readout em')).toHaveCount(0);
+  }
   await expect(page.locator('#metrics')).toContainText('40.00 kN·m');
   await expect(act(page,'working')).toBeEnabled();
   await expect(page.locator('#teaching')).toContainText('SHOW WHY');
@@ -88,9 +93,12 @@ test('selected-object editor leaves Undo physically reachable and only one edito
   await page.locator('#controls').getByRole('button',{name:'Select P1',exact:true}).click();
   await expect(page.locator('#controls')).toBeHidden();await expect(page.locator('#inspector')).toBeVisible();
   await page.getByLabel('Force',{exact:true}).fill('27');await page.getByLabel('Force',{exact:true}).press('Enter');
+  await expect(page.locator('#inspector')).toHaveCSS('position', /static|sticky/);
   await act(page,'undo').scrollIntoViewIfNeeded();
   const hit=await act(page,'undo').evaluate(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return {receivesClick:button.contains(top),button:{x:b.x,y:b.y,width:b.width,height:b.height},cover:top?.outerHTML.slice(0,300),viewport:{width:innerWidth,height:innerHeight}};});
   await page.screenshot({path:info.outputPath('reserved-object-editor.png'),fullPage:true});
+  const viewport=await page.screenshot({path:info.outputPath('editor-viewport.png')});
+  if(process.env.CI)console.log('BEAMLAB_VIEWPORT '+info.project.name+' '+viewport.toString('base64'));
   expect(hit.receivesClick,JSON.stringify(hit)).toBe(true);
   await act(page,'undo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('20');
   await act(page,'redo').click();await expect(page.getByLabel('Force',{exact:true})).toHaveValue('27');
@@ -99,11 +107,18 @@ test('selected-object editor leaves Undo physically reachable and only one edito
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
 });
 
-test('invalid lesson edit preserves its question; a committed edit announces exploration and can restart',async({page})=>{
+test('invalid lesson edit preserves its question; a committed edit announces exploration and can restart',async({page},info)=>{
   await start(page);const original=await snapshot(page);
   await flow(page,'learn');await act(page,'level:year1').click();await act(page,'lesson-start:l1-point-shear').click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(page.locator('.activity-changed')).toHaveCount(0);
+  await page.getByRole('button',{name:'Previous',exact:true}).click();
+  await expect(page.locator('.activity-changed')).toHaveCount(0);
+  await page.evaluate(()=>{window.__labelEvents=[];for(const type of ['pointerdown','pointerup','dblclick'])document.addEventListener(type,e=>{const t=e.target.closest('[data-object]');window.__labelEvents.push({type,target:e.target.tagName,object:t?.dataset.object,inline:e.target.closest('[data-inline]')?.dataset.inline,x:e.clientX,y:e.clientY,scrollY,editor:!!document.querySelector('#inline-edit input')});},true);});
   const label=page.locator('#graphs [data-inline="value"]').first();
   await label.dblclick();
+  const events=await page.evaluate(()=>window.__labelEvents);
+  console.log('Lesson label pointer evidence',info.project.name,JSON.stringify(events));
   const input=page.locator('#inline-edit').getByLabel('Nominal magnitude',{exact:true});
   await input.fill('27');await input.fill('999999999999');await input.press('Enter');
   await expect(page.locator('.activity-navigation')).toBeVisible();
@@ -123,7 +138,7 @@ test('invalid lesson edit preserves its question; a committed edit announces exp
 
 test('revealing extra response layers after a correct study question does not change learning evidence',async({page})=>{
   await start(page);await flow(page,'learn');await act(page,'level:year1').click();
-  await act(page,'learn-section:session').click();await act(page,'session-start:plan').click();
+  await act(page,'learn-section:session').click();await page.getByRole('button',{name:'Start guided study block',exact:true}).click();
   await act(page,'lesson-choice:step-down').click();await act(page,'lesson-check').click();
   await expect(page.locator('.challenge-feedback.pass')).toContainText('Correct');
   const before=await page.evaluate(()=>({mastery:localStorage.getItem('beamlab:studio:3.2:mastery'),events:localStorage.getItem('beamlab:studio:3.2:learning-evidence')}));

@@ -52,6 +52,8 @@ test('checking identity follows the current question and fails closed on a chang
         assert.equal(policy.questionMatches(v, 'given'), true);
         assert.equal(policy.questionMatches(v, 'changed'), false);
     }
+    for (const v of [{session:{active:true}}, {lessonId:'one'}, {challengeId:'one'}]) assert.equal(policy.questionMatches(v,'given'),false);
+    assert.equal(policy.questionMatches({},'given'),true);
     assert.equal(policy.resultVisibility({tab:'learn',activityMismatch:true,practiceStep:4}).step,0);
 });
 test('first-year preference keeps full Build section and load-case controls', () => {

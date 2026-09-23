@@ -297,7 +297,9 @@ function setLearningMode(id, fromSetup = false) {
     if (v.session?.active || v.session?.review) { toast('Finish or close the learning session before changing level.'); return; }
     if (!levels_1.modes[id]) return;
     finishField();
+    const destination = workspace.phaseFor(v);
     endStandaloneLearning();
+    Object.assign(v, workspace.transition(v, destination));
     const previous = v.level;
     v.level = id;
     v.advanced = false;
@@ -556,6 +558,7 @@ function startChallenge(id) {
     loadExample(spec.example);
     v.challengeId = spec.id;
     v.challengeModelReference = verification.fingerprint(history.model);
+    v.changedActivity = null;
     v.challengeFeedback = null;
     v.taskAttempted = false; v.taskMasteryLocked = false;
     v.practice = true;
@@ -581,6 +584,7 @@ function startLesson(id) {
     v.taskAttempted = false; v.taskMasteryLocked = false;
     v.lessonMethod = 'choice'; v.lessonSketch = []; v.lessonSketchResult = null; v.lessonSketchReference = false; v.lessonSketchReferencePoints = [];
     v.lessonModelReference = verification.fingerprint(history.model);
+    v.changedActivity = null;
     if (spec.target === 'v' && (0, levels_1.canUseFeature)(activity.toolLevel(v), 'deformation')) v.deformation = true;
     v.practice = true;
     v.practiceStep = Math.max(0, (spec.revealStep || 2) - 1);
@@ -603,6 +607,7 @@ function endStandaloneLearning() {
     v.standaloneLearning = false; v.changedActivity = null; v.activityMismatch = false;
     applySessionOrigin(origin);
     Object.assign(v, preferences);
+    v.changedActivity = null;
     v.lessonId = null; v.challengeId = null; v.lessonFeedback = null; v.challengeFeedback = null;
     v.lessonModelReference = null; v.challengeModelReference = null;
     v.lessonChoice = null; v.lessonSketch = []; v.lessonSketchResult = null;
@@ -1108,7 +1113,7 @@ function tutorPromptText(key) {
     return prompts[key] || '';
 }
 function renderTutorDialog() {
-    if (!visibility().complete) return;
+    if (!visibility().complete || $('#dialog-title')?.textContent !== 'Ask BeamLab' || !$('#dialog')?.classList.contains('open')) return;
     const content = $('#dialog-content');
     if (!content) return;
     const ctx = analysis ? tutorContext(aiTutor.mode) : null;
@@ -1212,7 +1217,7 @@ function updateTrace() {
     const {masked:practice, step:pstep} = visibility();
     if (x !== null) { const slider=$('[data-range=trace]'), number=$('[data-trace-number]'); if(slider && slider!==document.activeElement) slider.value=String(x); if(number && number!==document.activeElement) number.value=String(Math.round(x*10000)/10000); }
     $('#trace-readout').innerHTML = x === null ? `<span>${(0, common_1.icon)('help', 12)} Hover a diagram. Click to pin.</span><small>${practice ? 'Practice mode hides unrevealed responses. ' : ''}Reactions up + / loads down + / sagging moment +</small>` : (() => {
-        const r = a?.sample(x), l = a?.sample(x, 'left'), cr = comparison?.sample(x), cl = comparison?.sample(x, 'left');
+        const r = a?.sample(x), l = a?.sample(x, 'left'), cr = visibility().complete ? comparison?.sample(x) : null, cl = visibility().complete ? comparison?.sample(x, 'left') : null;
         const pair = (k, units, stage) => {
             if (practice && pstep < stage) return `${k} hidden / predict first`;
             if (!r || !l) return '--';
@@ -1435,7 +1440,7 @@ function share() {
     const code = (0, export_1.snapshotCode)(history.model), url = publicOrigin ? location.href.split('#')[0] + '#model=' + code : code;
     openDialog('Share a model snapshot', `<p>${publicOrigin ? 'Anyone with this link can read the complete model snapshot. No account is needed.' : 'This is the downloadable edition. Share the snapshot code with someone using this same HTML build. Public links require hosting this build first.'}</p><p class="hint">The snapshot is encoded, not encrypted. Avoid including confidential project information.</p><textarea id="share-code" aria-label="Model snapshot code" readonly>${(0, common_1.esc)(url)}</textarea>${(0, common_1.button)('copy-share', 'Copy snapshot', 'primary')}<div class="divider"></div><h3>Open a shared snapshot</h3><textarea id="paste-snapshot" aria-label="Paste model snapshot" placeholder="Paste a BLSTUDIO3: code or a compatible model link"></textarea>${(0, common_1.button)('open-snapshot', 'Open snapshot', 'secondary')}`);
 }
-function openHistory() { openDialog('Edit history', `<p>Up to 80 edits are kept in this session. Dragging a group counts as one edit. Reload keeps the model, not its history.</p><div class="history-list">${history.past.slice().reverse().map((e, i) => `<div><span>${history.past.length - i}</span><b>${(0, common_1.esc)(e.label)}</b></div>`).join('') || '<p>No edits yet.</p>'}</div>${(0, common_1.button)('undo-dialog', 'Undo latest', 'secondary', !history.past.length)}`); }
+function openHistory() { openDialog('Edit history', `<p>Up to 80 edits are kept in this session. Dragging a group counts as one edit. Reload keeps the model, not its history.</p><div class="history-list">${history.past.slice().reverse().map((e, i) => `<div><span>${history.past.length - i}</span><b>${(0, common_1.esc)(e.label)}</b></div>`).join('') || '<p>No edits yet.</p>'}</div>${(0, common_1.button)('undo-dialog', 'Undo latest', 'secondary', activity.modelLocked(v) || !history.past.length)}`); }
 function privacyDialog() {
     openDialog('Privacy & local data', `<h3>Your model stays on this device.</h3><p>BeamLab stores the current study, named local studies, learning evidence and review inputs in this browser. There is no account or analytics tracker in this release. Clearing this browser's site data removes these local copies.</p><h3>When data leaves your browser</h3><p>Exports are files you choose to save. Shared model links contain an encoded, readable snapshot; anyone with the link can open it. If you choose the optional online tutor, your question, recent conversation and structured model/learning context are sent to the hosting endpoint and its configured AI provider. The tutor never runs automatically and is disabled in exams.</p><p>Model calculations, Show Why and practice work without the online tutor. Export a JSON copy before changing devices. Only include information you intend to share in a snapshot or public issue.</p>`);
 }

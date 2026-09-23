@@ -1,3 +1,9 @@
+## Recovery repair checkpoint — Account A, 2026-09-23
+
+**STATUS: mobile CSS and lifecycle repairs implemented / 1,294 local checks pass / browser validation next.** Removed the obsolete higher-specificity mobile fixed-inspector rule; the reserved editor row now owns phone placement. Retained the physical Undo hit assertion and added its computed-position assertion. Corrected the new guided-plan test to select its exact visible button label. Added pointer-event diagnostics for the unresolved Firefox opening timeout; no retries or forced clicks.
+
+Reconciled source-supported missing refinements: clear stale changed-activity notices after replacement/restoration; keep the current destination when changing learning level; omit comparison trace values until every response is revealed; reject missing fixed-question fingerprints; disable history-dialog Undo while a question is locked; ignore late tutor responses when a different dialog is open. Existing rollback and completed-answer evidence fixes from Account B remain unchanged. Extended the existing browser journeys to cover Next/Previous notice cleanup and partial-reveal comparison hiding. CI retains normal artifacts and logs a viewport-only screenshot from the editor journey for review when artifact delivery is unavailable. Version preparation and final release remain pending.
+
 ## Current recovery — Account A, 2026-09-23
 
 **STATUS: repairing remaining browser failures / draft PR #21 / not released.** Active branch: `feature/unrestricted-engineering-learning-safety`. Starting head: `cd572dceaeb77cf08c3d68e732ca2233c6254d61`; main remains `d4c0479399e6e50582e7ed682c35912ac45f83dc`. Account B’s two later commits are retained. Older unpushed Account A work is isolated in a separate worktree and must not overwrite this branch.
