@@ -8,7 +8,7 @@ GitHub is the canonical implementation. Chat history is supporting context only.
 
 Production site: https://beam-lab-studio.vercel.app/
 
-Current repository version at this bootstrap: 4.1.0.
+Current verified release: **4.1.3**, released on 2026-09-23. Read HANDOFF.md for exact commits, validation evidence and the next approved increment; always fetch current refs before continuing.
 
 ## Product structure
 
@@ -122,7 +122,9 @@ At the 4.1 baseline:
 - `src/browser/` — optional online tutor client.
 - `api/tutor.js` — bounded contextual explanation endpoint; never the numerical solver.
 - `tests/legacy/` — restored historical regression suites.
-- `docs/RELEASE_4_1.md` — 4.1 implementation and validation record.
+- `docs/RELEASE_4_1.md` — original 4.1 engineering record.
+- `docs/RELEASE_4_1_3.md` — current activity-policy, editing and explanation repair release.
+- `src/studio/activity-policy.js` and `explanation.js` — shared learning restrictions and solved explanation facts.
 
 Do not assume these paths will remain unchanged forever; inspect the repository when resuming work.
 

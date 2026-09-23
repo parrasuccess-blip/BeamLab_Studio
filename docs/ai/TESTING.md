@@ -224,3 +224,14 @@ Account B subsequently reported active-exam Undo changing the question beam; Acc
 - Retain the real label double click after lesson Previous/Next. Scroll into view, then compare label bounds at the two actual pointerdown events; both must hit the same editable value and stay within 1px. Assert that only the compact editor opens. Hovering a label must not reflow the trace readout and move the click target. Plot/beam inspection and active dragging remain available.
 - Tested release artifact **10750015323**, run **35859656037**, is byte-identical to the local build: HTML **746,563 bytes**, SHA-256 **d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533**. Release/hash metadata also match. This is build evidence, not a production claim.
 - Candidate 3ca8691 browser run 35859656037 reports 135/136 passed. The remaining added WebKit geometry assertion was scoped to the two actual presses after its screenshot confirmed the compact editor opened. Final browser and deployment outcomes are recorded below after execution.
+
+
+## 4.1.3 final candidate and public release — 2026-09-23
+
+Final candidate 031b8bf passes fresh local npm ci/npm test (including build): **1,294 passed**, zero failures/skips. Exact-head PR run 35860727563 and push run 35860722167 pass; browser job 107180073729 reports **136 passed**, zero retries across all four projects. Final artifacts: release 10750615532; browser 10749619233. All three release files match local output exactly. Editor viewport images from each project and unrestricted Build were visually reviewed. Phone verification is CI emulation, not a physical-device test.
+
+PR #21 merged as d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6. Downloaded production HTML is byte-identical to the tested artifact: 746,563 bytes, SHA-256 d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533. Public release/hash metadata and 4.1.3 tutor health agree; tutor configured:false. Vercel deployment 9RXP2L4MX3eSdaUTW5kjyg2jN1S2 succeeds.
+
+Actual public upgrade from the reproduced 4.1.2 hidden 8 m study preserves that study and restores all applicable response values. Live Tab edit/Undo/Redo and lesson Next/Previous/original-model/history/comparison restoration pass. See HANDOFF for exact numerical observations and ongoing merged-main CI status. Preserve all 136 browser checks and the two-press assertion's meaning; do not restore the discarded before-hover/after-focus measurement.
+
+Merged-main CI 35862619917 also passes all 1,294 numerical/behaviour and 136 browser checks (browser job 107186347922, zero retries). Public inspector force edit and physical Undo hit check pass; screenshot in docs/qa/4.1.3/public-editor.jpg.

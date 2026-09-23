@@ -1,6 +1,6 @@
 # BeamLab Studio 4.1.3 — Unrestricted engineering and reliable learning activities
 
-Status: release candidate in PR #21. Not yet merged or verified on production.
+Status: released through PR #21 on 2026-09-23; public artifact and live upgrade verified. Released code: d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6.
 
 ## Changes
 
@@ -14,9 +14,11 @@ Status: release candidate in PR #21. Not yet merged or verified on production.
 
 ## Validation
 
-The starting released baseline passes 1,272 numerical/behaviour checks. The repair adds 22 policy/explanation checks, including independent coincident point/couple values, self-weight factoring and continuous-support behaviour. Fresh local tests pass 1,294; exact final-candidate browser/visual results will be recorded after execution. Preserve all prior numerical tolerances, mobile Undo hit-target assertions, Firefox pointer/focus checks and model-restoration journeys.
+The 4.1.2 baseline passes 1,272 numerical/behaviour checks. This repair adds 22 policy/explanation checks, including independent coincident force/couple values, self-weight factoring and continuous-support behaviour. Fresh final-candidate installation/build/tests pass **1,294**, zero failures/skips. Numerical tolerances are unchanged.
 
-Account B checkpoint cd572dc: 130/136 browser checks passed. Four failures were an ambiguous test locator, one a Firefox label-opening timeout and one the old fixed mobile inspector covering Undo. Recovery repairs and remaining validation are recorded progressively in docs/ai/HANDOFF.md and SESSION_LOG.md.
+Final candidate 031b8bf passes **136 browser checks**, zero retries, across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium. Exact PR CI: 35860727563; push CI: 35860722167. Reviewed desktop/mobile editor and unrestricted Build screenshots. Both actual pointer presses must hit the same stationary editable label; complete edit/rollback/restoration tests remain.
+
+Downloaded public HTML matches the tested artifact byte-for-byte: **746,563 bytes**, SHA-256 **d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533**. Release/hash metadata agree. Reloading a previously blocked 4.1.2 8 m study into 4.1.3 preserves the model and shows reactions and diagrams. Live Undo/Redo and temporary-lesson return restore the original beam, history and comparison. Full evidence and automatic merged-main CI status are in docs/ai/HANDOFF.md.
 
 ## Boundaries
 
