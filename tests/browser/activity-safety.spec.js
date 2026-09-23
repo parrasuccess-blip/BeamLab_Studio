@@ -116,6 +116,7 @@ test('invalid lesson edit preserves its question; a committed edit announces exp
   await page.evaluate(()=>{window.__labelEvents=[];for(const type of ['pointerdown','pointerup','dblclick'])document.addEventListener(type,e=>{const t=e.target.closest('[data-object]');window.__labelEvents.push({type,target:e.target.tagName,object:t?.dataset.object,inline:e.target.closest('[data-inline]')?.dataset.inline,x:e.clientX,y:e.clientY,scrollY,editor:!!document.querySelector('#inline-edit input')});},true);});
   const label=page.locator('#graphs [data-inline="value"]').first();
   // Retain the real double click: the first press must not reflow its second target.
+  await label.scrollIntoViewIfNeeded();
   const beforeLabel=await label.boundingBox();
   await label.dblclick();
   await expect(page.locator('#inspector')).toBeHidden();
