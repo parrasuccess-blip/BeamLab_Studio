@@ -1,3 +1,7 @@
+## Final browser assertion refinement — Account B, 2026-09-23
+
+**STATUS: 1,294 numerical checks / 135 of 136 browser checks on 3ca8691 / final browser rerun pending.** Firefox’s actual edit/rollback/restoration journey now passes and both pointer presses hit the editable text. Chromium and narrow Chromium pass too. WebKit opens the compact editor successfully, but the added before-hover/after-focus geometry assertion includes an 11px movement outside the intended two-press comparison. The test now records label geometry at each actual pointerdown: both presses must hit the same editable label and remain within 1px. No forced clicks, retries or numerical tolerance changes. The original complete journey remains. Only the test and recovery record change at this checkpoint; application artifact is unchanged from `3ca8691`.
+
 ## Firefox root-cause refinement — Account B, 2026-09-23
 
 **STATUS: hover-layout repair checkpoint / validation pending / not released.** Preserved Account A’s 4.1.3 recovery. Checkpoint `1536123` passed numerical validation but the stronger browser stability check found an 18px Firefox shift; two phone failures measured initial auto-scroll rather than layout (corrected in `a7c51a5`). The wrapped hover prompt above the graphs becomes a shorter numerical readout on pointer movement, moving the SVG label before the click. Geometric fallback at pointerdown does not address this preceding reflow and has been replaced.

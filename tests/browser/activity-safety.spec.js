@@ -113,18 +113,22 @@ test('invalid lesson edit preserves its question; a committed edit announces exp
   await expect(page.locator('.activity-changed')).toHaveCount(0);
   await page.getByRole('button',{name:'Previous',exact:true}).click();
   await expect(page.locator('.activity-changed')).toHaveCount(0);
-  await page.evaluate(()=>{window.__labelEvents=[];for(const type of ['pointerdown','pointerup','dblclick'])document.addEventListener(type,e=>{const t=e.target.closest('[data-object]');window.__labelEvents.push({type,target:e.target.tagName,object:t?.dataset.object,inline:e.target.closest('[data-inline]')?.dataset.inline,x:e.clientX,y:e.clientY,scrollY,editor:!!document.querySelector('#inline-edit input')});},true);});
+  await page.evaluate(()=>{window.__labelEvents=[];for(const type of ['pointerdown','pointerup','dblclick'])document.addEventListener(type,e=>{const t=e.target.closest('[data-object]'),label=document.querySelector('#graphs [data-inline="value"]'),box=label?.getBoundingClientRect();window.__labelEvents.push({type,target:e.target.tagName,object:t?.dataset.object,inline:e.target.closest('[data-inline]')?.dataset.inline,x:e.clientX,y:e.clientY,scrollY,label:box?{x:box.x,y:box.y}:null,editor:!!document.querySelector('#inline-edit input')});},true);});
   const label=page.locator('#graphs [data-inline="value"]').first();
   // Retain the real double click: the first press must not reflow its second target.
   await label.scrollIntoViewIfNeeded();
-  const beforeLabel=await label.boundingBox();
   await label.dblclick();
   await expect(page.locator('#inspector')).toBeHidden();
-  const afterLabel=await label.boundingBox();
-  expect(Math.abs(afterLabel.x-beforeLabel.x)).toBeLessThan(1);
-  expect(Math.abs(afterLabel.y-beforeLabel.y)).toBeLessThan(1);
   const events=await page.evaluate(()=>window.__labelEvents);
   console.log('Lesson label pointer evidence',info.project.name,JSON.stringify(events));
+  // Compare the two real presses, excluding pre-click hover and editor focus.
+  const presses=events.filter(e=>e.type==='pointerdown');
+  expect(presses).toHaveLength(2);
+  expect(presses[0].object).toBeTruthy();
+  expect(presses[1].object).toBe(presses[0].object);
+  expect(presses.map(e=>e.inline)).toEqual(['value','value']);
+  expect(Math.abs(presses[1].label.x-presses[0].label.x)).toBeLessThan(1);
+  expect(Math.abs(presses[1].label.y-presses[0].label.y)).toBeLessThan(1);
   const input=page.locator('#inline-edit').getByLabel('Nominal magnitude',{exact:true});
   await input.fill('27');await input.fill('999999999999');await input.press('Enter');
   await expect(page.locator('.activity-navigation')).toBeVisible();
