@@ -233,3 +233,5 @@ Final candidate 031b8bf passes fresh local npm ci/npm test (including build): **
 PR #21 merged as d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6. Downloaded production HTML is byte-identical to the tested artifact: 746,563 bytes, SHA-256 d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533. Public release/hash metadata and 4.1.3 tutor health agree; tutor configured:false. Vercel deployment 9RXP2L4MX3eSdaUTW5kjyg2jN1S2 succeeds.
 
 Actual public upgrade from the reproduced 4.1.2 hidden 8 m study preserves that study and restores all applicable response values. Live Tab edit/Undo/Redo and lesson Next/Previous/original-model/history/comparison restoration pass. See HANDOFF for exact numerical observations and ongoing merged-main CI status. Preserve all 136 browser checks and the two-press assertion's meaning; do not restore the discarded before-hover/after-focus measurement.
+
+Merged-main CI 35862619917 also passes all 1,294 numerical/behaviour and 136 browser checks (browser job 107186347922, zero retries). Public inspector force edit and physical Undo hit check pass; screenshot in docs/qa/4.1.3/public-editor.jpg.

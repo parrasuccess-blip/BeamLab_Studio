@@ -2,7 +2,7 @@
 
 ## Current state — Account A, 2026-09-23
 
-**STATUS: 4.1.3 merged / exact public artifact and live upgrade verified.** Final candidate validation is green. The automatic merged-main browser run is still completing; inspect its result before closing this documentation checkpoint.
+**STATUS: 4.1.3 merged / exact public artifact and live upgrade verified.** Final-candidate and merged-main validation are green. This documentation branch records the completed release; no application repairs are pending in the 4.1.3 scope.
 
 - Canonical repository: `parrasuccess-blip/BeamLab_Studio`; production branch: `main`.
 - Released code / starting commit of this verification: `d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6`.
@@ -37,7 +37,9 @@ No solver, model schema, sign convention, units, numerical tolerance, grading or
 - Public upgrade check: reproduced an edited 8 m beam with Hidden/Predict-first results in 4.1.2 Build. After deployment, reloaded the same browser study into 4.1.3: 8 m beam retained, reactions +10/+10 kN and peak moment 40 kN·m visible.
 - Public 8 → 9 m Tab edit, Undo → 8 and Redo → 9 passed. Restored 8 m, froze comparison, opened a lesson, used Next/Previous and returned: original beam, Redo and comparison restored, results visible.
 - Preview Practice → Build transition also passes. The public tutor health endpoint identifies 4.1.3 and `configured:false`; no AI provider connection is claimed.
-- Merged-main [CI 35862619917](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35862619917): numerical job passed; browser result pending at this checkpoint. Merged source is identical to the validated candidate.
+- Merged-main [CI 35862619917](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35862619917): **1,294 numerical/behaviour and 136 browser checks passed**; browser job **107186347922**, zero retries. Merged source is identical to the validated candidate.
+
+Public selected-object check also passes: 20 → 24 kN edit gives +12/+12 kN reactions and 48 kN·m peak moment. Visible Undo is unobstructed; clicking it restores 20 kN and the original results. [Public editor screenshot](../qa/4.1.3/public-editor.jpg).
 
 ## Next approved work
 
