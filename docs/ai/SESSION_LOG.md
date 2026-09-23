@@ -376,3 +376,8 @@ Starting head cd572dc, PR #21; main d4c0479. Created a clean worktree and retain
 ### Account A — repair checkpoint before full browser validation
 
 Starting recovery record 266d973. Fresh local build/numerical suite passes 1,294. Fixed the legacy fixed-inspector CSS override; precise button selection in B’s new completed-evidence test; remaining stale activity notices, route preservation, comparison masking and missing-fingerprint checks. Kept B’s rollback/evidence repairs and all numerical expectations. Firefox double-tap failure is still under investigation; pointer-event diagnostics are added without removing its assertion. Editor viewport evidence is logged in CI as well as stored as artifacts because artifact download delivery currently returns 403. Full 136-check browser execution follows this coherent source checkpoint. No merge or production change.
+
+
+### Account A — 4.1.3 release identity checkpoint
+
+Functional repair cf59e7c saved before full CI. Prepared 4.1.3 package/build/audit/tutor identity and matching identity-only assertions; added release notes and README scope. Numerical build/tests pass 1,294. Added regression for keeping Learn selected when changing level during a temporary activity. Hosted current preview confirms that route, invalid rollback, Next/Previous notice cleanup, original 8 m restoration and protected exam exit. Public download independently remains 4.1.2, same 735,456-byte hash as the released baseline. Final candidate CI and phone visual review remain required before merging.

@@ -74,7 +74,7 @@ function extractResponseText(payload) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') return res.status(200).json({ message: 'Success', release: '4.1.2', configured:!!process.env.OPENAI_API_KEY });
+  if (req.method === 'GET') return res.status(200).json({ message: 'Success', release: '4.1.3', configured:!!process.env.OPENAI_API_KEY });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
   const body = isRecord(req.body) ? req.body : {};
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
     if (!response.ok) return res.status(503).json({ error: 'The tutor is temporarily unavailable. Deterministic BeamLab analysis remains available.' });
     const answer = extractResponseText(data);
     if (!answer) return res.status(502).json({ error: 'The tutor returned an empty response.' });
-    return res.status(200).json({ answer, solverAuthoritative: true, release: '4.1.2' });
+    return res.status(200).json({ answer, solverAuthoritative: true, release: '4.1.3' });
   } catch {
     return res.status(503).json({ error: 'The tutor is temporarily unavailable. Deterministic BeamLab analysis remains available.' });
   }

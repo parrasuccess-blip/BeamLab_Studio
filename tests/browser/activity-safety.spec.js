@@ -134,6 +134,11 @@ test('invalid lesson edit preserves its question; a committed edit announces exp
   await expect(page.locator('.activity-changed')).toHaveCount(0);
   await flow(page,'build');expect(await snapshot(page)).toBe(original);
   await act(page,'undo').click();await tools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await flow(page,'learn');await act(page,'lesson-start:l1-point-shear').click();
+  await act(page,'level:year2').click();
+  await expect(page.locator('.workflow-nav [data-action="workflow:learn"]')).toHaveAttribute('aria-current','page');
+  await expect(page.locator('.activity-changed')).toHaveCount(0);
+  await flow(page,'build');await tools(page);await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
 });
 
 test('revealing extra response layers after a correct study question does not change learning evidence',async({page})=>{

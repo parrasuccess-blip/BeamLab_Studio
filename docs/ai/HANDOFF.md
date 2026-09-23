@@ -1,3 +1,11 @@
+## 4.1.3 candidate preparation — Account A, 2026-09-23
+
+**STATUS: candidate identity prepared / numerical checks green / browser gate running.** Functional recovery checkpoint cf59e7c retains B’s changes and repairs the phone editor’s legacy CSS override. Version 4.1.3 is now explicit in package, build, verification, tutor health and release-identity assertions; BL410 model references stay unchanged. Release notes describe this first correctness increment and leave the broader redesign explicit.
+
+Fresh local 4.1.3 build/test: **1,294 passed**, zero failed/skipped. Hosted cf59e7c preview checks passed: Next/Previous without stale edited-example notice; invalid lesson input preserves the question; changing level remains in Learn; original 8 m beam returns; exam Undo and working are disabled; Build offers exit and restores that original. Added the level-change route regression. Current browser suite contains 136 checks, running in all four CI projects. No final browser or visual pass is claimed yet.
+
+Production separately re-downloaded: version 4.1.2, 735,456 bytes, SHA-256 d683284d28cb618e43ffeee6aec234ea152d9a460b6723cb48735bf72fd32d04. No merge or release has occurred. The current recovery checkpoints below are chronological context; this paragraph is the newest state.
+
 ## Recovery repair checkpoint — Account A, 2026-09-23
 
 **STATUS: mobile CSS and lifecycle repairs implemented / 1,294 local checks pass / browser validation next.** Removed the obsolete higher-specificity mobile fixed-inspector rule; the reserved editor row now owns phone placement. Retained the physical Undo hit assertion and added its computed-position assertion. Corrected the new guided-plan test to select its exact visible button label. Added pointer-event diagnostics for the unresolved Firefox opening timeout; no retries or forced clicks.
