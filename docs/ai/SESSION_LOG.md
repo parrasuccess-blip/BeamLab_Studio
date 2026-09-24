@@ -452,3 +452,7 @@ Exact candidate 097cc4a CI 35989663956 passes 1,297 Node checks and 148/152 brow
 ### 2026-09-24 — Account A — Final viewport correction after green candidate
 
 Candidate 90e2af9 CI 35990584008 passed all 1,297 Node checks and 152/152 browser journeys; CI HTML hash 4b4fa971ea71a417c3dffa2aea5cddcf6ef0e6b6f190de0264cf29177f275c8c matched local. Hosted preview revealed that the workspace title could sit under the sticky header after returning from a tall lesson. A targeted Learn → Build scroll and browser viewport assertion are being checked next. Production remains 4.1.4.
+
+### 2026-09-24 — Account A — 4.1.5 release and independent live verification
+
+PR #25 merged as `977568b84d641a5a14084e57b26fcf83b4ecbcd9`; final feature `eeb5986` CI 35993030160 passed all 1,297 deterministic/behaviour checks and 152/152 desktop/phone browser journeys, zero retries. Merged-main CI 35994312495 passed regression/browser. Vercel marked merge deployment successful. A separate verification branch `docs/verify-4-1-5-production`, PR #26, ran 35996051228 against the actual public URL. It downloaded HTML, SHA256.txt and release.json, verified version 4.1.5 and byte-identical SHA-256 6953a87b94c53bf17043c765f6388d32364c795f23ff8272e1abfb8a54152171, then passed desktop and 390 px Chromium Build → lesson → restored model/heading/width journeys. Screenshots retained in artifact 10806232354. No physical phone was used. This documentation branch records the verification; application source and solver are unchanged from the merged feature.
