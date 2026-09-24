@@ -1,5 +1,14 @@
 # BeamLab AI Handoff
 
+## Active work — Account A, 2026-09-24
+
+**STATUS: implementation starting; baseline passed; browser-stability investigation in progress.**
+
+- Objective: continue the approved UX plan with a clearer Build/Explore and optional Learn workflow, focused phone learning layout, more readable mathematical notation and a richer deterministic Show Why explanation. Keep the 4.1.4 interface polish and engineering model/lesson-history protections.
+- Starting main: `4a1b166f565ef59bd411e9898ea16ef3d40b2d66`; branch: `feature/clear-workspace-learning-why`; active account: Account A; draft PR to be opened from this branch. Production remains 4.1.4.
+- Fresh `npm ci` and `npm test` pass 1,294 checks with original tolerances. Latest documentation-only main CI 35961780649 passes its numerical job but records 147/148 browser journeys: the 360 px phone editor check loses the Undo DOM node while scrolling after an edited force. Prior 4.1.4 code and merged-main CI each passed 148. Investigate and repair the rendering/focus race without weakening the actual Undo and hit-target checks before changing more UI.
+- Next: checkpoint source milestones to this branch, run the complete regression/browser suites and review hosted desktop/phone screenshots; merge and verify the exact public artifact only after all gates pass. No new solver, design-code claims or numerical changes intended.
+
 ## Current state — Account A, 2026-09-24
 
 **STATUS: 4.1.4 merged / exact public artifact and live UI checks verified.** This is the focused polish requested before the next feature increment.
