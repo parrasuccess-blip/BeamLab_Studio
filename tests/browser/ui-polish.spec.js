@@ -73,4 +73,14 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   expect(Math.max(...cards.map(r=>r.h))-Math.min(...cards.map(r=>r.h))).toBeLessThanOrEqual(1);
   await noOverflow(page);await page.locator('.review-export-grid').scrollIntoViewIfNeeded();
   await page.screenshot({path:info.outputPath('polished-review.png'),fullPage:false});
+  await act(page,'design-open').click();
+  await expect(page.locator('.design-stepper')).toBeVisible();
+  const designTop=await page.evaluate(()=>({top:document.querySelector('#design-studio').getBoundingClientRect().top,header:document.querySelector('.topbar').getBoundingClientRect().bottom}));
+  expect(designTop.top).toBeGreaterThanOrEqual(designTop.header+8);
+  expect(designTop.top).toBeLessThan(designTop.header+60);
+  const steps=await boxes(page.locator('.design-step-tab'));separate(steps);
+  for(const r of steps)expect(r.h).toBeGreaterThanOrEqual(64);
+  await noOverflow(page);
+  await act(page,'review-overview').click();await expect(page.locator('.review-hub')).toBeVisible();
+  expect(await page.locator('.review-overview').evaluate(e=>e.getBoundingClientRect().top)).toBeGreaterThanOrEqual(designTop.header+8);
 });

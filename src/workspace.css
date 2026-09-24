@@ -182,7 +182,7 @@ body.focus-mode #workspace{padding-top:106px}
 .learn-subtabs button{min-width:0;min-height:64px;padding:10px 8px;overflow-wrap:anywhere}
 .learn-subtabs b{font-size:12px;line-height:1.4}.learn-subtabs small{line-height:1.4}
 .lesson-head,.challenge-head{flex-wrap:wrap;align-items:center;gap:8px}
-.activity-navigation{gap:8px}.activity-navigation>div{gap:8px}
+.activity-navigation{gap:8px;padding:12px}.activity-navigation>div{gap:8px}
 .activity-navigation>div button{min-width:88px}
 .prediction-method button{min-height:var(--control-size);font-size:12px;line-height:1.4}
 .prediction-choice span{font-size:12px;line-height:1.5}
@@ -240,3 +240,7 @@ html{scroll-behavior:auto}
  .learning-bar{grid-template-columns:minmax(0,1fr)}
  .learning-bar>.secondary{justify-self:start}
 }
+
+/* Secondary review navigation follows the same readable control hierarchy. */
+.design-step-tab{min-height:64px}.design-step-tab b{font-size:12px;line-height:1.4}.design-step-tab small{font-size:11px;line-height:1.4}
+@media(max-width:780px){.design-step-tab b{font-size:11px}.design-field input,.design-field select{font-size:16px;min-height:44px}}

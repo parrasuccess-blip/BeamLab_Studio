@@ -1588,7 +1588,7 @@ async function action(key, el) {
     if (name === 'ai-send') { await askTutor('question'); return; }
     if (name === 'ai-quick') { const prompt = tutorPromptText(id); if (prompt) await askTutor(id, prompt); return; }
     if (name === 'ai-design') { const prompt = tutorPromptText('design'); if (prompt) { openTutor(); await askTutor('design', prompt); } return; }
-    if (name === 'design-open') { if (!(0,levels_1.canUseFeature)(activity.toolLevel(v),'review')) return; v.reviewDetail='criteria'; designStep=1;renderDesignStudio();return; }
+    if (name === 'design-open') { if (!(0,levels_1.canUseFeature)(activity.toolLevel(v),'review')) return; v.reviewDetail='criteria'; designStep=1;renderDesignStudio();$('#design-studio').scrollIntoView({behavior:'auto',block:'start'});return; }
     if(name==='progress-transfer'){learningTransferDialog();return;}
     if(name==='progress-export'){const payload=learningTransfer.create(lessonProgress,challengeProgress,masteryStats,learningEvidenceEvents);(0,export_1.download)(JSON.stringify(payload,null,2),'beamlab-learning-progress.json','application/json');return;}
     if(name==='progress-import'){if(v.session?.active||v.session?.review)return;$('#progress-file').value='';$('#progress-file').click();return;}
@@ -1598,7 +1598,7 @@ async function action(key, el) {
         lessonProgress=incoming.lessons;challengeProgress=incoming.challenges;masteryStats=incoming.mastery;learningEvidenceEvents=incoming.events;
         v.lessonProgress=lessonProgress;v.challengeProgress=challengeProgress;saveLessonProgress();saveChallengeProgress();saveMasteryStats();saveLearningEvidence();clearGuidedStudyBlockResume();closeDialog();render();toast('Learning progress imported. Your structural study is unchanged.');return;
     }
-    if (name === 'review-overview') {v.reviewDetail='overview';renderDesignStudio();return;}
+    if (name === 'review-overview') {v.reviewDetail='overview';renderDesignStudio();$('#design-studio').scrollIntoView({behavior:'auto',block:'start'});return;}
     if (name === 'section-side') {if(['left','right'].includes(id)){v.sectionSide=id;renderExtras();}return;}
     if (name === 'issue-download') {(0,export_1.download)($('#issue-json').value,'beamlab-issue-report.json','application/json');return;}
     if (name === 'privacy') {privacyDialog();return;}
