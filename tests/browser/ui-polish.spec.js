@@ -120,6 +120,8 @@ test('the engineering path, optional learning and solved Show Why stay usable on
     expect(top).toBeGreaterThanOrEqual(58);expect(top).toBeLessThanOrEqual(180);
     await noOverflow(page);
   }
-  await flow(page,'build');
+  await page.locator('.lesson-list button').first().click();
+  await page.locator('.activity-navigation [data-action="workflow:build"]').click();
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
   await expect(page.locator('#metrics')).toContainText('30');
 });
