@@ -312,7 +312,7 @@ function setLearningMode(id, fromSetup = false) {
     save();
     if (fromSetup) {
         closeDialog();
-        $('#workspace').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        $('#workspace').scrollIntoView({ behavior: 'auto' });
     }
     if (levelStarterActive && previous !== id)
         toast(`${(0, levels_1.mode)(id).short} starter loaded. Edit anything and BeamLab will keep your study when you change levels.`);
@@ -403,7 +403,7 @@ function enterWorkspace(target) {
     if (activity.modelLocked(v) && target !== 'learn') return;
     window.history.replaceState(null, '', '#workspace');
     $('#workspace').focus({preventScroll:true});
-    $('#workspace').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+    $('#workspace').scrollIntoView({behavior:'auto'});
 }
 function designNumberField(key,label,value,unit,min,max,placeholder='') {
     const val = value === null || value === undefined ? '' : String(value);
@@ -462,13 +462,13 @@ function setWorkspaceMode(mode) {
     endStandaloneLearning();
     v.workspaceMode = mode;
     render();
-    $('#workspace').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
+    $('#workspace').scrollIntoView({ behavior: 'auto', block:'start' });
 }
 function setDesignStep(step, scroll = true) {
     designStep = (0, design_workflow_1.clampStep)(step);
     saveDesignStep();
     renderDesignStudio();
-    if (scroll) $('#design-studio')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
+    if (scroll) $('#design-studio')?.scrollIntoView({ behavior: 'auto', block:'start' });
 }
 function updateDesignInput(el, redraw = false) {
     const numberKey = el.dataset.designNumber, selectKey = el.dataset.designSelect, textKey = el.dataset.designText;
@@ -638,7 +638,7 @@ function focusLearningActivity() {
     if (!activity) return;
     activity.setAttribute('tabindex', '-1');
     activity.focus({preventScroll:true});
-    activity.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+    activity.scrollIntoView({block:'nearest',behavior:'auto'});
 }
 function currentLesson() { return v.lessonId ? (0, challenges_1.getLesson)(v.lessonId) : null; }
 function saveMasteryStats() {
@@ -1618,7 +1618,7 @@ async function action(key, el) {
     if (name === 'design-step') { setDesignStep(id); return; }
     if (name === 'design-next') { setDesignStep(designStep + 1); return; }
     if (name === 'design-back') { setDesignStep(designStep - 1); return; }
-    if (name === 'design-jump') { if (!analysis) return; const x = id === 'shear' ? analysis.peakV.x : id === 'deflection' ? analysis.peakD.x : analysis.peakM.x; v.workspaceMode='analysis'; v.trace=x; v.pinned=true; render(); $('#structure-block')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}); return; }
+    if (name === 'design-jump') { if (!analysis) return; const x = id === 'shear' ? analysis.peakV.x : id === 'deflection' ? analysis.peakD.x : analysis.peakM.x; v.workspaceMode='analysis'; v.trace=x; v.pinned=true; render(); $('#structure-block')?.scrollIntoView({behavior:'auto',block:'start'}); return; }
     if (name === 'design-edit-cases') { if (!(0,levels_1.canUseFeature)(activity.toolLevel(v),'cases')) { toast('Load-case editing is available in 3rd+ or All Tools.'); return; } v.workspaceMode='analysis'; v.tab='cases'; render(); return; }
     if (name === 'design-combination') { const c=(history.model.combinations||[]).find(c=>c.id===id); if(c) { commit((0,study_1.setCombination)(history.model,c.factors),'Apply '+c.name+' for design review'); v.workspaceMode='design'; render(); } return; }
     if (name === 'design-export') { if (!analysis) { toast('Complete a stable model before exporting a design review.'); return; } try { const snap=(0,design_1.reviewSnapshot)(history.model,analysis,designSettings,verification.fingerprint(history.model)); (0,export_1.download)(JSON.stringify(snap,null,2),'beamlab-design-review.json','application/json'); toast('Design review JSON created.'); } catch(e) { toast(e instanceof Error?e.message:'Could not export the design review.'); } return; }
@@ -1786,7 +1786,7 @@ async function action(key, el) {
     if (name === 'jump-critical') {
         if (!analysis) return;
         const loc = verification.criticalLocations(analysis,history.model)[Number(id)];
-        if (loc) { closeDialog(); v.trace = loc.x; v.pinned = true; v.zoom = 1; v.pan = 0; renderStage(); $('#structure-block').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}); }
+        if (loc) { closeDialog(); v.trace = loc.x; v.pinned = true; v.zoom = 1; v.pan = 0; renderStage(); $('#structure-block').scrollIntoView({behavior:'auto',block:'start'}); }
         return;
     }
     if (name === 'demo') { startDemo(); return; }
@@ -2161,7 +2161,7 @@ async function action(key, el) {
     if (name === 'focus-mode') {
         document.body.classList.toggle('focus-mode');
         updateFocusControl();
-        $('#workspace').scrollIntoView({ behavior: 'smooth' });
+        $('#workspace').scrollIntoView({ behavior: 'auto' });
         return;
     }
 }
@@ -2642,7 +2642,7 @@ function bootstrap() {
     $('#app').innerHTML = `
   <a class="skip-link" href="#workspace">Skip to workspace</a><div class="progress-line" id="scroll-progress"></div>
   <header class="topbar"><a class="brand" href="#home"><span>B</span><b>BeamLab</b><em>STUDIO ${verification.RELEASE}</em></a><nav><a href="#home">Home</a><a href="#workspace">Workspace</a>${(0, common_1.button)('method', 'Method & scope', 'text-button')}</nav><div class="header-actions">${(0, common_1.button)('share', (0, common_1.icon)('share', 15) + '<span>Share</span>', 'share-button')}<div class="export-wrap">${(0, common_1.button)('export-menu', (0, common_1.icon)('download', 15) + '<span>Export</span>' + (0, common_1.icon)('down', 12), 'export-button')}<div id="export-menu" class="export-menu" hidden>${['json', 'svg', 'png', 'csv', 'pdf'].map(k => (0, common_1.button)('export:' + k, ({ json: 'Save model JSON', svg: 'Vector diagram SVG', png: 'Annotated PNG', csv: 'Results CSV', pdf: 'Calculation report PDF' })[k], '')).join('')}${(0, common_1.button)('open-json', 'Open model JSON', '')}${(0, common_1.button)('method', 'Method & sources', '')}${(0, common_1.button)('demo', 'Presentation tour', '')}${(0, common_1.button)('audit', 'Model checks & verification JSON', '')}${(0, common_1.button)('verify', 'Run benchmark checks', '')}</div></div><a class="launch" href="#workspace" data-entry="build">Build / Explore ${(0, common_1.icon)('right', 14)}</a></div></header>
-  <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><a class="hero-cta" href="#workspace" data-entry="build">Build / Explore ${(0, common_1.icon)('right', 16)}</a><a class="hero-learn" href="#workspace" data-entry="learn">Guided learning <span aria-hidden="true">→</span></a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}<span class="hero-detail">Start building immediately, or choose guidance. One model, one solver. No sign-in or lesson prerequisites.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
+  <section class="hero" id="home"><canvas id="hero-network" aria-hidden="true"></canvas><div class="hero-glow" id="hero-glow"></div><div class="hero-content"><div class="eyebrow"><i></i>SPATIAL STRUCTURAL ANALYSIS</div><h1>Build structures.<br><span>Feel the forces.</span></h1><div class="hero-bottom"><div class="hero-copy"><p>Turn a beam into something you can <strong>touch, move and understand.</strong> Place the loads. Move the supports. See the structure and its diagrams respond as one.</p><div class="hero-actions"><a class="hero-cta" href="#workspace" data-entry="build">Build / Explore ${(0, common_1.icon)('right', 16)}</a><a class="hero-learn" href="#workspace" data-entry="learn">Guided learning <span aria-hidden="true">→</span></a>${(0, common_1.button)('demo', 'Take an 8-step tour ' + (0, common_1.icon)('right',14), 'hero-tour')}</div><span class="hero-detail">Start building immediately, or choose guidance. One model, one solver. No sign-in or lesson prerequisites.</span></div><div class="hero-demo" id="hero-demo"><div class="demo-label">LIVE FORCE FIELD <span>50 kN / move the load</span></div><svg id="hero-beam" viewBox="0 0 560 214" role="img" aria-label="Interactive simply supported beam demonstration"></svg><label class="demo-range"><span>Move pointer, or use the slider</span><input id="hero-slider" type="range" min=".08" max=".92" value=".64" step=".01" aria-label="Homepage load position"></label></div></div><div class="scroll-cue"><i></i>SCROLL TO EXPLORE</div></div></section>
   <section class="transition-copy"><span class="eyebrow">ONE CONNECTED SYSTEM</span><h2>Analyse the behaviour.<br><span>Then review the design context.</span></h2><p>Build and analyse directly, explore optional lessons, and review your results. Choose the tools and explanations you need without changing the underlying solver.</p></section>
   <main id="workspace" tabindex="-1"><div id="workspace-mode-bar" class="workspace-mode-bar"></div><div id="learning-bar" class="learning-bar"></div><div id="workflow-context"></div><div class="workspace-heading"><div><span class="eyebrow">YOUR STRUCTURAL WORKSPACE</span><div id="study-name"></div></div><div><span class="save-state"><i class="dot mint"></i><span id="save-label">Local study</span></span>${(0, common_1.button)('focus-mode', (0, common_1.icon)('expand', 14) + ' Focus', 'secondary')}${(0, common_1.button)('demo', (0, common_1.icon)('right', 14) + ' Present', 'secondary')}${(0, common_1.button)('library', (0, common_1.icon)('copy', 14) + ' Studies', 'secondary')}</div></div>
   <div id="level-notice" class="level-notice" hidden></div><div id="demo-guide" class="demo-guide" hidden></div><div id="mobile-tools" class="mobile-tools"></div><div id="workspace-grid" class="workspace-grid"><aside id="controls" class="panel controls"></aside><div class="centre"><section class="panel stage"><header id="toolbar" class="toolbar"></header><div id="case-summary" class="case-summary"></div><div id="metrics" class="metrics"></div><div id="error" class="model-error" role="alert" hidden></div><div id="trace-readout" class="trace-readout"></div><div id="compare-note" class="compare-note" hidden></div><div id="graphs" class="diagram-board"></div><div id="trace-position"></div><footer id="stage-footer" class="stage-footer"></footer></section><details id="assumptions" class="assumptions" hidden></details><section id="section-stress" class="panel" hidden></section><section id="shear-stress" class="panel" hidden></section><section id="moving-lab" class="panel" hidden></section><section id="teaching" class="panel teaching" hidden></section><section id="review" class="panel review" hidden></section><div id="working-toggle"></div><section id="working" class="panel working" hidden></section></div><aside id="inspector" class="panel inspector"></aside></div><section id="design-studio" class="design-studio" hidden></section>
@@ -2664,7 +2664,7 @@ function bootstrap() {
             e.preventDefault();
             document.body.classList.remove('focus-mode');
             updateFocusControl();
-            window.scrollTo({top:0,behavior:'smooth'});
+            window.scrollTo({top:0,behavior:'auto'});
             return;
         }
         if (actionEl) {
