@@ -1,6 +1,6 @@
 # BeamLab Studio 4.1.5 — Workspace and explanation clarity
 
-Status: release candidate on draft PR #25. Do not describe as public until the exact artifact is verified at https://beam-lab-studio.vercel.app/.
+Status: **released and verified** at https://beam-lab-studio.vercel.app/ through [PR #25](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/25). Public HTML SHA-256: `6953a87b94c53bf17043c765f6388d32364c795f23ff8272e1abfb8a54152171`.
 
 ## What changes
 
@@ -14,11 +14,9 @@ Status: release candidate on draft PR #25. Do not describe as public until the e
 
 The solver, sign conventions, units, numerical tolerances, learning grading, model persistence and code-design limitations are unchanged. Show Why reads the solved beam; it does not form a second analysis engine. User-entered design criteria remain a screening review, not verified structural capacity or code certification.
 
-## Validation in progress
+## Validation and public release
 
-- Baseline 4.1.4: 1,294 numerical and behaviour tests pass. The later documentation-only main CI recorded one intermittent browser timing failure, investigated above.
-- Initial PR candidate: 1,297 numerical and behaviour tests passed. Initial browser run 35988066160: 144 passed, eight failures across four browser configurations from a test helper assuming the new two-button mobile jump is a single control and an obsolete Show Why wording assertion. Both assertions are repaired; final candidate rerun pending.
-- Next 4.1.5 candidate browser run 35989663956: 148 passed, four failed because the new focused lesson layout hid the direct route into Mastery. Kept the compact three-tab route available; validation of this repair is pending.
-- Hosted preview manually checked: engineering entry, edit from 6 to 8 m with Undo enabled, temporary lesson and return preserving 8 m and history, and the new Show Why values for the 6 m / 20 kN centre point load.
-- Candidate 90e2af9 CI 35990584008: 1,297 numerical/behaviour checks and 152/152 browser journeys passed. CI HTML SHA-256 `4b4fa971ea71a417c3dffa2aea5cddcf6ef0e6b6f190de0264cf29177f275c8c` matched local. Manual preview found the heading under the sticky header after lesson exit; its targeted repair still awaits CI.
-- Final four-browser CI, phone screenshots, final release artifact hash and public production verification: pending.
+- Exact feature head `eeb5986`: [CI 35993030160](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35993030160) passed all **1,297** numerical/behaviour checks and **152/152** browser journeys on desktop Chromium, desktop Firefox, iPhone WebKit and 360 px Chromium, zero retries. This includes the Learn → Build heading clearance after a focused lesson, Undo hit-target and history, optional Learn routes, direct Mastery access, and model preservation.
+- [Merged-main CI 35994312495](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35994312495) passed both regression and browser jobs. The 4.1.5 source/build passed without changing solver tolerances.
+- [Public verification 35996051228](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35996051228) fetched the live HTML byte for byte plus SHA256.txt and release.json. All agree on `4.1.5` and SHA-256 `6953a87b94c53bf17043c765f6388d32364c795f23ff8272e1abfb8a54152171`. Live desktop and phone browser journeys passed Build → lesson → original beam, heading position and horizontal-width checks. [Desktop/phone screenshot artifact](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35996051228/artifacts/10806232354). Phone evidence is browser emulation rather than a physical-device claim.
+- Hosted preview manual journey confirmed edit from 6 to 8 m with 40 kN·m peak moment and working Undo, temporary lesson and original beam/history restoration, and Show Why on the reference 6 m/20 kN point-load case.

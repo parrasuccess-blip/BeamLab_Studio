@@ -61,4 +61,4 @@ No provider secret is required for analysis, learning, review or exports. The tu
 Model and learning data are local to the browser. Snapshot URLs are readable encodings, not encryption. An explicit online-tutor request transmits bounded model/learning context to the host and configured AI provider. See the in-app Privacy & local data notice.
 
 
-4.1.5 candidate: engineering workflow, focused learning navigation, Show Why and mathematical typography. See docs/RELEASE_4_1_5.md; production status is recorded in docs/ai/HANDOFF.md.
+4.1.5 released and public artifact verified: engineering workflow, focused learning navigation, Show Why and mathematical typography. See docs/RELEASE_4_1_5.md; production status is recorded in docs/ai/HANDOFF.md.
