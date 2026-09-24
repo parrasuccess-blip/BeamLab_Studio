@@ -386,6 +386,7 @@ function requestSessionExit(target = null) {
 function setWorkflow(target) {
     const next = workspace.transition(v, target);
     if (!next) { if (workspace.steps.some(s => s.id === target)) requestSessionExit(target); return; }
+    const returningToModel = workspace.phaseFor(v) === 'learn' && target === 'build';
     finishField();
     if (target !== 'learn') {
         endStandaloneLearning();
@@ -397,6 +398,9 @@ function setWorkflow(target) {
     if (target === 'review') v.reviewDetail = 'overview';
     v.selected.clear(); inlineId = null; $('#inline-edit').innerHTML = '';
     render(); save();
+    // The tall learning panel collapses when the model returns. Place the
+    // workspace heading below the fixed header instead of keeping its old offset.
+    if (returningToModel) $('#workspace').scrollIntoView({behavior:'auto',block:'start'});
 }
 function enterWorkspace(target) {
     setWorkflow(target);

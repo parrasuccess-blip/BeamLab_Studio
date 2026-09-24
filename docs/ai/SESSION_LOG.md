@@ -448,3 +448,7 @@ On hosted 4.1.5 preview, opening a lesson places its navigation at ~200 px and t
 ### 2026-09-24 — Account A — Restore direct Mastery navigation during lessons
 
 Exact candidate 097cc4a CI 35989663956 passes 1,297 Node checks and 148/152 browser checks. Four matching failures all show a real route loss: the compact lesson CSS hid learning subtabs, so the established journey from a standalone lesson into a full Mastery session could no longer click its visible control. Retained the three learning routes in a smaller 44 px strip, still hiding the redundant lesson intro/progress. Browser assertion now verifies that all three remain visible while a question is open. Added an independent Show Why combined-action step check. Local suite: 1,297 passed. Next coherent commit will rerun browser and visual validation; no main merge or production change.
+
+### 2026-09-24 — Account A — Final viewport correction after green candidate
+
+Candidate 90e2af9 CI 35990584008 passed all 1,297 Node checks and 152/152 browser journeys; CI HTML hash 4b4fa971ea71a417c3dffa2aea5cddcf6ef0e6b6f190de0264cf29177f275c8c matched local. Hosted preview revealed that the workspace title could sit under the sticky header after returning from a tall lesson. A targeted Learn → Build scroll and browser viewport assertion are being checked next. Production remains 4.1.4.

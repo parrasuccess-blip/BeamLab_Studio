@@ -125,4 +125,6 @@ test('the engineering path, optional learning and solved Show Why stay usable on
   await page.locator('.activity-navigation [data-action="workflow:build"]').click();
   await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
   await expect(page.locator('#metrics')).toContainText('30');
+  const restored=await page.evaluate(()=>({title:document.querySelector('.workspace-heading').getBoundingClientRect().top,header:document.querySelector('.topbar').getBoundingClientRect().bottom}));
+  expect(restored.title).toBeGreaterThanOrEqual(restored.header+8);
 });
