@@ -386,6 +386,7 @@ function requestSessionExit(target = null) {
 function setWorkflow(target) {
     const next = workspace.transition(v, target);
     if (!next) { if (workspace.steps.some(s => s.id === target)) requestSessionExit(target); return; }
+    const returningToModel = workspace.phaseFor(v) === 'learn' && target === 'build';
     finishField();
     if (target !== 'learn') {
         endStandaloneLearning();
@@ -397,6 +398,9 @@ function setWorkflow(target) {
     if (target === 'review') v.reviewDetail = 'overview';
     v.selected.clear(); inlineId = null; $('#inline-edit').innerHTML = '';
     render(); save();
+    // The tall learning panel collapses when the model returns. Place the
+    // workspace heading below the fixed header instead of keeping its old offset.
+    if (returningToModel) $('#workspace').scrollIntoView({behavior:'auto',block:'start'});
 }
 function enterWorkspace(target) {
     setWorkflow(target);
@@ -501,8 +505,10 @@ function render() {
     renderWorkspaceModeBar();
     const designMode = v.workspaceMode === 'design';
     const phase = workspace.phaseFor(v);
-    $('#mobile-tools').hidden = designMode || phase === 'learn';
-    $('#mobile-tools').innerHTML = `<button data-action="controls" aria-controls="controls" aria-expanded="${v.controls}"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><b>${v.controls?'Close tools ↑':'Open tools ↓'}</b></button>`;
+    $('#mobile-tools').hidden = designMode;
+    $('#mobile-tools').innerHTML = phase === 'learn'
+        ? `<nav class="learn-mobile-jump" aria-label="Learning workspace"><button type="button" data-action="learn-focus:activity">Activity <span>Questions &amp; hints</span></button><button type="button" data-action="learn-focus:beam">Beam <span>Structure &amp; diagrams</span></button></nav>`
+        : `<button data-action="controls" aria-controls="controls" aria-expanded="${v.controls}"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><b>${v.controls?'Close tools ↑':'Open tools ↓'}</b></button>`;
     $('#workspace-grid').hidden = designMode;
     $('#design-studio').hidden = !designMode;
     document.querySelector('.workspace-foot')?.classList.toggle('design-active', designMode);
@@ -514,6 +520,7 @@ function render() {
     $('#workspace-grid').classList.toggle('inspector-hidden', !inspectorVisible);
     $('#workspace-grid').classList.toggle('editing-object', inspectorVisible);
     $('#controls').hidden = !v.controls || inspectorVisible;
+    $('#controls').classList.toggle('learning-active', phase === 'learn' && !!(v.lessonId || v.challengeId));
     $('#inspector').hidden = !inspectorVisible;
     v.masteryView = buildMasteryView(v.level);
     const learningSnapshot = learningEvidenceSnapshot();
@@ -638,7 +645,10 @@ function focusLearningActivity() {
     if (!activity) return;
     activity.setAttribute('tabindex', '-1');
     activity.focus({preventScroll:true});
-    activity.scrollIntoView({block:'nearest',behavior:'auto'});
+    // A newly opened question should begin where the user can read it. Merely
+    // scrolling to the nearest visible edge left the navigation at the bottom
+    // of a phone viewport beneath the progress and catalogue controls.
+    activity.scrollIntoView({block:'start',behavior:'auto'});
 }
 function currentLesson() { return v.lessonId ? (0, challenges_1.getLesson)(v.lessonId) : null; }
 function saveMasteryStats() {
@@ -1056,7 +1066,7 @@ function compareModelChanges(A, B) {
         if (Math.abs((a.x || 0) - (b.x || 0)) > 1e-8) push(label + ' moved from ' + (0, common_1.fmt)(a.x, 2) + ' to ' + (0, common_1.fmt)(b.x, 2) + ' m.');
         if ((0,validation_1.isSupport)(b.kind) && Math.abs((a.settlementMm || 0) - (b.settlementMm || 0)) > 1e-9) push(label + ' settlement changed from ' + (0,common_1.signed)(a.settlementMm || 0,2) + ' to ' + (0,common_1.signed)(b.settlementMm || 0,2) + ' mm (up +).');
         if (b.kind === 'fixed' && Math.abs((a.rotationMrad || 0) - (b.rotationMrad || 0)) > 1e-9) push(label + ' prescribed rotation changed from ' + (0,common_1.signed)(a.rotationMrad || 0,2) + ' to ' + (0,common_1.signed)(b.rotationMrad || 0,2) + ' mrad (CCW +).');
-        if (Number.isFinite(a.value) && Number.isFinite(b.value) && Math.abs(a.value - b.value) > 1e-8) push(label + ' changed from ' + (0, common_1.signed)(a.value, 2) + ' to ' + (0, common_1.signed)(b.value, 2) + (b.kind === 'moment' ? ' kN m.' : (0, validation_1.isDistributed)(b.kind) ? ' kN/m.' : ' kN.'));
+        if (Number.isFinite(a.value) && Number.isFinite(b.value) && Math.abs(a.value - b.value) > 1e-8) push(label + ' changed from ' + (0, common_1.signed)(a.value, 2) + ' to ' + (0, common_1.signed)(b.value, 2) + (b.kind === 'moment' ? ' kN·m.' : (0, validation_1.isDistributed)(b.kind) ? ' kN/m.' : ' kN.'));
         if ((0, validation_1.isDistributed)(b.kind) && Math.abs((a.end || 0) - (b.end || 0)) > 1e-8) push(label + ' end moved from ' + (0, common_1.fmt)(a.end, 2) + ' to ' + (0, common_1.fmt)(b.end, 2) + ' m.');
     }
     for (const [id, a] of aItems) if (!bItems.has(id)) push((a.label || examples_1.titles[a.kind]) + ' was removed.');
@@ -1156,9 +1166,9 @@ function compareDialog() {
     const row = (label, a, b, unit) => `<tr><th>${label}</th><td>${(0, common_1.fmt)(a, 4)} ${unit}</td><td>${(0, common_1.fmt)(b, 4)} ${unit}</td><td>${deltaText(a,b,unit)}</td></tr>`;
     const changes = compareModelChanges(compareModel, history.model);
     const observed = [
-        ['Peak |V|', A.shear, B.shear, 'kN'], ['Peak |M|', A.moment, B.moment, 'kN m'], ['Peak |v|', A.deflection, B.deflection, 'mm']
+        ['Peak |V|', A.shear, B.shear, 'kN'], ['Peak |M|', A.moment, B.moment, 'kN·m'], ['Peak |v|', A.deflection, B.deflection, 'mm']
     ].filter(([,a,b]) => Math.abs(b-a) > Math.max(1e-9,Math.abs(a)*1e-5)).map(([label,a,b,unit]) => `<li><b>${label}</b> ${deltaText(a,b,unit)}</li>`).join('');
-    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row(A.steppedSections||B.steppedSections||A.eiOnly||B.eiOnly?'Base EI':'EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
+    openDialog('Compare A → B', `<p>Snapshot A stays frozen while B is your current model. Deltas are B minus A; this is a response comparison, not a safety verdict.</p><div class="compare-insights"><article><span>MODEL CHANGES</span><ul>${changes.length ? changes.map(x => '<li>'+ (0, common_1.esc)(x) +'</li>').join('') : '<li>No model-input changes detected.</li>'}</ul></article><article><span>OBSERVED RESPONSE</span><ul>${observed || '<li>No material response change at the reported peaks.</li>'}</ul></article></div><table class="compare-table"><thead><tr><th>Quantity</th><th>A / frozen</th><th>B / current</th><th>Δ B−A</th></tr></thead><tbody>${row('Peak |V|',A.shear,B.shear,'kN')}${row('Peak |M|',A.moment,B.moment,'kN·m')}${row('Peak |v|',A.deflection,B.deflection,'mm')}${row(A.steppedSections||B.steppedSections||A.eiOnly||B.eiOnly?'Base EI':'EI',A.EI,B.EI,'MN m²')}</tbody></table><div class="compare-model-grid"><article><span>A / FROZEN</span><b>${(0, common_1.esc)(compareModel.name)}</b><p>E ${(0, common_1.fmt)(compareModel.section.E,2)} GPa / I ${Number(compareModel.section.I).toExponential(3)} mm⁴ / ${compareModel.items.length} objects</p></article><article><span>B / CURRENT</span><b>${(0, common_1.esc)(history.model.name)}</b><p>E ${(0, common_1.fmt)(history.model.section.E,2)} GPa / I ${Number(history.model.section.I).toExponential(3)} mm⁴ / ${history.model.items.length} objects</p></article></div><p class="hint">The change list is descriptive. It does not claim that any one input caused a particular response change. Hover or pin the diagrams to inspect A, B and Δ at the same x-position.</p>`);
 }
 function shortcutsDialog() {
     openDialog('Quick help & shortcuts', `<div class="shortcut-grid"><div><kbd>?</kbd><span>Open this help</span></div><div><kbd>Ctrl/Cmd Z</kbd><span>Undo</span></div><div><kbd>Ctrl/Cmd Shift Z</kbd><span>Redo</span></div><div><kbd>Ctrl/Cmd D</kbd><span>Duplicate selection</span></div><div><kbd>← / →</kbd><span>Nudge selected objects</span></div><div><kbd>Shift + ← / →</kbd><span>Larger nudge</span></div><div><kbd>Delete</kbd><span>Remove unlocked selection</span></div><div><kbd>Esc</kbd><span>Clear selection / close transient edit</span></div></div><h3>Safe progressive complexity</h3><p>Learning levels and Practice mode change presentation only. They do not switch solvers, remove advanced objects, or alter structural results.</p><p class="hint">Double-click a model label for direct numeric editing. Hover a response diagram to inspect one x-position across all visible views; click to pin it.</p>`);
@@ -1167,7 +1177,7 @@ function renderStage() {
     const m = history.model, a = analysis;
     const {masked:practice, step:pstep} = visibility();
     const hiddenMetric = (stage) => practice && pstep < stage;
-    const metrics = [...(a?.reactions || []).map(r => ({ label: 'Reaction ' + r.label, value: hiddenMetric(1) ? 'Predict first' : (0, common_1.signed)(r.force) + ' kN', meta: hiddenMetric(1) ? 'Reveal reactions when ready' : `x = ${(0, common_1.fmt)(r.x)} m${r.fixed ? ' / MF ' + (0, common_1.signed)(r.moment) + ' kN m' : ''}`, hidden: hiddenMetric(1) })), { label: 'Peak shear', value: hiddenMetric(2) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakV.V)) + ' kN' : '--', meta: hiddenMetric(2) ? 'Sketch the SFD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakV.x) + ' m' : 'No result', hidden: hiddenMetric(2) }, { label: 'Peak moment', value: hiddenMetric(3) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakM.M)) + ' kN·m' : '--', meta: hiddenMetric(3) ? 'Sketch the BMD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakM.x) + ' m' : 'No result', hidden: hiddenMetric(3) }, ...(shown('deformation') ? [{ label: 'Peak deflection', value: hiddenMetric(4) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakD.v) * 1000) + ' mm' : '--', meta: hiddenMetric(4) ? 'Predict the elastic curve first' : a ? 'x = ' + (0, common_1.fmt)(a.peakD.x) + ' m / |v|' : 'No result', hidden: hiddenMetric(4) }] : [])];
+    const metrics = [...(a?.reactions || []).map(r => ({ label: 'Reaction ' + r.label, value: hiddenMetric(1) ? 'Predict first' : (0, common_1.signed)(r.force) + ' kN', meta: hiddenMetric(1) ? 'Reveal reactions when ready' : `x = ${(0, common_1.fmt)(r.x)} m${r.fixed ? ' / MF ' + (0, common_1.signed)(r.moment) + ' kN·m' : ''}`, hidden: hiddenMetric(1) })), { label: 'Peak shear', value: hiddenMetric(2) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakV.V)) + ' kN' : '--', meta: hiddenMetric(2) ? 'Sketch the SFD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakV.x) + ' m' : 'No result', hidden: hiddenMetric(2) }, { label: 'Peak moment', value: hiddenMetric(3) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakM.M)) + ' kN·m' : '--', meta: hiddenMetric(3) ? 'Sketch the BMD first' : a ? 'x = ' + (0, common_1.fmt)(a.peakM.x) + ' m' : 'No result', hidden: hiddenMetric(3) }, ...(shown('deformation') ? [{ label: 'Peak deflection', value: hiddenMetric(4) ? 'Hidden' : a ? (0, common_1.fmt)(Math.abs(a.peakD.v) * 1000) + ' mm' : '--', meta: hiddenMetric(4) ? 'Predict the elastic curve first' : a ? 'x = ' + (0, common_1.fmt)(a.peakD.x) + ' m / |v|' : 'No result', hidden: hiddenMetric(4) }] : [])];
     $('#metrics').innerHTML = metrics.map(c => `<div class="metric ${c.hidden ? 'practice-hidden' : ''}"><span>${(0, common_1.esc)(c.label)}</span><strong>${c.value}</strong><small>${(0, common_1.esc)(c.meta)}</small></div>`).join('');
     $('#error').hidden = !error;
     $('#error').innerHTML = `<strong>Check the model</strong><p>${(0, common_1.esc)(error)}</p>`;
@@ -1175,12 +1185,12 @@ function renderStage() {
     $('#compare-note').hidden = !compareModel || !visibility().complete;
     if (compareModel && visibility().complete) {
         const A = comparisonMetrics(comparison), B = comparisonMetrics(a);
-        $('#compare-note').innerHTML = `${(0, common_1.icon)('compare', 14)}<span>${comparison ? 'A = dashed frozen snapshot / B = current colour.' : 'Comparison paused: restore the same member length to compare.'}</span>${comparison && A && B ? `<div class="compare-mini"><b>Δ|M| ${deltaText(A.moment,B.moment,'kN m')}</b><b>Δ|v| ${deltaText(A.deflection,B.deflection,'mm')}</b></div>${(0, common_1.button)('compare-details', 'Details', 'text-button')}` : ''}${(0, common_1.button)('compare', (0, common_1.icon)('close', 13), 'icon-button', false, 'Clear comparison')}`;
+        $('#compare-note').innerHTML = `${(0, common_1.icon)('compare', 14)}<span>${comparison ? 'A = dashed frozen snapshot / B = current colour.' : 'Comparison paused: restore the same member length to compare.'}</span>${comparison && A && B ? `<div class="compare-mini"><b>Δ|M| ${deltaText(A.moment,B.moment,'kN·m')}</b><b>Δ|v| ${deltaText(A.deflection,B.deflection,'mm')}</b></div>${(0, common_1.button)('compare-details', 'Details', 'text-button')}` : ''}${(0, common_1.button)('compare', (0, common_1.icon)('close', 13), 'icon-button', false, 'Clear comparison')}`;
     }
     if (!visibility().complete) $('#compare-note').innerHTML = '';
     $('#graphs').innerHTML = (0, diagrams_1.renderDiagrams)(m, a, diagramView());
     $('#trace-position').innerHTML = `<div class="trace-position"><label for="trace-number">Inspect x / m</label><input type="range" data-range="trace" aria-label="Inspection position" min="0" max="${m.length}" step="${m.length/1000}" value="${v.trace ?? m.length/2}"><input id="trace-number" type="number" data-trace-number min="0" max="${m.length}" step="any" value="${v.trace ?? m.length/2}" aria-label="Inspection position in metres"></div>`;
-    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a || !visibility().complete, 'Inspect equilibrium, energy and critical locations')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
+    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a || !visibility().complete, 'Inspect equilibrium, energy and critical locations')}${(0,common_1.button)('toggle:teaching', v.teaching ? 'Hide Show Why' : 'Show Why', 'why-trigger', !a || !visibility().complete, 'Explain this solved beam at the inspected position')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
     $('#assumptions').hidden = !a?.warnings.length && !m.section.family?.includes('PFC');
     $('#assumptions').innerHTML = `<summary>Model assumptions to review</summary>${[...(a?.warnings || []), ...(m.section.family === 'PFC' ? ['Channel bending is about horizontal x-x only. Torsion from load eccentricity and shear-centre effects is not represented.'] : [])].map(w => `<p>${(0, common_1.esc)(w)}</p>`).join('')}`;
     $('#working-toggle').innerHTML = (0, common_1.button)('working', `${(0, common_1.icon)('help', 16)}<span>${v.working ? 'Hide worked solution' : 'Show working, step by step'}</span>${(0, common_1.icon)('right', 16)}`, 'working-toggle', !a || !visibility().complete);
@@ -1604,6 +1614,11 @@ async function action(key, el) {
     if (name === 'privacy') {privacyDialog();return;}
     if (name === 'issue-report') {issueReport();return;}
     if (name === 'workflow') { setWorkflow(id); return; }
+    if (name === 'learn-focus' && workspace.phaseFor(v) === 'learn' && ['activity','beam'].includes(id)) {
+        const destination = id === 'activity' ? $('#controls') : $('.centre');
+        destination?.scrollIntoView({behavior:'auto',block:'start'});
+        return;
+    }
     if (name === 'level-preferences') { v.levelPreferencesOpen = !v.levelPreferencesOpen; renderLearningBar(); return; }
     if (name === 'learning-library') {
         if (v.session?.active || v.session?.review) return;
@@ -1745,8 +1760,7 @@ async function action(key, el) {
         if (!analysis) { toast('Complete a stable model first.'); return; }
         try {
             const x = v.trace === null ? analysis.peakM.x : v.trace;
-            const e = (0, challenges_1.explainAt)(history.model, analysis, x, v.level);
-            openDialog('Why does the beam behave like this here?', `<div class="context-explain-dialog"><span class="eyebrow">x = ${(0,common_1.fmt)(e.x,3)} m / ${(0,common_1.esc)((0,levels_1.mode)(v.level).short)}</span><h3>${(0,common_1.esc)(e.title)}</h3><div class="formula">${(0,common_1.esc)(e.formula)}</div>${e.lines.map(line=>`<p>${(0,common_1.esc)(line)}</p>`).join('')}<p class="hint">This explanation is generated deterministically from the current solved model; it is not an AI answer or a design check.</p></div>`);
+            openDialog('Why does the beam behave like this here?', `<div class="context-explain-dialog">${(0,diagrams_1.teaching)(history.model,analysis,x,v.level)}</div>`);
         } catch(e) { toast(e instanceof Error ? e.message : 'Could not explain this location.'); }
         return;
     }
@@ -2607,7 +2621,7 @@ function auditDialog() {
         const r=lastAudit, locations=verification.criticalLocations(analysis,history.model);
         openDialog('Model checks & critical locations',`<div class="audit-head"><span class="tag">STUDIO ${verification.RELEASE}</span><code>${r.reference}</code></div><p>${r.pass?'Six numerical consistency checks passed.':'A numerical check needs investigation. Do not rely on these results.'} This is not a structural safety approval.</p>
         <div class="audit-list">${r.checks.map(c=>`<article><b class="${c.pass?'pass':'fail'}">${c.pass?'PASS':'CHECK'}</b><div><strong>${(0,common_1.esc)(c.name)}</strong><small>Residual ${c.residual.toExponential(2)} ${c.unit}<br>Tolerance ${c.tolerance.toExponential(2)} ${c.unit}</small></div></article>`).join('')}</div>
-        <details class="audit-energy"><summary>What the energy check means</summary><p>The integral of M squared divided by EI is compared with the work of the final applied forces, moments and distributed loads. With linear elasticity and zero prescribed support movement, half each value is the strain energy. This checks consistency of loading and deformation; it is not an independent certification.</p><p>Strain energy: ${(0,common_1.fmt)(r.energy.strainEnergy_kNm,8)} kN m. Half final-load work: ${(0,common_1.fmt)(r.energy.halfFinalLoadWork_kNm,8)} kN m.</p></details>
+        <details class="audit-energy"><summary>What the energy check means</summary><p>The integral of M squared divided by EI is compared with the work of the final applied forces, moments and distributed loads. With linear elasticity and zero prescribed support movement, half each value is the strain energy. This checks consistency of loading and deformation; it is not an independent certification.</p><p>Strain energy: ${(0,common_1.fmt)(r.energy.strainEnergy_kNm,8)} kN·m. Half final-load work: ${(0,common_1.fmt)(r.energy.halfFinalLoadWork_kNm,8)} kN·m.</p></details>
         <h3>Go to a critical location</h3><div class="critical-jumps">${locations.map((p,i)=>(0,common_1.button)('jump-critical:'+i,`<span>${(0,common_1.esc)(p.name)}</span><b>${(0,common_1.signed)(p.value,3)} ${p.unit}</b><small>x = ${(0,common_1.fmt)(p.x,3)} m</small>`,'critical-jump')).join('')}</div>
         <div class="tour-evidence">${(0,common_1.button)('export-audit','Download verification JSON','primary')}${(0,common_1.button)('verify','Run independent benchmarks','secondary')}</div><p class="hint">Reference ID identifies this input snapshot; it is not a security hash. The export includes the full model, inputs, results, tolerances and warnings.</p>`);
     }catch(e){toast('Unable to check model: '+e.message);}

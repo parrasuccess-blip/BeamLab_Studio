@@ -23,7 +23,8 @@ function transition(view, target) {
 }
 function renderNavigation(view) {
     const current = phaseFor(view);
-    return `<nav class="workflow-nav" aria-label="BeamLab workspace">${steps.map(step => `<button type="button" data-action="workflow:${step.id}" ${step.id===current?'aria-current="page"':''}><span><b>${step.title}</b><small>${step.detail}</small></span><span class="workflow-arrow" aria-hidden="true">↗</span></button>`).join('')}</nav>`;
+    const item = step => `<button type="button" data-action="workflow:${step.id}" ${step.id===current?'aria-current="page"':''}><span><b>${step.title}</b><small>${step.detail}</small></span><span class="workflow-arrow" aria-hidden="true">↗</span></button>`;
+    return `<nav class="workflow-nav" aria-label="BeamLab workspace"><div class="workflow-engineering"><span class="workflow-group-label">YOUR MODEL · freely move between steps</span><div class="workflow-path">${['build','analyse','review'].map(id => item(steps.find(s => s.id === id))).join('')}</div></div><div class="workflow-learning"><span class="workflow-group-label">OPTIONAL · try a guided activity</span>${item(steps.find(s => s.id === 'learn'))}</div></nav>`;
 }
 function renderContext(view, valid) {
     const step = steps.find(s => s.id === phaseFor(view));
@@ -36,6 +37,6 @@ function activityPosition(list, id) {
 function renderActivityNavigation(list, id, kind) {
     const p = activityPosition(list, id);
     if (p.index < 0 || !['lesson','challenge'].includes(kind)) return '';
-    return `<nav class="activity-navigation" aria-label="${kind === 'lesson' ? 'Lesson' : 'Challenge'} navigation"><button type="button" data-action="learning-library" class="secondary">← All ${kind === 'lesson' ? 'lessons' : 'challenges'}</button><span>${p.index+1} of ${p.total}</span><div><button type="button" data-action="${kind}-start:${esc(p.previous || '')}" class="secondary" ${p.previous?'':'disabled'}>Previous</button><button type="button" data-action="${kind}-start:${esc(p.next || '')}" class="secondary" ${p.next?'':'disabled'}>Next</button></div></nav>`;
+    return `<nav class="activity-navigation" aria-label="${kind === 'lesson' ? 'Lesson' : 'Challenge'} navigation"><button type="button" data-action="learning-library" class="secondary">← All ${kind === 'lesson' ? 'lessons' : 'challenges'}</button><button type="button" data-action="workflow:build" class="secondary return-model">My model</button><span>${p.index+1} of ${p.total}</span><div><button type="button" data-action="${kind}-start:${esc(p.previous || '')}" class="secondary" ${p.previous?'':'disabled'}>Previous</button><button type="button" data-action="${kind}-start:${esc(p.next || '')}" class="secondary" ${p.next?'':'disabled'}>Next</button></div></nav>`;
 }
 module.exports = {steps,phaseFor,tabsFor,transition,renderNavigation,renderContext,activityPosition,renderActivityNavigation};

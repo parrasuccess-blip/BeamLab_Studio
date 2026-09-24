@@ -41,6 +41,10 @@ test('fields contain their inputs and editor actions remain reachable',async({pa
   await page.locator('.object-list [data-select-object]').last().click();
   const force=page.getByLabel('Force',{exact:true});await force.fill('24');await force.press('Tab');
   await expect(page.locator('#metrics')).toContainText('48.00 kN·m');
+  // Tab commits a separate history entry on the next task. Wait for that
+  // committed state before measuring the toolbar; its old DOM is replaced.
+  await expect(page.locator('#history-count')).toHaveText('2 edits');
+  await expect(act(page,'undo')).toBeEnabled();
   await act(page,'undo').scrollIntoViewIfNeeded();
   expect(await act(page,'undo').evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
   await act(page,'undo').click();await expect(force).toHaveValue('20');
@@ -60,6 +64,10 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   expect(Math.max(...tabs.map(r=>r.y))-Math.min(...tabs.map(r=>r.y))).toBeLessThanOrEqual(1);
   expect(Math.max(...tabs.map(r=>r.h))-Math.min(...tabs.map(r=>r.h))).toBeLessThanOrEqual(1);
   await page.locator('.lesson-list button').first().click();
+  await expect(page.locator('#controls')).toHaveClass(/learning-active/);
+  await expect(page.locator('.learn-subtabs')).toBeVisible();
+  await expect(page.locator('.controls.learning-active .learn-subtabs button')).toHaveCount(3);
+  await expect(page.locator('.activity-navigation')).toBeVisible();
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('button',{name:'Previous',exact:true}).click();
   const nav=await boxes(page.locator('.activity-navigation button'));separate(nav);for(const r of nav)expect(r.h).toBeGreaterThanOrEqual(44);
@@ -68,6 +76,7 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   await page.screenshot({path:info.outputPath('polished-lesson.png'),fullPage:false});
   await page.getByRole('button',{name:'← All lessons',exact:true}).click();
   await expect(page.locator('.lesson-list')).toBeVisible();
+  await expect(page.locator('.learn-subtabs')).toBeVisible();
   await flow(page,'review');await expect(page.locator('.review-hub')).toBeVisible();
   const cards=await boxes(page.locator('.review-export-grid button'));separate(cards);
   expect(Math.max(...cards.map(r=>r.h))-Math.min(...cards.map(r=>r.h))).toBeLessThanOrEqual(1);
@@ -83,4 +92,39 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   await noOverflow(page);
   await act(page,'review-overview').click();await expect(page.locator('.review-hub')).toBeVisible();
   expect(await page.locator('.review-overview').evaluate(e=>e.getBoundingClientRect().top)).toBeGreaterThanOrEqual(designTop.header+8);
+});
+
+test('the engineering path, optional learning and solved Show Why stay usable on every layout',async({page},info)=>{
+  await page.goto('/#workspace');
+  await expect(page.locator('.workflow-engineering [data-action^="workflow:"]')).toHaveCount(3);
+  await expect(page.locator('.workflow-learning [data-action="workflow:learn"]')).toHaveCount(1);
+  await expect(page.locator('#metrics')).toContainText('30');
+  await act(page,'toggle:teaching').last().click();
+  await expect(page.locator('#teaching .show-why-steps article')).toHaveCount(3);
+  await expect(page.locator('#teaching')).toContainText('dM/dx = V(x)');
+  await expect(page.locator('#teaching')).toContainText('kN·m');
+  await page.locator('[data-trace-number]').fill('2');
+  await expect(page.locator('#teaching .teach-head')).toContainText('x = 2.00 m');
+  await expect(page.locator('#teaching')).toContainText('w =');
+  await noOverflow(page);
+  await page.locator('#teaching').scrollIntoViewIfNeeded();
+  await page.screenshot({path:info.outputPath('show-why-steps.png'),fullPage:false});
+  await flow(page,'learn');
+  if(page.viewportSize().width<=780){
+    const jump=page.locator('.learn-mobile-jump');
+    await expect(jump.getByRole('button',{name:/Beam/})).toBeVisible();
+    await jump.getByRole('button',{name:/Beam/}).click();
+    let top=await page.locator('.centre').evaluate(e=>e.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(58);expect(top).toBeLessThanOrEqual(180);
+    await jump.getByRole('button',{name:/Activity/}).click();
+    top=await page.locator('#controls').evaluate(e=>e.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(58);expect(top).toBeLessThanOrEqual(180);
+    await noOverflow(page);
+  }
+  await page.locator('.lesson-list button').first().click();
+  await page.locator('.activity-navigation [data-action="workflow:build"]').click();
+  await expect(page.getByLabel('Beam length',{exact:true})).toHaveValue('6');
+  await expect(page.locator('#metrics')).toContainText('30');
+  const restored=await page.evaluate(()=>({title:document.querySelector('.workspace-heading').getBoundingClientRect().top,header:document.querySelector('.topbar').getBoundingClientRect().bottom}));
+  expect(restored.title).toBeGreaterThanOrEqual(restored.header+8);
 });

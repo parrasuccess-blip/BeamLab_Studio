@@ -81,7 +81,7 @@ class MovingLab {
             this.row=mode==='envelope'?r.rows.reduce((best,rr,i)=>Math.abs(rr.x-config.station)<Math.abs(r.rows[best].x-config.station)?i:best,0):0;
             if(old?.kind==='envelope'&&r.kind==='envelope'){
                 let delta=0;r.rows.forEach((row,i)=>{delta=Math.max(delta,Math.abs(row.M.min-old.rows[i].M.min),Math.abs(row.M.max-old.rows[i].M.max));});
-                this.message=`Refinement: largest change in sampled moment bounds = ${fmt(delta,6)} kN m. This is a convergence indication, not a bound on the unsampled error.`;
+                this.message=`Refinement: largest change in sampled moment bounds = ${fmt(delta,6)} kN·m. This is a convergence indication, not a bound on the unsampled error.`;
             }else this.message=`Completed ${r.positionCount} static positions${r.kind==='envelope'?` at ${r.stationCount} one-sided section stations`:''}. Original model unchanged.`;
             this.render();
         }catch(e){if(this.controller!==controller)return;this.running=false;this.controller=null;this.result=null;this.error=e.name==='AbortError'?'':e.message;this.message=e.name==='AbortError'?'Calculation cancelled.':'';this.render();}
@@ -111,7 +111,7 @@ class MovingLab {
         const values=r.kind==='influence'?r.data.flatMap(p=>[p.value]):r.rows.flatMap(p=>[p[this.response].min,p[this.response].max]);
         const max=Math.max(1e-9,...values.map(Math.abs)),yp=v=>base-v/max*amp;
         const path=(data,key)=>data.map((p,i)=>`${i?'L':'M'}${xp(r.kind==='influence'?p.z:p.x).toFixed(3)},${yp(r.kind==='influence'?p.value:p[this.response][key]).toFixed(3)}`).join(' ');
-        const units=r.kind==='influence'?r.unit:this.response==='v'?'mm':this.response==='M'?'kN m':'kN';
+        const units=r.kind==='influence'?r.unit:this.response==='v'?'mm':this.response==='M'?'kN·m':'kN';
         let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" data-lab-chart="1" role="img" aria-label="${r.kind==='influence'?'Influence line':'Sampled '+this.response+' envelopes'}"><rect width="${W}" height="285" fill="#0c141b"/><text x="${left}" y="22" fill="#a4b5bf" font-size="12">${r.kind==='influence'?'Influence / '+esc(this.config.target):'Sampled '+this.response+' envelopes'} / ${esc(units)}</text><text x="${right}" y="${narrow?37:22}" text-anchor="end" fill="#90a4b2" font-size="${narrow?9:11}">${r.positionCount} travel positions</text>`;
         [1,0,-1].forEach(k=>{const y=yp(k*max);svg+=`<line x1="${left}" x2="${right}" y1="${y}" y2="${y}" stroke="#33444e" stroke-dasharray="${k?'2 5':'none'}"/><text x="${left-7}" y="${y+4}" text-anchor="end" fill="#93a9b7" font-size="10">${signed(k*max,2)}</text>`;});
         const ticks=narrow?4:6;for(let i=0;i<=ticks;i++){const x=this.model.length*i/ticks;svg+=`<line x1="${xp(x)}" x2="${xp(x)}" y1="39" y2="237" stroke="#283743" opacity=".55"/><text x="${xp(x)}" y="257" text-anchor="middle" fill="#91a5b3" font-size="11">${fmt(x,2)}</text>`;}
@@ -123,7 +123,7 @@ class MovingLab {
     }
     renderResults(){
         const root=this.root.querySelector('#lab-results');if(!root)return;if(!this.result){root.innerHTML='';return;}
-        const r=this.result,inf=r.kind==='influence',units=inf?r.unit:this.response==='M'?'kN m':this.response==='v'?'mm':'kN';
+        const r=this.result,inf=r.kind==='influence',units=inf?r.unit:this.response==='M'?'kN·m':this.response==='v'?'mm':'kN';
         const row=inf?null:r.rows[this.row];
         root.innerHTML=`<div class="lab-results-head"><div><span class="eyebrow">${inf?'UNIT RESPONSE':'SAMPLED STATIC ENVELOPE'}</span><h4>${inf?'Fix the section. Move the force.':'Every section has its own governing position.'}</h4></div>${!inf?`<div class="lab-field-tabs">${['M','V','v'].map(k=>button('field:'+k,k==='M'?'Moment':k==='V'?'Shear':'Deflection',this.response===k?'active':'')).join('')}</div>`:''}</div>
         <div class="lab-chart">${this.chartSvg()}</div><div class="lab-summary">${inf?`<article><small>Minimum sampled ordinate</small><b>${signed(r.min.value,4)} ${esc(units)}</b><span>load z = ${fmt(r.min.z,4)} m</span></article><article><small>Maximum sampled ordinate</small><b>${signed(r.max.value,4)} ${esc(units)}</b><span>load z = ${fmt(r.max.z,4)} m</span></article>`:`<article><small>Section x = ${fmt(row.x,3)} m / ${row.side}</small><b class="pink">${signed(row[this.response].min,4)} ${units}</b><span>minimum / lead at ${fmt(row[this.response].minAt,4)} m</span></article><article><small>Same section / maximum</small><b>${signed(row[this.response].max,4)} ${units}</b><span>maximum / lead at ${fmt(row[this.response].maxAt,4)} m</span></article>`}</div>
@@ -142,7 +142,7 @@ class MovingLab {
             const rr=a.sample(station,side),b=this.base?.sample(station,side);
             const target=this.result.kind==='influence'?this.config.target:this.response;
             const value=target==='reaction'?a.reactions.find(r=>r.id===this.config.supportId).force:(rr[target]+(this.result.kind==='envelope'?(b?.[target]||0):0))*(target==='v'?1000:1);
-            const live=this.root.querySelector('#lab-live');if(live)live.innerHTML=`<b>${this.result.kind==='influence'?'Live ordinate':'Response at inspected section'}: ${signed(value,4)} ${this.result.kind==='influence'?esc(this.result.unit):target==='v'?'mm':target==='M'?'kN m':'kN'}</b><span>${forces.filter(q=>q.x>=0&&q.x<=this.model.length).length} ${this.result.kind==='influence'?'unit force':'axle(s)'} on the beam / positive forces act down</span>`;
+            const live=this.root.querySelector('#lab-live');if(live)live.innerHTML=`<b>${this.result.kind==='influence'?'Live ordinate':'Response at inspected section'}: ${signed(value,4)} ${this.result.kind==='influence'?esc(this.result.unit):target==='v'?'mm':target==='M'?'kN·m':'kN'}</b><span>${forces.filter(q=>q.x>=0&&q.x<=this.model.length).length} ${this.result.kind==='influence'?'unit force':'axle(s)'} on the beam / positive forces act down</span>`;
             const W=this.scale.W,left=this.scale.left,right=this.scale.right,xp=x=>left+x/this.model.length*(right-left),colours=['#efbd6a','#79bbef','#bd9af0','#f196a7'];
             let mini=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 144" aria-label="Live moving load positions"><line x1="${left}" x2="${right}" y1="80" y2="80" stroke="#adcdc7" stroke-width="5"/>`;
             this.prepared.supports.forEach(s=>{const x=xp(s.x);mini+=s.kind==='fixed'?`<rect x="${x-5}" y="64" width="10" height="38" fill="#a5bdb9"/>`:`<path d="M${x},84 l-9,17 h18 z" fill="#a5bdb9"/>`;mini+=`<text x="${x}" y="120" text-anchor="middle" fill="#9fb7bf" font-size="10">${esc(s.label)}</text>`;});

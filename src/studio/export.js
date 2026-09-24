@@ -76,7 +76,7 @@ function svgDocument(m, a, v) {
     text('Current model only. Case factors: ' + m.cases.map(c => c.name + ' ' + (c.enabled ? c.factor : 'OFF')).join(' / '), 52, 11);
     text(fingerprint(m)+' / Educational analysis. Not a design check. Nominal labels; factored results.', 69, 11);
     y = 94;
-    const names = ['Structure', 'Shear force / kN', 'Bending moment / kN m', ...(v.deformation ? ['Deformation / mm (up +, exaggerated)'] : []), ...(v.stress ? ['Top-fibre elastic stress / MPa (tension +)'] : [])];
+    const names = ['Structure', 'Shear force / kN', 'Bending moment / kN·m', ...(v.deformation ? ['Deformation / mm (up +, exaggerated)'] : []), ...(v.stress ? ['Top-fibre elastic stress / MPa (tension +)'] : [])];
     svgs.forEach((svg, i) => { text(names[i], y + 23, 14); y += 37; const H = Number(svg.getAttribute('viewBox').split(' ')[3]); svg.setAttribute('x', '0'); svg.setAttribute('y', String(y)); svg.setAttribute('width', '1100'); svg.setAttribute('height', String(H)); root.append(svg); y += H + 16; });
     root.setAttribute('height', String(y));
     root.setAttribute('viewBox', `0 0 ${W} ${y}`);
@@ -121,8 +121,8 @@ class Pdf {
         this.pages = [];
         this.add('');
         this.add('');
-        this.add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-        this.add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+        this.add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+        this.add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
     }
     page(content, image) {
         let resources = '/Font << /F1 3 0 R /F2 4 0 R >>';
@@ -147,7 +147,9 @@ class Pdf {
         return out;
     }
 }
-const pdfEscape = (s) => s.normalize('NFKD').replace(/[^\x20-\x7e]/g, '-').replace(/[\\()]/g, '\\$&');
+// Standard Helvetica supports a real middle dot through WinAnsi byte 0xB7.
+// Keep all PDF program syntax ASCII, using PDF's octal string escape for it.
+const pdfEscape = (s) => String(s).normalize('NFKD').replace(/[\\()]/g, '\\$&').replace(/·/g, '\\267').replace(/[^\x20-\x7e]/g, '-');
 function line(text, y, size = 11, bold = false, colour = '0.10 0.17 0.20') { return `${colour} rg BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 42 ${y} Tm (${pdfEscape(text)}) Tj ET\n`; }
 function wrap(s, max = 92) { const lines = []; let current = ''; for (const word of s.split(/\s+/)) {
     if (current.length + word.length + 1 > max) {
@@ -177,7 +179,7 @@ async function pdfReport(m, a, v) {
     add('Linear elastic analysis / '+fingerprint(m)+' / current model / full member width',10);
     heading('01  RESPONSE SUMMARY');
     add(`Peak shear |V| = ${(0,common_1.fmt)(Math.abs(a.peakV.V),4)} kN at ${(0,common_1.fmt)(a.peakV.x,4)} m.`);
-    add(`Peak moment |M| = ${(0,common_1.fmt)(Math.abs(a.peakM.M),4)} kN m at ${(0,common_1.fmt)(a.peakM.x,4)} m.`);
+    add(`Peak moment |M| = ${(0,common_1.fmt)(Math.abs(a.peakM.M),4)} kN·m at ${(0,common_1.fmt)(a.peakM.x,4)} m.`);
     add(`Peak displacement = ${(0,common_1.fmt)(a.peakD.v*1000,5)} mm at ${(0,common_1.fmt)(a.peakD.x,4)} m (up positive).`);
     const stressEnvelope = a.hasEIOnlyRegions ? null : a.elasticStressEnvelope;
     const stress = stressEnvelope?.stress ?? (a.hasEIOnlyRegions ? null : Math.abs(a.peakM.M)*a.properties.c/a.properties.I/1000);
@@ -210,15 +212,15 @@ async function pdfReport(m, a, v) {
     heading('03  ACTIVE FACTORS & SUPPORT REACTIONS');
     add('User-defined factors, not prescribed design-code combinations.');
     add(m.cases.map(c => c.name+': '+(c.enabled?(0,common_1.fmt)(c.factor,3):'OFF')).join(' / '));
-    for (const r of a.reactions) add(`${r.label} at ${(0,common_1.fmt)(r.x,3)} m: settlement ${(0,common_1.signed)(r.settlementMm || 0,3)} mm (up +); rotation ${(0,common_1.signed)(r.rotationMrad || 0,3)} mrad (CCW +); Ry ${(0,common_1.fmt)(r.force,5)} kN upward; couple ${(0,common_1.fmt)(r.moment,5)} kN m CCW.`);
+    for (const r of a.reactions) add(`${r.label} at ${(0,common_1.fmt)(r.x,3)} m: settlement ${(0,common_1.signed)(r.settlementMm || 0,3)} mm (up +); rotation ${(0,common_1.signed)(r.rotationMrad || 0,3)} mrad (CCW +); Ry ${(0,common_1.fmt)(r.force,5)} kN upward; couple ${(0,common_1.fmt)(r.moment,5)} kN·m CCW.`);
     heading('04  MODEL ACTIONS (NOMINAL INPUTS)');
     for (const i of m.items) {
         if (['pin','roller','fixed'].includes(i.kind)) continue;
         const c=m.cases.find(c=>c.id===i.caseId);
-        add(`${i.label}: ${i.kind}, x=${(0,common_1.fmt)(i.x,3)}${i.end!==undefined?' to '+(0,common_1.fmt)(i.end,3):''} m${['point','udl','variable','moment'].includes(i.kind)?'; '+(0,common_1.fmt)(i.value,3)+(i.kind==='variable'?' to '+(0,common_1.fmt)(i.endValue,3):'')+' '+(i.kind==='point'?'kN':i.kind==='moment'?'kN m':'kN/m'):''}${c?'; '+c.name:''}.`);
+        add(`${i.label}: ${i.kind}, x=${(0,common_1.fmt)(i.x,3)}${i.end!==undefined?' to '+(0,common_1.fmt)(i.end,3):''} m${['point','udl','variable','moment'].includes(i.kind)?'; '+(0,common_1.fmt)(i.value,3)+(i.kind==='variable'?' to '+(0,common_1.fmt)(i.endValue,3):'')+' '+(i.kind==='point'?'kN':i.kind==='moment'?'kN·m':'kN/m'):''}${c?'; '+c.name:''}.`);
     }
     heading('05  CONSISTENCY & SCOPE');
-    add(`Force residual ${a.forceResidual.toExponential(2)} kN; moment residual ${a.momentResidual.toExponential(2)} kN m; hinge residual ${a.hingeResidual.toExponential(2)} kN m.`,9);
+    add(`Force residual ${a.forceResidual.toExponential(2)} kN; moment residual ${a.momentResidual.toExponential(2)} kN·m; hinge residual ${a.hingeResidual.toExponential(2)} kN·m.`,9);
     add(`Support residual ${a.boundaryResidual.toExponential(2)} m; element compatibility ${a.endCompatibilityResidual.toExponential(2)} m.`,9);
     add('Euler-Bernoulli small-deflection bending with optional true piecewise section properties and optional EI-only multipliers. True stepped regions use their local E/I/A/depth/density; abrupt transition stress concentrations are not modelled. EI-only overrides do not infer local stress or section capacity. Prescribed vertical support settlement is included as a boundary condition; fixed-support rotation is included in mrad (CCW positive). No axial, shear-deformation, stability, concrete-cracking or code-capacity checks. Negative bearing reactions require hold-down restraint. Residuals do not certify real structural safety.',9);
     for (const w of a.warnings) add(w,9);

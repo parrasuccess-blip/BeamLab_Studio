@@ -36,7 +36,7 @@ function toolsPanel(m, v) {
         const advanced = ['fixed', 'moment', 'variable', 'hinge'].filter(k => (0, levels_1.canUseTool)(v.level, k) && !primary.includes(k));
         html += `<div class="tool-grid">${primary.map(tool).join('')}</div>${advanced.length ? (0, common_1.button)('advanced', `${v.level === 'year2' ? 'More structural tools' : 'Advanced tools'} ${(0, common_1.icon)('down', 14)}`, 'expand-tools') : ''}${v.advanced && advanced.length ? `<div class="tool-grid">${advanced.map(tool).join('')}</div>` : ''}`;
         const presets = [option('', 'Choose a load...'), option('partial', 'Partial UDL / 5 kN/m'), option('up', 'Upward point / 10 kN')];
-        if ((0, levels_1.canUseTool)(v.level, 'moment')) presets.push(option('couple', 'CCW couple / 30 kN m'));
+        if ((0, levels_1.canUseTool)(v.level, 'moment')) presets.push(option('couple', 'CCW couple / 30 kN·m'));
         if (v.level !== 'year1') presets.push(option('wind', 'Upward distributed / 2 kN/m'));
         html += selectField('preset', 'Quick load preset', presets.join(''));
         if ((0, levels_1.canUseFeature)(v.level, 'cases') && (m.cases?.length || 0) > 1)
@@ -278,7 +278,7 @@ function inspectorPanel(m, a, v) {
     html += '</fieldset>';
     if ((0, validation_1.isDistributed)(i.kind)) {
         const r = (0, study_1.resultant)(i);
-        html += `<div class="insight-card"><span>Nominal equivalent resultant</span><strong>${(0, common_1.signed)(r.force)} <small>kN</small></strong><p>${r.position === null ? `No single force resultant. First moment = ${(0, common_1.signed)(r.firstMoment)} kN m.` : `Acts at x = ${(0, common_1.fmt)(r.position, 3)} m.`}</p></div>`;
+        html += `<div class="insight-card"><span>Nominal equivalent resultant</span><strong>${(0, common_1.signed)(r.force)} <small>kN</small></strong><p>${r.position === null ? `No single force resultant. First moment = ${(0, common_1.signed)(r.firstMoment)} kN·m.` : `Acts at x = ${(0, common_1.fmt)(r.position, 3)} m.`}</p></div>`;
     }
     if (i.kind === 'hinge')
         html += `<div class="insight-card"><span>Moment release</span><strong>${a ? (0, common_1.fmt)(a.sample(i.x).M, 5) : '--'} <small>kN\u00b7m</small></strong><p>Displacement continuous. Rotations are independent on either side.</p></div>`;

@@ -347,7 +347,7 @@ test('support settlement validation and learning-level boundaries are explicit',
 test('support settlement is represented across inspector, diagrams, working and exports', () => {
   assert.match(html, /Support settlement/);
   assert.match(html, /Positive = upward prescribed movement/);
-  assert.match(html, /Kff df = Ff - Kfc dc/);
+  assert.match(html, /K<sub>ff<\/sub>d<sub>f<\/sub> = F<sub>f<\/sub> − K<sub>fc<\/sub>d<sub>c<\/sub>/);
   assert.match(html, /Settlement \/ mm/);
   assert.match(html, /prescribed vertical support settlement/i);
   assert.match(html, /settlement changed from/);
@@ -356,7 +356,7 @@ test('support settlement is represented across inspector, diagrams, working and 
 });
 
 test('migration preserves Design Studio and tutor hooks', () => {
-  assert.match(html, /BeamLab Studio 4\.1\.4 - Engineering and Learning Studio/);
+  assert.match(html, /BeamLab Studio 4\.1\.5 - Engineering and Learning Studio/);
   assert.match(html, /BEAMLAB 4\.1 \/ DESIGN STUDIO/);
   assert.match(html, /BeamLabTutorApi/);
   assert.match(html, /Screening review · not code approval/);
