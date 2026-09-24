@@ -1,0 +1,32 @@
+name: Verify BeamLab 4.1.5 public release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-release-4-1-5.yml
+      - scripts/verify-release-4-1-5.mjs
+
+jobs:
+  public-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Check real public bytes and desktop/phone journeys
+        run: node scripts/verify-release-4-1-5.mjs
+      - name: Keep compact public screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-4-1-5-screenshots
+          path: test-results/public-release/
+          if-no-files-found: ignore
+          retention-days: 14
