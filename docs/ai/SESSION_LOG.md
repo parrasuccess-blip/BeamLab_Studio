@@ -408,3 +408,8 @@ Created documentation branch docs/release-4-1-3-verification from d4f6b21. Objec
 
 
 Account A final verification: merged-main CI 35862619917 now succeeds, including browser job 107186347922 with 136 passed (4.9m), zero retries. Public selected-object edit 20 → 24 kN yields +12/+12 kN reactions and 48 kN·m peak moment; the visible Undo target is unobstructed and pointer Undo restores 20 kN and +10/+10/40 results. Saved public viewport evidence at docs/qa/4.1.3/public-editor.jpg. Documentation PR #22 records the release without changing the application; build hash remains d407fb18…373533. STATUS: production verification complete / documentation ready after its CI gate.
+
+
+### 2026-09-24 — Account A — UI consistency polish begins
+
+Starting main 49770495deb49cb82afc9fb70b029c97723cb17c, no open PRs. Dedicated feature/ui-control-polish branch. User explicitly prioritises polishing inconsistent button sizes and remaining UI faults before the next feature. Inspected live homepage and Learn/Review navigation, measured 41/52/44 px hero actions and clipped field sizing in source. Fresh npm ci/npm test baseline: 1,294 passed, zero failures/skips. Existing production 4.1.3 is unchanged. STATUS: audit/implementation in progress; browser screenshots and regression coverage required before merge.
