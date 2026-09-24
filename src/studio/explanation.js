@@ -1,5 +1,6 @@
 'use strict';
 const {effectiveModel} = require('../model/study');
+const {signed} = require('./common');
 const f = (n, digits = 3) => (Math.abs(n) < .5 * 10 ** -digits ? 0 : n).toFixed(digits);
 
 // Read field values and local intensity from the solved elements. This is an
@@ -46,9 +47,14 @@ function explainAt(model, analysis, position, level = 'year1') {
     lines.push(`The effective downward load intensity in the ${endpoint && x > 0 ? 'left-hand' : 'right-hand'} region is ${f(w)} kN/m${model.selfWeight ? ', including enabled, factored self-weight' : ''}. The local shear slope is ${f(-w)} kN/m.`);
     lines.push(`V = ${f(right.V)} kN and M = ${f(right.M)} kN·m at x = ${f(x)} m${endpoint && x > 0 ? ' (inside the left face)' : ' (right-hand value)'}.`);
     if (Math.abs(right.V) > 1e-8) lines.push(`${right.V > 0 ? 'Positive' : 'Negative'} shear means moment is ${right.V > 0 ? 'rising' : 'falling'} as x increases within this region.`);
-    const formula = level === 'year1' ? 'Load changes shear; shear changes moment.' : 'dV/dx = −w(x)    ·    dM/dx = V(x)    ·    EI d²v/dx² = M(x)';
+    const formula = level === 'year1' ? 'Load → shear → moment → bending' : 'dV/dx = −w(x)    ·    dM/dx = V(x)    ·    EI d²v/dx² = M(x)';
     if (level !== 'year1') lines.push(`Elastic displacement here is ${f(right.v * 1000)} mm (upward positive) and rotation is ${f(right.theta, 6)} rad. Local EI = ${f(right.localEI)} kN·m².`);
     if (level === 'year3' || level === 'all') lines.push('This explains the current linear-elastic model, not capacity or code compliance. A global peak may also occur at an endpoint, a corner or a moment jump.');
-    return {x, title, lines, formula, facts:{left, right, w, jumpV, jumpM, endpoint}};
+    const steps = [
+        {label:'1 · Loading sets the shear slope', equation:'dV/dx = −w(x)', value:`w = ${signed(w)} kN/m → dV/dx = ${signed(-w)} kN/m`, detail:hasVJump ? `At this action, V⁻ = ${f(left.V)} kN and V⁺ = ${f(right.V)} kN: ΔV = ${f(jumpV)} kN. Between actions the local slope still follows the load intensity.` : 'The intensity applies between structural events. A concentrated force changes shear suddenly at its own position.'},
+        {label:'2 · Shear sets the moment slope', equation:'dM/dx = V(x)', value:`V = ${f(right.V)} kN → moment ${right.V > 1e-8 ? 'rises' : right.V < -1e-8 ? 'falls' : 'is locally stationary'} toward increasing x`, detail:hasMJump ? `M⁻ = ${f(left.M)} kN·m and M⁺ = ${f(right.M)} kN·m: ΔM = ${f(jumpM)} kN·m. A couple creates an immediate moment change.` : `M = ${f(right.M)} kN·m here. There is no moment jump at this position; a vertical point action can change the slope across its location.`},
+        {label:level === 'year1' ? '3 · Moment bends the beam' : '3 · Moment sets elastic curvature', equation:level === 'year1' ? 'Moment → bending' : 'EI d²v/dx² = M(x)', value:level === 'year1' ? `M = ${f(right.M)} kN·m at this position` : `M = ${f(right.M)} kN·m; EI = ${f(right.localEI)} kN·m²`, detail:level === 'year1' ? 'The support arrangement and loading across the whole beam also affect its shape.' : 'Curvature follows M/EI within this local section. Deflection also depends on the supports, hinges and every other region; local moment alone does not give the displacement.'}
+    ];
+    return {x, title, lines, formula, steps, facts:{left, right, w, jumpV, jumpM, endpoint}};
 }
 module.exports = {explainAt};

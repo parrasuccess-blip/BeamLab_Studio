@@ -501,8 +501,10 @@ function render() {
     renderWorkspaceModeBar();
     const designMode = v.workspaceMode === 'design';
     const phase = workspace.phaseFor(v);
-    $('#mobile-tools').hidden = designMode || phase === 'learn';
-    $('#mobile-tools').innerHTML = `<button data-action="controls" aria-controls="controls" aria-expanded="${v.controls}"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><b>${v.controls?'Close tools ↑':'Open tools ↓'}</b></button>`;
+    $('#mobile-tools').hidden = designMode;
+    $('#mobile-tools').innerHTML = phase === 'learn'
+        ? `<nav class="learn-mobile-jump" aria-label="Learning workspace"><button type="button" data-action="learn-focus:activity">Activity <span>Questions &amp; hints</span></button><button type="button" data-action="learn-focus:beam">Beam <span>Structure &amp; diagrams</span></button></nav>`
+        : `<button data-action="controls" aria-controls="controls" aria-expanded="${v.controls}"><span>${phase==='analyse'?'Response layers':'Model tools'}</span><b>${v.controls?'Close tools ↑':'Open tools ↓'}</b></button>`;
     $('#workspace-grid').hidden = designMode;
     $('#design-studio').hidden = !designMode;
     document.querySelector('.workspace-foot')?.classList.toggle('design-active', designMode);
@@ -1180,7 +1182,7 @@ function renderStage() {
     if (!visibility().complete) $('#compare-note').innerHTML = '';
     $('#graphs').innerHTML = (0, diagrams_1.renderDiagrams)(m, a, diagramView());
     $('#trace-position').innerHTML = `<div class="trace-position"><label for="trace-number">Inspect x / m</label><input type="range" data-range="trace" aria-label="Inspection position" min="0" max="${m.length}" step="${m.length/1000}" value="${v.trace ?? m.length/2}"><input id="trace-number" type="number" data-trace-number min="0" max="${m.length}" step="any" value="${v.trace ?? m.length/2}" aria-label="Inspection position in metres"></div>`;
-    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a || !visibility().complete, 'Inspect equilibrium, energy and critical locations')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
+    $('#stage-footer').innerHTML = `${(0,common_1.button)('audit', (0,common_1.icon)(a ? 'check' : 'help',13) + (a ? ' Model checks' : ' Model incomplete'), 'audit-trigger', !a || !visibility().complete, 'Inspect equilibrium, energy and critical locations')}${(0,common_1.button)('toggle:teaching', v.teaching ? 'Hide Show Why' : 'Show Why', 'why-trigger', !a || !visibility().complete, 'Explain this solved beam at the inspected position')}<div class="view-controls">${(0, common_1.button)('annotation-cycle', (0, common_1.icon)('eye', 14) + '<span>' + (v.annotationMode === 'clean' ? 'Clean' : v.annotationMode === 'guided' ? 'Guided' : 'Detailed') + '</span>', 'detail-button ' + (v.annotationMode !== 'clean' ? 'active' : ''), false, 'Diagram detail: ' + v.annotationMode + '. Click to cycle.')}<label>Zoom <select data-select="zoom" aria-label="Diagram zoom">${[1, 1.5, 2, 3].map(n => `<option value="${n}" ${v.zoom === n ? 'selected' : ''}>${n * 100}%</option>`).join('')}</select></label>${v.zoom > 1 ? `<input type="range" data-range="pan" aria-label="Pan along beam" min="0" max="${m.length - m.length / v.zoom}" step="${m.length / 1000}" value="${v.pan}">${(0, common_1.button)('fit', 'Fit', 'text-button')}` : ''}<small>Snap ${v.snap ? v.snap + ' m' : 'off'}</small></div>`;
     $('#assumptions').hidden = !a?.warnings.length && !m.section.family?.includes('PFC');
     $('#assumptions').innerHTML = `<summary>Model assumptions to review</summary>${[...(a?.warnings || []), ...(m.section.family === 'PFC' ? ['Channel bending is about horizontal x-x only. Torsion from load eccentricity and shear-centre effects is not represented.'] : [])].map(w => `<p>${(0, common_1.esc)(w)}</p>`).join('')}`;
     $('#working-toggle').innerHTML = (0, common_1.button)('working', `${(0, common_1.icon)('help', 16)}<span>${v.working ? 'Hide worked solution' : 'Show working, step by step'}</span>${(0, common_1.icon)('right', 16)}`, 'working-toggle', !a || !visibility().complete);
@@ -1604,6 +1606,11 @@ async function action(key, el) {
     if (name === 'privacy') {privacyDialog();return;}
     if (name === 'issue-report') {issueReport();return;}
     if (name === 'workflow') { setWorkflow(id); return; }
+    if (name === 'learn-focus' && workspace.phaseFor(v) === 'learn' && ['activity','beam'].includes(id)) {
+        const destination = id === 'activity' ? $('#controls') : $('.centre');
+        destination?.scrollIntoView({behavior:'auto',block:'start'});
+        return;
+    }
     if (name === 'level-preferences') { v.levelPreferencesOpen = !v.levelPreferencesOpen; renderLearningBar(); return; }
     if (name === 'learning-library') {
         if (v.session?.active || v.session?.review) return;
@@ -1745,8 +1752,7 @@ async function action(key, el) {
         if (!analysis) { toast('Complete a stable model first.'); return; }
         try {
             const x = v.trace === null ? analysis.peakM.x : v.trace;
-            const e = (0, challenges_1.explainAt)(history.model, analysis, x, v.level);
-            openDialog('Why does the beam behave like this here?', `<div class="context-explain-dialog"><span class="eyebrow">x = ${(0,common_1.fmt)(e.x,3)} m / ${(0,common_1.esc)((0,levels_1.mode)(v.level).short)}</span><h3>${(0,common_1.esc)(e.title)}</h3><div class="formula">${(0,common_1.esc)(e.formula)}</div>${e.lines.map(line=>`<p>${(0,common_1.esc)(line)}</p>`).join('')}<p class="hint">This explanation is generated deterministically from the current solved model; it is not an AI answer or a design check.</p></div>`);
+            openDialog('Why does the beam behave like this here?', `<div class="context-explain-dialog">${(0,diagrams_1.teaching)(history.model,analysis,x,v.level)}</div>`);
         } catch(e) { toast(e instanceof Error ? e.message : 'Could not explain this location.'); }
         return;
     }

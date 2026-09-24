@@ -41,6 +41,10 @@ test('fields contain their inputs and editor actions remain reachable',async({pa
   await page.locator('.object-list [data-select-object]').last().click();
   const force=page.getByLabel('Force',{exact:true});await force.fill('24');await force.press('Tab');
   await expect(page.locator('#metrics')).toContainText('48.00 kN·m');
+  // Tab commits a separate history entry on the next task. Wait for that
+  // committed state before measuring the toolbar; its old DOM is replaced.
+  await expect(page.locator('#history-count')).toHaveText('2 edits');
+  await expect(act(page,'undo')).toBeEnabled();
   await act(page,'undo').scrollIntoViewIfNeeded();
   expect(await act(page,'undo').evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
   await act(page,'undo').click();await expect(force).toHaveValue('20');
@@ -83,4 +87,35 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   await noOverflow(page);
   await act(page,'review-overview').click();await expect(page.locator('.review-hub')).toBeVisible();
   expect(await page.locator('.review-overview').evaluate(e=>e.getBoundingClientRect().top)).toBeGreaterThanOrEqual(designTop.header+8);
+});
+
+test('the engineering path, optional learning and solved Show Why stay usable on every layout',async({page},info)=>{
+  await page.goto('/#workspace');
+  await expect(page.locator('.workflow-engineering [data-action^="workflow:"]')).toHaveCount(3);
+  await expect(page.locator('.workflow-learning [data-action="workflow:learn"]')).toHaveCount(1);
+  await expect(page.locator('#metrics')).toContainText('30');
+  await act(page,'toggle:teaching').last().click();
+  await expect(page.locator('#teaching .show-why-steps article')).toHaveCount(3);
+  await expect(page.locator('#teaching')).toContainText('dM/dx = V(x)');
+  await expect(page.locator('#teaching')).toContainText('kN·m');
+  await page.locator('[data-trace-number]').fill('2');
+  await expect(page.locator('#teaching .teach-head')).toContainText('x = 2.00 m');
+  await expect(page.locator('#teaching')).toContainText('w =');
+  await noOverflow(page);
+  await page.locator('#teaching').scrollIntoViewIfNeeded();
+  await page.screenshot({path:info.outputPath('show-why-steps.png'),fullPage:false});
+  await flow(page,'learn');
+  if(page.viewportSize().width<=780){
+    const jump=page.locator('.learn-mobile-jump');
+    await expect(jump.getByRole('button',{name:/Beam/})).toBeVisible();
+    await jump.getByRole('button',{name:/Beam/}).click();
+    let top=await page.locator('.centre').evaluate(e=>e.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(58);expect(top).toBeLessThanOrEqual(180);
+    await jump.getByRole('button',{name:/Activity/}).click();
+    top=await page.locator('#controls').evaluate(e=>e.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(58);expect(top).toBeLessThanOrEqual(180);
+    await noOverflow(page);
+  }
+  await flow(page,'build');
+  await expect(page.locator('#metrics')).toContainText('30');
 });

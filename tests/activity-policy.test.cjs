@@ -9,7 +9,45 @@ const {solveStudy, normalise} = load('model/study');
 const {makeItem} = load('model/examples');
 const {explainAt} = load('studio/challenges');
 const {teaching} = load('studio/diagrams');
+const {workingStep} = load('studio/working');
 const near = (value, expected) => assert.ok(Math.abs(value - expected) < 1e-8, `${value} != ${expected}`);
+
+test('engineering routes form a clear path and Learn remains a separate optional destination', () => {
+    const nav = workspace.renderNavigation({workspaceMode:'analysis',tab:'build'});
+    assert.match(nav, /class="workflow-engineering"/);
+    assert.match(nav, /class="workflow-learning"/);
+    assert.equal((nav.match(/data-action="workflow:/g) || []).length, 4);
+    assert.equal((nav.match(/aria-current="page"/g) || []).length, 1);
+    assert.ok(nav.indexOf('workflow:review') < nav.indexOf('workflow:learn'));
+});
+
+test('worked equations use mathematical symbols while retaining the solved reference values', () => {
+    const model=fixture('simple'), result=solveStudy(model);
+    assert.match(workingStep(model,result,0), /W = ∫ w\(x\) dx/);
+    assert.match(workingStep(model,result,1), /ΣRᵧ/);
+    assert.match(workingStep(model,result,1), /K<sub>ff<\/sub>d<sub>f<\/sub>/);
+    const regions=workingStep(model,result,2);
+    assert.match(regions,/t²/);assert.match(regions,/t³/);
+    assert.doesNotMatch(regions,/t\^2|t\^3/);
+    assert.match(workingStep(model,result,4), /M\(H⁻\) = M\(H⁺\) = 0/);
+});
+
+test('Show Why connects solved jumps, local slopes and curvature without changing the model', () => {
+    const model=fixture('simple');
+    model.items=model.items.filter(item=>item.kind!=='udl');
+    model.items.push(makeItem('point',model.length/2,undefined,20));
+    const before=JSON.stringify(model), result=solveStudy(model);
+    const x=model.length/2, e=explainAt(model,result,x,'all');
+    assert.equal(e.steps.length,3);
+    near(e.facts.left.V,10);near(e.facts.right.V,-10);near(e.facts.right.M,50);
+    assert.match(e.steps[0].detail,/ΔV = -20\.000 kN/);
+    assert.match(e.steps[1].value,/moment falls/);
+    assert.match(e.steps[1].detail,/M = 50\.000 kN·m/);
+    assert.match(e.steps[2].equation,/EI d²v\/dx² = M\(x\)/);
+    const beginner=explainAt(model,result,x,'year1');
+    assert.equal(beginner.steps[2].equation,'Moment → bending');
+    assert.equal(JSON.stringify(model),before);
+});
 
 for (const level of ['year1','year2','year3','all']) {
     for (const destination of ['build','analyse','review']) test(`${level}: ${destination} ignores learning masks and exposes engineering tools`, () => {
