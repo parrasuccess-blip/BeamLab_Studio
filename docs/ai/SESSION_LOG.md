@@ -408,3 +408,14 @@ Created documentation branch docs/release-4-1-3-verification from d4f6b21. Objec
 
 
 Account A final verification: merged-main CI 35862619917 now succeeds, including browser job 107186347922 with 136 passed (4.9m), zero retries. Public selected-object edit 20 → 24 kN yields +12/+12 kN reactions and 48 kN·m peak moment; the visible Undo target is unobstructed and pointer Undo restores 20 kN and +10/+10/40 results. Saved public viewport evidence at docs/qa/4.1.3/public-editor.jpg. Documentation PR #22 records the release without changing the application; build hash remains d407fb18…373533. STATUS: production verification complete / documentation ready after its CI gate.
+
+
+### 2026-09-24 — Account A — UI consistency polish begins
+
+Starting main 49770495deb49cb82afc9fb70b029c97723cb17c, no open PRs. Dedicated feature/ui-control-polish branch. User explicitly prioritises polishing inconsistent button sizes and remaining UI faults before the next feature. Inspected live homepage and Learn/Review navigation, measured 41/52/44 px hero actions and clipped field sizing in source. Fresh npm ci/npm test baseline: 1,294 passed, zero failures/skips. Existing production 4.1.3 is unchanged. STATUS: audit/implementation in progress; browser screenshots and regression coverage required before merge.
+
+
+Account A implementation checkpoint: preserved the existing four destinations and all analysis/learning state. Added hero action grouping and shared control rhythm; corrected input-wrapper clipping and phone focus typography; balanced three Learn tabs; improved narrow header, toolbar, metric, footer and dialog wrapping. Removed smooth navigation movement and duplicate workspace scroll offset so the next control stays still. Prepared 4.1.4 identity with identity assertions only; no numerical or learning algorithm changes. Added three UI journeys across four browsers (148 total expected), covering equal action heights, pointer landing, field containment, actual editor Undo, readable Learn tabs, catalogue return and review cards. Checkpoint before full CI; production still 4.1.3.
+
+
+Account A hosted visual follow-up: candidate 16df5ed passes all 1,294 numerical checks locally and in CI. Desktop hero actions now measure 48 px; Learn tabs 64 px and lesson navigation 44 px. Live criteria entry revealed a pre-existing old-scroll-position fault (section top −353 px under the header); explicitly align criteria entry and overview return below the header and cover this in the new review journey. Align lesson row insets and make secondary review step labels readable. First full browser run completed successfully (148 checks, zero retries); next coherent checkpoint retains its full coverage and adds criteria scroll assertions.

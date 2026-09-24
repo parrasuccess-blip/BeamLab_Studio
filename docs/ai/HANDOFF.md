@@ -1,5 +1,13 @@
 # BeamLab AI Handoff
 
+## Active UI polish — Account A, 2026-09-24
+
+STATUS: first candidate numerical and browser green / visual follow-up repair. User requests a focused polish pass before the next feature increment. Starting main 49770495deb49cb82afc9fb70b029c97723cb17c; branch feature/ui-control-polish. Fresh npm ci and npm test pass all 1,294 checks. Production remains 4.1.3.
+
+Confirmed live issues: homepage actions use 41/52/44 px heights and 11/14/12 px fonts; independent margins leave uneven gaps; numeric inputs have 42 px minimum heights inside 39 px clipped wrappers; related secondary and icon controls have inconsistent sizes. The implementation now groups hero actions, normalises related controls, fixes field containment, balances three Learn tabs, wraps phone/header/editor/dialog actions and makes navigation settle immediately with one header offset. Three new geometry/interaction journeys supplement all 136 existing browser checks. Hosted review additionally reproduced criteria entry keeping its old scroll offset and hiding the heading behind the header; entry and return now scroll to the visible section, with matching regression checks. Lesson navigation gains consistent inset spacing and review step labels use readable text. Candidate identity is 4.1.4. Keep the existing four destinations, solver, learning policy and model/history contracts.
+
+Implementation: consistent control size tokens and grouped action layout; correct field containers; orderly wrapping and touch targets; preserve reserved inspector and diagram alignment. Test: retain numerical suite and all 136 browser checks, add layout/real-interaction checks, review desktop/mobile screenshots and verify public artifact after a validated release. Save coherent checkpoints before long CI. Larger workspace/learning/math redesign remains deferred.
+
 ## Current state — Account A, 2026-09-23
 
 **STATUS: 4.1.3 merged / exact public artifact and live upgrade verified.** Final-candidate and merged-main validation are green. This documentation branch records the completed release; no application repairs are pending in the 4.1.3 scope.

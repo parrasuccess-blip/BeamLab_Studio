@@ -4,7 +4,7 @@ const { example, makeItem } = require('../model/examples');
 const { catalogue, fromCatalogue } = require('../model/catalogue');
 const { sectionProperties } = require('../model/sections');
 const { criticalSamples } = require('./diagrams');
-const RELEASE = '4.1.3';
+const RELEASE = '4.1.4';
 
 // Non-security reference ID. Canonical input is included in the evidence export.
 function canonical(value) {

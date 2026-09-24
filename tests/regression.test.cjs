@@ -356,7 +356,7 @@ test('support settlement is represented across inspector, diagrams, working and 
 });
 
 test('migration preserves Design Studio and tutor hooks', () => {
-  assert.match(html, /BeamLab Studio 4\.1\.3 - Engineering and Learning Studio/);
+  assert.match(html, /BeamLab Studio 4\.1\.4 - Engineering and Learning Studio/);
   assert.match(html, /BEAMLAB 4\.1 \/ DESIGN STUDIO/);
   assert.match(html, /BeamLabTutorApi/);
   assert.match(html, /Screening review · not code approval/);

@@ -1,4 +1,4 @@
-# BeamLab Studio 4.1.3 — Engineering and Learning Studio
+# BeamLab Studio 4.1.4 — Engineering and Learning Studio
 
 Interactive beam analysis and learning, built from readable source. Educational/static-analysis research preview; **not structural design approval or code certification**.
 
@@ -59,3 +59,6 @@ GitHub is canonical. `vercel.json` runs the full numerical regression gate and s
 No provider secret is required for analysis, learning, review or exports. The tutor health endpoint reports whether a key is configured. The UI offers deterministic Show Why when the online tutor is unavailable. For an intentionally enabled tutor, configure `OPENAI_API_KEY` and a verified `OPENAI_MODEL` in the host; never commit credentials. The migration's fallback model identifier is retained for compatibility, not asserted as a generally available provider model. Validate provider access and add appropriate abuse/cost controls before enabling it for unrestricted public use.
 
 Model and learning data are local to the browser. Snapshot URLs are readable encodings, not encryption. An explicit online-tutor request transmits bounded model/learning context to the host and configured AI provider. See the in-app Privacy & local data notice.
+
+
+4.1.4 candidate: control sizing, action spacing, field containment and responsive UI polish. See docs/RELEASE_4_1_4.md; production status is recorded in docs/ai/HANDOFF.md.

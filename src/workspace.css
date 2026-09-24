@@ -150,3 +150,97 @@ body.focus-mode #workspace{padding-top:106px}
 @media(max-width:900px){.review-columns{grid-template-columns:1fr}.review-criteria{grid-template-columns:1fr;gap:15px}.fibre-results{grid-template-columns:1fr}.fibre-results article{display:flex;align-items:center;justify-content:space-between;gap:14px}.fibre-results span{margin:0}.fibre-results b{font-size:18px}}
 @media(max-width:780px){.review-hub .panel{padding:19px}.review-overview{grid-template-columns:1fr;gap:20px}.review-score{text-align:left}.review-score b{font-size:32px;display:inline-block;margin-right:12px}.review-hub h2{font-size:22px}.review-export-grid{gap:8px}.review-export-grid button{padding:14px;min-width:0}.review-export-grid b{font-size:12px}.section-stress{padding:18px}.fibre-lab{padding:0 18px 18px}.section-side button{flex:1}.section-property-grid{grid-template-columns:1fr 1fr}.review-support button{flex:1}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* Control rhythm: action buttons 44px, compact desktop icons 36px, hero 48px.
+   Keep sizes content-driven above these minimums so translated/long text wraps. */
+:root{--control-size:44px;--control-icon:36px;--control-radius:8px;--control-gap:8px}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin-top:24px}
+.hero-actions>:is(a,button){display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;margin:0;padding:12px 16px;font-size:13px;line-height:1.4;font-weight:600;border-radius:var(--control-radius);border:1px solid transparent}
+.hero-actions .hero-learn{border-color:#456258}.hero-actions .hero-tour{border-color:#34434b}
+.header-actions :is(.share-button,.export-button,.launch){min-height:40px;line-height:1.4;font-size:11px;border-radius:var(--control-radius)}
+.topbar nav :is(a,button){display:inline-flex;align-items:center;min-height:36px;line-height:1.4;font-size:11px}
+.export-menu{top:calc(100% + 8px);max-height:calc(100dvh - 100px);overflow-y:auto}
+.export-menu button{min-height:var(--control-size);font-size:12px;line-height:1.4}
+:is(#workspace,#dialog-content) :is(.primary,.secondary,.danger,.wide-button,.text-button){min-height:var(--control-size);padding:10px 14px;font-size:12px;line-height:1.4;border-radius:var(--control-radius);white-space:normal;overflow-wrap:anywhere}
+.workspace-heading>div:last-child{flex-wrap:wrap;gap:var(--control-gap)}
+.workflow-context-actions{flex-wrap:wrap;justify-content:flex-end}
+.workflow-context-actions button{min-width:0}
+.workflow-nav b{line-height:1.3}
+.level-switch button,.control-tabs button{min-height:var(--control-size)}
+.level-switch button span,.control-tabs button{font-size:12px}
+.toolbar-buttons{gap:4px;flex-wrap:wrap;max-width:100%}
+.toolbar .icon-button{width:var(--control-icon);height:var(--control-icon);min-width:var(--control-icon);min-height:var(--control-icon)}
+.inspector .icon-button,.dialog>header .icon-button,.inline-edit .icon-button,.level-help{width:var(--control-size);height:var(--control-size);min-width:var(--control-size);min-height:var(--control-size)}
+.field>div{height:var(--control-size)}
+:is(.control-body,.inspector,.dialog,.inline-edit) .field>div>input{height:100%;min-height:0;padding:8px 10px;font-size:14px;line-height:1.4}
+:is(.control-body,.inspector,.dialog,.inline-edit) .field select{min-height:var(--control-size);font-size:14px;line-height:1.4}
+.field>div>small{flex-shrink:0;line-height:1.4}
+.field-error:empty{display:none}
+.control-body .object-row{min-height:var(--control-size)}
+.control-body .tool{min-height:48px}
+.learn-subtabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.learn-subtabs button{min-width:0;min-height:64px;padding:10px 8px;overflow-wrap:anywhere}
+.learn-subtabs b{font-size:12px;line-height:1.4}.learn-subtabs small{line-height:1.4}
+.lesson-head,.challenge-head{flex-wrap:wrap;align-items:center;gap:8px}
+.activity-navigation{gap:8px;padding:12px}.activity-navigation>div{gap:8px}
+.activity-navigation>div button{min-width:88px}
+.prediction-method button{min-height:var(--control-size);font-size:12px;line-height:1.4}
+.prediction-choice span{font-size:12px;line-height:1.5}
+.practice-actions,.challenge-actions,.session-nav,.dialog-actions{gap:8px;align-items:stretch;flex-wrap:wrap}
+.practice-actions button,.challenge-actions button,.session-nav button{min-width:0;flex:1 1 110px}
+.stage-footer .detail-button,.stage-footer .view-controls label{min-height:var(--control-size)}
+.stage-footer .view-controls{align-items:center;flex-wrap:wrap}
+.view-controls label{display:inline-flex;align-items:center;gap:6px}
+.view-controls select{min-height:var(--control-size);font-size:12px;padding:8px 4px}
+.trace-readout{align-content:center}
+.metric strong{white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.diagram-heading{flex-wrap:wrap;row-gap:6px}.diagram-heading small{margin-left:auto}
+.review-support button{flex:0 1 auto}
+.review-export-grid{grid-auto-rows:1fr}.review-export-grid button{height:100%;overflow-wrap:anywhere}
+.dialog>header{align-items:flex-start}.dialog>header h2{padding-top:7px;line-height:1.3;overflow-wrap:anywhere}
+.dialog-actions{display:flex}.dialog-actions button{flex:1 1 150px;min-width:0}
+/* Let anchor navigation settle before pointer use; avoid double header offsets. */
+html{scroll-behavior:auto}
+#workspace{scroll-margin-top:0}
+@media(max-width:1100px){
+ .workflow-context{flex-wrap:wrap}.workflow-context-actions{justify-content:flex-start}
+}
+@media(max-width:780px){
+ :root{--control-icon:44px}
+ html{scroll-padding-top:92px}
+ .topbar{padding:0 12px;gap:12px}.header-actions{gap:4px}
+ .header-actions :is(.share-button,.export-button,.launch){min-height:44px}
+ .header-actions :is(.share-button,.export-button){width:44px;min-width:44px;padding:10px}
+ .export-button>svg:last-child{display:none}
+ .header-actions .launch{margin:0;padding:10px 12px}
+ .hero-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .hero-actions>:is(a,button){min-width:0;font-size:12px;padding:12px 10px}
+ .hero-actions .hero-tour{grid-column:1/-1}
+ .workspace-heading>div:last-child button{flex:1 1 80px}
+ .toolbar-buttons{flex:1 1 100%;justify-content:flex-start;gap:4px}
+ .toolbar-separator{display:none}
+ .toolbar .icon-button{flex:1 0 36px;min-width:36px;max-width:48px;width:36px;height:44px;min-height:44px}
+ .stage-title small{max-width:calc(100vw - 100px)}
+ .learning-bar .level-context{display:block}.learning-bar .secondary{max-width:none}
+ .learning-bar{gap:10px;padding:12px}.learning-bar.compact{padding:12px}
+ .level-switch button{padding:8px 4px}.level-switch button span{font-size:11px}
+ .workflow-context-actions button{flex:1 1 135px}
+ .activity-navigation>div{width:100%}.activity-navigation>div button{flex:1;min-width:0}
+ .inspector fieldset{align-items:start}.inspector .action-grid{max-width:none}
+ :is(.control-body,.inspector,.dialog,.inline-edit) .field>div>input,
+ :is(.control-body,.inspector,.dialog,.inline-edit) .field select,
+ .dialog textarea,#study-name input,.trace-position input[type=number]{font-size:16px}
+ .dialog{padding:18px;max-height:calc(100dvh - 24px)}.dialog-overlay{padding:12px}
+ .review-support button{flex:1 1 140px}.review-criteria button{width:100%}
+ .site-footer{flex-wrap:wrap;gap:14px}.site-footer small{width:100%;max-width:none;margin:0}
+}
+@media(max-width:400px){
+ .topbar .brand>b{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .topbar .brand em{display:none}
+ .learning-bar{grid-template-columns:minmax(0,1fr)}
+ .learning-bar>.secondary{justify-self:start}
+}
+
+/* Secondary review navigation follows the same readable control hierarchy. */
+.design-step-tab{min-height:64px}.design-step-tab b{font-size:12px;line-height:1.4}.design-step-tab small{font-size:11px;line-height:1.4}
+@media(max-width:780px){.design-step-tab b{font-size:11px}.design-field input,.design-field select{font-size:16px;min-height:44px}}
