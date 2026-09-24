@@ -1,61 +1,44 @@
 # BeamLab AI Handoff
 
-## Active UI polish — Account A, 2026-09-24
+## Current state — Account A, 2026-09-24
 
-STATUS: first candidate numerical and browser green / visual follow-up repair. User requests a focused polish pass before the next feature increment. Starting main 49770495deb49cb82afc9fb70b029c97723cb17c; branch feature/ui-control-polish. Fresh npm ci and npm test pass all 1,294 checks. Production remains 4.1.3.
-
-Confirmed live issues: homepage actions use 41/52/44 px heights and 11/14/12 px fonts; independent margins leave uneven gaps; numeric inputs have 42 px minimum heights inside 39 px clipped wrappers; related secondary and icon controls have inconsistent sizes. The implementation now groups hero actions, normalises related controls, fixes field containment, balances three Learn tabs, wraps phone/header/editor/dialog actions and makes navigation settle immediately with one header offset. Three new geometry/interaction journeys supplement all 136 existing browser checks. Hosted review additionally reproduced criteria entry keeping its old scroll offset and hiding the heading behind the header; entry and return now scroll to the visible section, with matching regression checks. Lesson navigation gains consistent inset spacing and review step labels use readable text. Candidate identity is 4.1.4. Keep the existing four destinations, solver, learning policy and model/history contracts.
-
-Implementation: consistent control size tokens and grouped action layout; correct field containers; orderly wrapping and touch targets; preserve reserved inspector and diagram alignment. Test: retain numerical suite and all 136 browser checks, add layout/real-interaction checks, review desktop/mobile screenshots and verify public artifact after a validated release. Save coherent checkpoints before long CI. Larger workspace/learning/math redesign remains deferred.
-
-## Current state — Account A, 2026-09-23
-
-**STATUS: 4.1.3 merged / exact public artifact and live upgrade verified.** Final-candidate and merged-main validation are green. This documentation branch records the completed release; no application repairs are pending in the 4.1.3 scope.
+**STATUS: 4.1.4 merged / exact public artifact and live UI checks verified.** This is the focused polish requested before the next feature increment.
 
 - Canonical repository: `parrasuccess-blip/BeamLab_Studio`; production branch: `main`.
-- Released code / starting commit of this verification: `d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6`.
-- Released version: **4.1.3 — unrestricted engineering and reliable learning activities**.
-- [PR #21](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/21) merged after exact-head numerical, browser, artifact and rendered checks. Final candidate: `031b8bf665d21b09c679e60774a87f296f5a7eb5`.
-- Production: https://beam-lab-studio.vercel.app/
-- Active account: Account A. Working branch: `docs/release-4-1-3-verification`.
-- Objective: record verified release evidence and the next approved scope. Documentation/evidence only; no application changes in this branch.
+- Released code: `232912f466c529ae7bfcc1c377571bbff5af9652`, merged through [PR #23](https://github.com/parrasuccess-blip/BeamLab_Studio/pull/23).
+- Validated candidate: `0741cc3dbd5679c3eee855afeea2665432a5079d`; feature branch `feature/ui-control-polish`.
+- Version: **4.1.4 — Interface polish**. Production: https://beam-lab-studio.vercel.app/
+- Active account: Account A. Verification branch: `docs/release-4-1-4-verification`, starting at released code above. Documentation/evidence only.
+- Starting main for this update was `49770495deb49cb82afc9fb70b029c97723cb17c` (verified 4.1.3).
 
-Fetch current main and open PRs before new work. GitHub is canonical. Account B's final hover repair and two-press assertion are retained. Older local unpushed geometry-fallback experiments are obsolete and isolated; do not copy them over this release.
+Fetch main and open PRs before any new work. GitHub is canonical; do not resume stale Account A/B patches.
 
-## What shipped
+## What changed
 
-1. Build / Explore, Analyse and Review expose all engineering tools and results. Learning level affects Learn only. A saved Practice preference from 4.1.2 cannot mask engineering results after upgrade or reload.
-2. Shared activity policy governs metrics, diagrams, comparison, stress, Show Why, working, checks, tutor and exports. Learning reveal stages and active exam submission boundaries are consistent.
-3. Fixed-question sessions protect their model against Undo/Redo, pending numeric edits, drag and import mutation. Leaving restores the original engineering model, page-session history and comparison.
-4. Invalid standalone lesson edits roll back without losing the question. A committed exploratory edit explicitly pauses the question and offers restart. Previous/Next, return and level changes clear obsolete notices. Extra layers after a completed question do not duplicate learning evidence.
-5. The selected-object editor reserves a desktop column or mobile row. An obsolete fixed-position rule no longer covers Undo. Direct label editing stays compact; hovering a label does not change the readout height and move its pointer target.
-6. Shared deterministic Show Why facts use solved one-sided values, local intensity including factored self-weight, local EI and actual support/end conditions. Coincident point forces and couples explain both discontinuities.
+1. Homepage actions share a 48 px height, typography and gaps. Related workspace actions use a consistent 44 px rhythm, with compact desktop icons and taller phone toolbar targets.
+2. Numeric fields now fit inside their wrappers. Phone fields use readable 16 px text; unit labels keep their space.
+3. Three Learn tabs share a balanced row. Lesson Previous/Next and catalogue navigation have consistent insets and wrapping. Review/export cards and dialog actions align cleanly.
+4. Narrow headers, toolbars, footers and action groups fit the available width. Long metric values can wrap. The reserved inspector remains in its existing column/row, leaving Undo reachable.
+5. Navigation settles without smooth-scroll target movement or a duplicate workspace offset. Opening criteria review and returning to its overview explicitly place headings below the fixed header. Review step labels are larger.
 
-Important files: `src/studio/activity-policy.js`, `explanation.js`, `app.js`, `diagrams.js`, `teaching.js`, `src/workspace.css`, release metadata and policy/explanation/browser tests. See [release notes](../RELEASE_4_1_3.md).
-
-No solver, model schema, sign convention, units, numerical tolerance, grading or adaptive-learning algorithm changed. BL410 fingerprints remain compatible.
+Primary files: `src/workspace.css`, the hero wrapper/navigation actions in `src/studio/app.js`, and `tests/browser/ui-polish.spec.js`. Release identity and identity assertions updated to 4.1.4. No solver, schema, signs, units, tolerances, grading, adaptive-learning or activity-policy changes. All 4.1.3 model/history and unrestricted-engineering repairs remain intact. [Release notes](../RELEASE_4_1_4.md).
 
 ## Validation and release evidence
 
-- Fresh local `npm ci` and `npm test` (build included) at final candidate: **1,294 passed**, zero failed/skipped. All earlier numerical tolerances retained.
-- Exact candidate [PR CI 35860727563](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35860727563) and push CI **35860722167** pass. Browser job **107180073729**: **136 passed**, zero retries, across desktop Chromium/Firefox, iPhone WebKit and 360px Chromium. Browser suite ran in GitHub CI, not locally.
-- Final release artifact **10750615532**, browser artifact **10749619233**. All three release files match the fresh local build byte-for-byte. Desktop and both phone editor viewport screenshots were inspected; Undo remains clear. Unrestricted Build screenshot also reviewed.
-- HTML: **746,563 bytes**. SHA-256: **d407fb18e0deec8befb910d832cb7c582ae0d8399d4c8625194ed8da4b373533**.
-- Downloaded public HTML, `release.json` and `SHA256.txt` match that exact tested artifact. Vercel deployment **9RXP2L4MX3eSdaUTW5kjyg2jN1S2** reports success for released code.
-- Public upgrade check: reproduced an edited 8 m beam with Hidden/Predict-first results in 4.1.2 Build. After deployment, reloaded the same browser study into 4.1.3: 8 m beam retained, reactions +10/+10 kN and peak moment 40 kN·m visible.
-- Public 8 → 9 m Tab edit, Undo → 8 and Redo → 9 passed. Restored 8 m, froze comparison, opened a lesson, used Next/Previous and returned: original beam, Redo and comparison restored, results visible.
-- Preview Practice → Build transition also passes. The public tutor health endpoint identifies 4.1.3 and `configured:false`; no AI provider connection is claimed.
-- Merged-main [CI 35862619917](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35862619917): **1,294 numerical/behaviour and 136 browser checks passed**; browser job **107186347922**, zero retries. Merged source is identical to the validated candidate.
-
-Public selected-object check also passes: 20 → 24 kN edit gives +12/+12 kN reactions and 48 kN·m peak moment. Visible Undo is unobstructed; clicking it restores 20 kN and the original results. [Public editor screenshot](../qa/4.1.3/public-editor.jpg).
+- Fresh local npm ci/npm test, including build: **1,294 passed**, zero failures/skips. Final follow-up numerical run also passes all 1,294.
+- Exact candidate [CI 35959768662](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35959768662): regression job 107505633546 and browser job 107505679543 succeed. **148 browser journeys passed**, zero retries, across desktop Chromium/Firefox, iPhone WebKit and 360 px Chromium. All 136 previous checks retained; three new journeys run in four projects. Browser suite ran in GitHub CI, not locally or on physical phones.
+- Final release artifact: **10791593840**. Browser evidence: **10792136460**. All three release files match the local build byte-for-byte. Desktop hosted preview and final phone screenshots reviewed; no overlap or field clipping in the tested views.
+- HTML **753,235 bytes**, SHA-256 **b59ed05a7b6f58d218f93dc3e09f3a096977e4b486bba015ee29c99d6240128d**.
+- Downloaded public HTML, release.json and SHA256.txt match the exact tested files. Public header identifies 4.1.4. GitHub Vercel status succeeds for deployment **DszXNxyof4CdvoyyRZr9egtAXgDj**. The connected Vercel fetch tool could not access this project; public browser and HTTP verification succeeded independently.
+- Public Tab edit 6 → 8 m gives peak moment 40 kN·m; Undo restores 6 m and Redo restores 8 m. Criteria entry and overview headings remain visible (143 px and 152 px top on the reviewed desktop viewport). Lesson Next/Previous and Return to my model restore the edited 8 m beam.
+- [Public UI screenshot](../qa/4.1.4/public-polish.jpg). [Evidence summary](../qa/4.1.4/README.md).
+- Merged-main [CI 35960424629](https://github.com/parrasuccess-blip/BeamLab_Studio/actions/runs/35960424629) also passes all **1,294 numerical/behaviour and 148 browser checks** (jobs 107507602773 / 107507641027), zero retries. Merge tree is identical to the validated candidate.
 
 ## Next approved work
 
-The [approved UX audit and plan](UX_AUDIT_AND_PLAN_2026_09_22.md) remains the implementation guide. This release completes its first correctness increment and the immediate editor obstruction/target-stability work. It does **not** complete the broader redesign.
+This polish completes the current request; no additional feature started. The [approved UX plan](UX_AUDIT_AND_PLAN_2026_09_22.md) still covers the broader workspace shell, focused mobile Activity/Beam learning layout, consolidated lesson controls, comprehensive mathematical typography in UI/export and richer deterministic explanations. Those are separate increments, not claims made by 4.1.4.
 
-Next: start a new dedicated feature branch from then-current main, record account/objective/start/ref, open an early draft PR, and work on the coherent workspace shell: clear Build/Explore and optional Learn modes, focused Model/Analyse/Review navigation, compact secondary controls, consistent editing surfaces, and preserved Structure → SFD → BMD alignment. Follow with the focused mobile Activity/Beam learning layout, consolidated lesson controls, comprehensive mathematical typography in UI/export and richer deterministic explanations.
-
-Before each increment state implementation/test checklists, run the current baseline, add changed-behaviour tests, inspect desktop/mobile rendering, checkpoint before long tests and verify the actual public artifact after any release. Do not combine unvalidated changes with a public-ready claim. No catalogue expansion, new physics, code capacities, truss/frame solver or giant chatbot in this UX scope.
+Use a new dedicated branch from then-current main; record account/objective/start/ref, open a draft PR early and push milestones before long tests. State implementation/test checklists; retain regressions and add changed-behaviour coverage; inspect desktop/mobile rendering; verify actual public artifact after release. No new physics, catalogue expansion, code capacities, truss/frame solver or giant chatbot in this polish scope.
 
 ## Preserve these contracts
 
