@@ -235,3 +235,10 @@ PR #21 merged as d4f6b2182b1c899ce8f54213f67b111c9a7a8ca6. Downloaded production
 Actual public upgrade from the reproduced 4.1.2 hidden 8 m study preserves that study and restores all applicable response values. Live Tab edit/Undo/Redo and lesson Next/Previous/original-model/history/comparison restoration pass. See HANDOFF for exact numerical observations and ongoing merged-main CI status. Preserve all 136 browser checks and the two-press assertion's meaning; do not restore the discarded before-hover/after-focus measurement.
 
 Merged-main CI 35862619917 also passes all 1,294 numerical/behaviour and 136 browser checks (browser job 107186347922, zero retries). Public inspector force edit and physical Undo hit check pass; screenshot in docs/qa/4.1.3/public-editor.jpg.
+
+
+## 4.1.4 interface polish — 2026-09-24
+
+Candidate 0741cc3: local build/numerical suite **1,294 passed**; CI 35959768662 **148 browser checks passed**, zero retries (desktop Chromium/Firefox, iPhone WebKit, 360 px Chromium). Retain all 136 prior checks plus ui-polish.spec.js: equal related action heights, contained inputs, phone text size, actual pointer Undo, balanced learning tabs, catalogue return, review-card wrapping and criteria heading offsets. Test geometry without forced clicks or relaxed engineering tolerances.
+
+Release artifact 10791593840, browser artifact 10792136460. Local/CI/public HTML match exactly: 753,235 bytes; SHA-256 b59ed05a7b6f58d218f93dc3e09f3a096977e4b486bba015ee29c99d6240128d. Public 4.1.4 released in PR #23 / 232912f. Header, metadata and Vercel status agree. Live editing/Undo/Redo, criteria entry/return and lesson model restoration pass. Phone coverage is emulated; no physical-device claim. Merged-main run 35960424629 also passes 1,294 numerical/behaviour and 148 browser checks, zero retries.

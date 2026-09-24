@@ -419,3 +419,12 @@ Account A implementation checkpoint: preserved the existing four destinations an
 
 
 Account A hosted visual follow-up: candidate 16df5ed passes all 1,294 numerical checks locally and in CI. Desktop hero actions now measure 48 px; Learn tabs 64 px and lesson navigation 44 px. Live criteria entry revealed a pre-existing old-scroll-position fault (section top −353 px under the header); explicitly align criteria entry and overview return below the header and cover this in the new review journey. Align lesson row insets and make secondary review step labels readable. First full browser run completed successfully (148 checks, zero retries); next coherent checkpoint retains its full coverage and adds criteria scroll assertions.
+
+
+## Account A — 2026-09-24 — 4.1.4 verified release
+
+Final polish candidate 0741cc3 passes 1,294 numerical/behaviour and 148 browser checks (CI 35959768662, jobs 107505633546 / 107505679543), zero retries. Final phone evidence confirms the lesson inset, balanced tabs and clear controls; hosted desktop checks confirm criteria headings stay below the header. Release artifact 10791593840 and browser artifact 10792136460 retained. No solver, tolerance, activity-policy or history changes.
+
+PR #23 merged as 232912f466c529ae7bfcc1c377571bbff5af9652. Public 4.1.4 HTML is 753,235 bytes and matches CI/local SHA-256 b59ed05a7b6f58d218f93dc3e09f3a096977e4b486bba015ee29c99d6240128d. release.json and SHA256.txt also match. Vercel status success for DszXNxyof4CdvoyyRZr9egtAXgDj. Public edit 6→8 m / Undo→6 / Redo→8, criteria entry/return, lesson Next/Previous and original 8 m model restoration pass. Saved public screenshot in docs/qa/4.1.4/public-polish.jpg. Vercel connector lacked project access; public verification succeeded without altering access controls.
+
+Documentation-only verification branch docs/release-4-1-4-verification starts at released code. Handoff snapshot replaced with actual release state; previous 4.1.3 contracts/recovery notes retained. Merged-main CI 35960424629 also passed all 1,294 numerical/behaviour and 148 browser checks, zero retries. Broader redesign remains separate.
