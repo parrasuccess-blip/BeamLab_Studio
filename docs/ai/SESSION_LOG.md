@@ -444,3 +444,7 @@ First pushed implementation d9906c7 (tree byte-identical to local milestone). In
 ### 2026-09-24 — Account A — Lesson-exit checkpoint
 
 On hosted 4.1.5 preview, opening a lesson places its navigation at ~200 px and the question at ~286 px on desktop; inactive catalogue tabs are hidden. Added an immediate My model exit beside Previous/Next in active lesson/challenge navigation, preserving the existing workflow transition and model restoration. Added a browser journey for this exit. Local 1,297-check suite passes. Earlier 4.1.5 candidate CI 35989663956 was still running when this checkpoint was prepared; final source/browser validation follows this commit. Production still 4.1.4.
+
+### 2026-09-24 — Account A — Restore direct Mastery navigation during lessons
+
+Exact candidate 097cc4a CI 35989663956 passes 1,297 Node checks and 148/152 browser checks. Four matching failures all show a real route loss: the compact lesson CSS hid learning subtabs, so the established journey from a standalone lesson into a full Mastery session could no longer click its visible control. Retained the three learning routes in a smaller 44 px strip, still hiding the redundant lesson intro/progress. Browser assertion now verifies that all three remain visible while a question is open. Added an independent Show Why combined-action step check. Local suite: 1,297 passed. Next coherent commit will rerun browser and visual validation; no main merge or production change.

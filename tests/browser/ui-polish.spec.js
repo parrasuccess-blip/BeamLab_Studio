@@ -65,7 +65,8 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   expect(Math.max(...tabs.map(r=>r.h))-Math.min(...tabs.map(r=>r.h))).toBeLessThanOrEqual(1);
   await page.locator('.lesson-list button').first().click();
   await expect(page.locator('#controls')).toHaveClass(/learning-active/);
-  await expect(page.locator('.learn-subtabs')).toBeHidden();
+  await expect(page.locator('.learn-subtabs')).toBeVisible();
+  await expect(page.locator('.controls.learning-active .learn-subtabs button')).toHaveCount(3);
   await expect(page.locator('.activity-navigation')).toBeVisible();
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('button',{name:'Previous',exact:true}).click();

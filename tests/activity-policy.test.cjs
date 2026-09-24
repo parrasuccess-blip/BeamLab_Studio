@@ -112,6 +112,7 @@ test('coincident downward point and CCW couple explain both independently verifi
     assert.match(e.title,/both a shear jump and a moment jump/);
     assert.match(e.lines.join(' '),/ΔV = V⁺ − V⁻ = -20.000/);
     assert.match(e.lines.join(' '),/ΔM = M⁺ − M⁻ = -30.000/);
+    assert.match(e.steps[1].detail,/ΔM = -30\.000 kN·m/);
     assert.doesNotMatch(e.lines.join(' '),/moment remains continuous/);
     assert.ok(teaching(m,a,5).includes(e.title));
     assert.equal(JSON.stringify(m),before);
