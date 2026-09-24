@@ -44,6 +44,7 @@ test('Show Why connects solved jumps, local slopes and curvature without changin
     assert.match(e.steps[1].value,/moment falls/);
     assert.match(e.steps[1].detail,/M = 50\.000 kN·m/);
     assert.match(e.steps[2].equation,/EI d²v\/dx² = M\(x\)/);
+    assert.match(e.steps[2].value,/v″ = 7\.143 × 10⁻⁴ m⁻¹/);
     const beginner=explainAt(model,result,x,'year1');
     assert.equal(beginner.steps[2].equation,'Moment → bending');
     assert.equal(JSON.stringify(model),before);

@@ -18,7 +18,7 @@ const { normalise, solveStudy, clone } = load('model/study');
 const { RELEASE, fingerprint } = load('studio/verification');
 
 test('Production release and learning-level registry are current', () => {
-  assert.equal(RELEASE, '4.1.4');
+  assert.equal(RELEASE, '4.1.5');
   assert.deepEqual(Array.from(levels.modeOrder), ['year1','year2','year3','all']);
   assert.ok(fingerprint(normalise(example('simple'))).startsWith('BL410-'));
 });

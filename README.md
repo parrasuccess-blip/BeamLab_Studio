@@ -1,15 +1,15 @@
-# BeamLab Studio 4.1.4 — Engineering and Learning Studio
+# BeamLab Studio 4.1.5 — Engineering and Learning Studio
 
 Interactive beam analysis and learning, built from readable source. Educational/static-analysis research preview; **not structural design approval or code certification**.
 
 Public site: https://beam-lab-studio.vercel.app/
 
-## Four connected destinations
+## Engineering workflow with optional learning
 
 - **Build / Explore:** drag supports and loads, edit geometry, assign sections and load cases.
 - **Analyse:** aligned Structure → SFD → BMD, deformation, local stress, moving-load studies and deterministic explanations.
-- **Learn (optional):** diagram prediction and sketching, numerical challenges, adaptive practice, exams and resumable guided study blocks. Progress can be exported independently of the model.
 - **Review:** numerical consistency checks, model/data/report exports, and optional user-entered criteria. Demand/capacity screening is not a code design calculation.
+- **Learn (optional):** diagram prediction and sketching, numerical challenges, adaptive practice, exams and resumable guided study blocks. Progress can be exported independently of the model.
 
 One deterministic Euler–Bernoulli model powers every learning level. Changing level never replaces a genuinely edited beam. Existing advanced features remain active even when lower levels hide their editing controls.
 
@@ -17,7 +17,7 @@ Build, Analyse and Review always expose engineering tools and results regardless
 
 Diagram annotations wrap and separate crowded values while keeping each marker at its exact engineering coordinate. Inspection values have their own readout; label editing preserves Undo/Redo on desktop and mobile.
 
-See `docs/RELEASE_4_1_3.md` for this update and its validation record.
+The workspace groups the engineering route separately from Learn. Active lessons keep their question and Previous/Next controls in focus; on phones, Activity and Beam jumps let you move between the question and aligned diagrams. Show Why connects solved load intensity, one-sided shear/moment values and local curvature at your selected x-position, with proper mathematical symbols in worked equations. See `docs/RELEASE_4_1_5.md` for this update and its validation record.
 
 ## Build and verify
 
@@ -61,4 +61,4 @@ No provider secret is required for analysis, learning, review or exports. The tu
 Model and learning data are local to the browser. Snapshot URLs are readable encodings, not encryption. An explicit online-tutor request transmits bounded model/learning context to the host and configured AI provider. See the in-app Privacy & local data notice.
 
 
-4.1.4 released: control sizing, action spacing, field containment and responsive UI polish. See docs/RELEASE_4_1_4.md; production status is recorded in docs/ai/HANDOFF.md.
+4.1.5 candidate: engineering workflow, focused learning navigation, Show Why and mathematical typography. See docs/RELEASE_4_1_5.md; production status is recorded in docs/ai/HANDOFF.md.

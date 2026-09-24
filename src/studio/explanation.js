@@ -2,6 +2,14 @@
 const {effectiveModel} = require('../model/study');
 const {signed} = require('./common');
 const f = (n, digits = 3) => (Math.abs(n) < .5 * 10 ** -digits ? 0 : n).toFixed(digits);
+const curvature = (moment, EI) => {
+    if (!Number.isFinite(EI) || EI <= 0) return 'unavailable';
+    const value = moment / EI;
+    if (Math.abs(value) < 1e-15) return '0 m⁻¹';
+    const [mantissa, exponent] = value.toExponential(3).split('e');
+    const raised = String(Number(exponent)).replace(/[-0-9]/g, c => ({'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'})[c]);
+    return `${mantissa} × 10${raised} m⁻¹`;
+};
 
 // Read field values and local intensity from the solved elements. This is an
 // explanation of the authoritative solve, never a second beam calculation.
@@ -53,7 +61,7 @@ function explainAt(model, analysis, position, level = 'year1') {
     const steps = [
         {label:'1 · Loading sets the shear slope', equation:'dV/dx = −w(x)', value:`w = ${signed(w)} kN/m → dV/dx = ${signed(-w)} kN/m`, detail:hasVJump ? `At this action, V⁻ = ${f(left.V)} kN and V⁺ = ${f(right.V)} kN: ΔV = ${f(jumpV)} kN. Between actions the local slope still follows the load intensity.` : 'The intensity applies between structural events. A concentrated force changes shear suddenly at its own position.'},
         {label:'2 · Shear sets the moment slope', equation:'dM/dx = V(x)', value:`V = ${f(right.V)} kN → moment ${right.V > 1e-8 ? 'rises' : right.V < -1e-8 ? 'falls' : 'is locally stationary'} toward increasing x`, detail:hasMJump ? `M⁻ = ${f(left.M)} kN·m and M⁺ = ${f(right.M)} kN·m: ΔM = ${f(jumpM)} kN·m. A couple creates an immediate moment change.` : `M = ${f(right.M)} kN·m here. There is no moment jump at this position; a vertical point action can change the slope across its location.`},
-        {label:level === 'year1' ? '3 · Moment bends the beam' : '3 · Moment sets elastic curvature', equation:level === 'year1' ? 'Moment → bending' : 'EI d²v/dx² = M(x)', value:level === 'year1' ? `M = ${f(right.M)} kN·m at this position` : `M = ${f(right.M)} kN·m; EI = ${f(right.localEI)} kN·m²`, detail:level === 'year1' ? 'The support arrangement and loading across the whole beam also affect its shape.' : 'Curvature follows M/EI within this local section. Deflection also depends on the supports, hinges and every other region; local moment alone does not give the displacement.'}
+        {label:level === 'year1' ? '3 · Moment bends the beam' : '3 · Moment sets elastic curvature', equation:level === 'year1' ? 'Moment → bending' : 'EI d²v/dx² = M(x)', value:level === 'year1' ? `M = ${f(right.M)} kN·m at this position` : `M = ${f(right.M)} kN·m; EI = ${f(right.localEI)} kN·m² → v″ = ${curvature(right.M,right.localEI)}`, detail:level === 'year1' ? 'The support arrangement and loading across the whole beam also affect its shape.' : 'Curvature follows M/EI within this local section. Deflection also depends on the supports, hinges and every other region; local moment alone does not give the displacement.'}
     ];
     return {x, title, lines, formula, steps, facts:{left, right, w, jumpV, jumpM, endpoint}};
 }

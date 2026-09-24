@@ -64,6 +64,9 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   expect(Math.max(...tabs.map(r=>r.y))-Math.min(...tabs.map(r=>r.y))).toBeLessThanOrEqual(1);
   expect(Math.max(...tabs.map(r=>r.h))-Math.min(...tabs.map(r=>r.h))).toBeLessThanOrEqual(1);
   await page.locator('.lesson-list button').first().click();
+  await expect(page.locator('#controls')).toHaveClass(/learning-active/);
+  await expect(page.locator('.learn-subtabs')).toBeHidden();
+  await expect(page.locator('.activity-navigation')).toBeVisible();
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('button',{name:'Previous',exact:true}).click();
   const nav=await boxes(page.locator('.activity-navigation button'));separate(nav);for(const r of nav)expect(r.h).toBeGreaterThanOrEqual(44);
@@ -72,6 +75,7 @@ test('learning tabs, lesson navigation and review actions wrap coherently',async
   await page.screenshot({path:info.outputPath('polished-lesson.png'),fullPage:false});
   await page.getByRole('button',{name:'← All lessons',exact:true}).click();
   await expect(page.locator('.lesson-list')).toBeVisible();
+  await expect(page.locator('.learn-subtabs')).toBeVisible();
   await flow(page,'review');await expect(page.locator('.review-hub')).toBeVisible();
   const cards=await boxes(page.locator('.review-export-grid button'));separate(cards);
   expect(Math.max(...cards.map(r=>r.h))-Math.min(...cards.map(r=>r.h))).toBeLessThanOrEqual(1);

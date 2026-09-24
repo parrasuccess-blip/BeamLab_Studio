@@ -96,7 +96,7 @@ function evaluate(model, analysis, rawSettings) {
             ? settings.deflectionLimitMm
             : null;
     const checks = [
-        ratioCheck('moment', 'Bending', demand.moment, settings.momentCapacity, 'kN m', 'User-supplied final design capacity'),
+        ratioCheck('moment', 'Bending', demand.moment, settings.momentCapacity, 'kN·m', 'User-supplied final design capacity'),
         ratioCheck('shear', 'Shear', demand.shear, settings.shearCapacity, 'kN', 'User-supplied final design capacity'),
         ratioCheck('deflection', 'Deflection', demand.deflectionMm, deflectionLimitMm, 'mm', settings.deflectionMode === 'ratio' ? `User study criterion L/${settings.deflectionRatio}` : 'User-supplied displacement limit')
     ];

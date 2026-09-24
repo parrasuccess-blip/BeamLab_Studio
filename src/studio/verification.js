@@ -4,7 +4,7 @@ const { example, makeItem } = require('../model/examples');
 const { catalogue, fromCatalogue } = require('../model/catalogue');
 const { sectionProperties } = require('../model/sections');
 const { criticalSamples } = require('./diagrams');
-const RELEASE = '4.1.4';
+const RELEASE = '4.1.5';
 
 // Non-security reference ID. Canonical input is included in the evidence export.
 function canonical(value) {
@@ -48,11 +48,11 @@ function audit(model, analysis) {
     const check = (name, residual, tolerance, unit) => ({ name, residual, tolerance, unit, pass: Number.isFinite(residual) && Math.abs(residual) <= tolerance });
     const checks = [
         check('Vertical equilibrium', a.forceResidual, forceScale * 1e-7, 'kN'),
-        check('Moment equilibrium', a.momentResidual, momentScale * 1e-7, 'kN m'),
-        check('Hinge moment releases', a.hingeResidual, momentScale * 1e-7, 'kN m'),
+        check('Moment equilibrium', a.momentResidual, momentScale * 1e-7, 'kN·m'),
+        check('Hinge moment releases', a.hingeResidual, momentScale * 1e-7, 'kN·m'),
         check('Support displacement / rotation', a.boundaryResidual, displacementScale * 1e-8, 'm equivalent'),
         check('Element-end compatibility', a.endCompatibilityResidual, displacementScale * 1e-8, 'm equivalent'),
-        check('Strain energy / external work', energyDifference, energyTolerance, 'kN m')
+        check('Strain energy / external work', energyDifference, energyTolerance, 'kN·m')
     ];
     return {
         release: RELEASE, reference: fingerprint(model), generatedAt: new Date().toISOString(),
@@ -69,11 +69,11 @@ function criticalLocations(a, model) {
     const max = samples.reduce((s, t) => t.M > s.M ? t : s);
     const min = samples.reduce((s, t) => t.M < s.M ? t : s);
     const list = [];
-    if (max.M > 1e-7) list.push({ name: 'Peak sagging moment', x: max.x, value: max.M, unit: 'kN m' });
-    if (min.M < -1e-7) list.push({ name: 'Peak hogging moment', x: min.x, value: min.M, unit: 'kN m' });
+    if (max.M > 1e-7) list.push({ name: 'Peak sagging moment', x: max.x, value: max.M, unit: 'kN·m' });
+    if (min.M < -1e-7) list.push({ name: 'Peak hogging moment', x: min.x, value: min.M, unit: 'kN·m' });
     list.push({ name: 'Largest absolute shear', x: a.peakV.x, value: a.peakV.V, unit: 'kN' });
     list.push({ name: 'Largest displacement', x: a.peakD.x, value: a.peakD.v * 1000, unit: 'mm' });
-    model.items.filter(i => i.kind === 'hinge').forEach(h => list.push({ name: 'Hinge ' + h.label, x: h.x, value: a.sample(h.x).M, unit: 'kN m' }));
+    model.items.filter(i => i.kind === 'hinge').forEach(h => list.push({ name: 'Hinge ' + h.label, x: h.x, value: a.sample(h.x).M, unit: 'kN·m' }));
     return list;
 }
 function benchmarks() {
@@ -85,31 +85,31 @@ function benchmarks() {
     try {
         let m = normalise(example('simple')), a = solveStudy(m);
         run('UDL reaction A', a.reactions[0].force, 25, 'kN');
-        run('UDL peak moment', a.peakM.M, 62.5, 'kN m');
+        run('UDL peak moment', a.peakM.M, 62.5, 'kN·m');
         run('UDL centre displacement', a.sample(5).v * 1000, -9.300595238095239, 'mm');
         m.items = m.items.filter(i => ['pin', 'roller'].includes(i.kind));
         m.length = 6; m.items[1].x = 6;
         m.items.push({ ...makeItem('point', 3, undefined, 20), caseId: 'base' });
         a = solveStudy(m);
-        run('Centre point peak moment', a.peakM.M, 30, 'kN m');
+        run('Centre point peak moment', a.peakM.M, 30, 'kN·m');
         run('Centre point displacement', a.sample(3).v * 1000, -1.285714285714286, 'mm');
         a = solveStudy(normalise(example('continuous')));
         run('Continuous middle reaction', a.reactions[1].force, 31.25, 'kN');
-        run('Continuous support moment', a.sample(5).M, -15.625, 'kN m');
+        run('Continuous support moment', a.sample(5).M, -15.625, 'kN·m');
         a = solveStudy(normalise(example('suspended')));
         run('Suspended span reaction B', a.reactions[1].force, 45, 'kN');
-        run('Suspended span hinge residual', a.hingeResidual, 0, 'kN m');
+        run('Suspended span hinge residual', a.hingeResidual, 0, 'kN·m');
         a = solveStudy(normalise(example('cantilever')));
-        run('Cantilever reaction couple', a.reactions[0].moment, 500, 'kN m');
+        run('Cantilever reaction couple', a.reactions[0].moment, 500, 'kN·m');
         run('Cantilever tip displacement', a.sample(10).v * 1000, -238.0952380952381, 'mm');
         a = solveStudy(normalise(example('triangle')));
         run('Triangular-load zero shear position', a.peakM.x, 9 / Math.sqrt(3), 'm');
-        run('Triangular-load peak moment', a.peakM.M, 12 * 81 / (9 * Math.sqrt(3)), 'kN m');
+        run('Triangular-load peak moment', a.peakM.M, 12 * 81 / (9 * Math.sqrt(3)), 'kN·m');
         m = normalise(example('simple')); m.cases[0].factor = 1.5;
         a = solveStudy(m);
         run('Case factor applied once', a.reactions[0].force, 37.5, 'kN');
         run('Case factor leaves nominal load unchanged', m.items[2].value, 5, 'kN/m');
-        run('Strain energy identity', audit(m, a).checks[5].residual, 0, 'kN m');
+        run('Strain energy identity', audit(m, a).checks[5].residual, 0, 'kN·m');
         const ub = catalogue.find(c => c.name === '310UB40.4'), uc = catalogue.find(c => c.name === '100UC14.8'), pfc = catalogue.find(c => c.name === '380PFC');
         run('Catalogue row count', catalogue.length, 51, 'rows');
         run('310UB40.4 Ix', ub?.I ?? NaN, 86.4e6, 'mm4');

@@ -48,7 +48,7 @@ test('Contextual explanation uses current shear and level without mutation',()=>
  assert.equal(JSON.stringify(m),before);
 });
 test('Release identity and finite in-app reference benchmarks',()=>{
- assert.equal(RELEASE,'4.1.4');assert.match(fingerprint(reference()),/^BL410-[A-F0-9]{8}$/);
+ assert.equal(RELEASE,'4.1.5');assert.match(fingerprint(reference()),/^BL410-[A-F0-9]{8}$/);
  const checks=benchmarks();assert.equal(checks.length,21);for(const c of checks)assert.ok(c.pass,c.name);
 });
 for(const row of catalogue)test(`Catalogue conversion and density weight ${row.name}`,()=>{

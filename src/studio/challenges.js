@@ -19,17 +19,17 @@ exports.explainAt=explainAt;
 const study_1=require("../model/study");
 const y1=[
  {id:'y1-reaction',title:'Centre-load reactions',example:'reference',prompt:'What is the vertical reaction at Support A?',target:'reaction:0',unit:'kN'},
- {id:'y1-moment',title:'UDL peak moment',example:'simple',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN m'},
- {id:'y1-cantilever',title:'Cantilever fixed-end moment',example:'cantilever',prompt:'What is the magnitude of the fixed-end reaction moment?',target:'reactionMoment:0',unit:'kN m'}
+ {id:'y1-moment',title:'UDL peak moment',example:'simple',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN·m'},
+ {id:'y1-cantilever',title:'Cantilever fixed-end moment',example:'cantilever',prompt:'What is the magnitude of the fixed-end reaction moment?',target:'reactionMoment:0',unit:'kN·m'}
 ];
 const y2=[
  {id:'y2-continuous',title:'Continuous-beam reaction',example:'continuous',prompt:'What is the vertical reaction at the middle support B?',target:'reaction:1',unit:'kN'},
- {id:'y2-triangle',title:'Triangular-load moment',example:'triangle',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN m'},
+ {id:'y2-triangle',title:'Triangular-load moment',example:'triangle',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN·m'},
  {id:'y2-fixed-deflection',title:'Fixed-ended deflection',example:'fixed',prompt:'What is the maximum absolute vertical deflection?',target:'peakDmm',unit:'mm'}
 ];
 const y3=[
  {id:'y3-suspended',title:'Suspended-span reaction',example:'suspended',prompt:'What is the vertical reaction at Support B?',target:'reaction:1',unit:'kN'},
- {id:'y3-gerber',title:'Gerber peak moment',example:'gerber',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN m'},
+ {id:'y3-gerber',title:'Gerber peak moment',example:'gerber',prompt:'What is the maximum absolute bending moment?',target:'peakM',unit:'kN·m'},
  {id:'y3-overhang',title:'Overhang peak shear',example:'overhang',prompt:'What is the maximum absolute shear force?',target:'peakV',unit:'kN'}
 ];
 exports.challengeSets={year1:y1,year2:y2,year3:y3,all:y3};
